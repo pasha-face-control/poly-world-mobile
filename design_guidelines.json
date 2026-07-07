@@ -1,0 +1,165 @@
+{
+  "app_name": "HexTribes: Low-Poly 4X",
+  "personality": "4 Tactile / Playful LIGHT with Low-Poly Tribal Aesthetics",
+  "personality_one_liner": "A tactile, premium board-game feel with chunky UI, satisfying pill controls, and vibrant earthy terrain, keeping complex 4X mechanics instantly readable.",
+  "color": {
+    "surface": "#F8F6F0",
+    "onSurface": "#1C1C1C",
+    "surfaceSecondary": "#EBE6D8",
+    "onSurfaceSecondary": "#2C2C2C",
+    "surfaceTertiary": "#DED7C5",
+    "onSurfaceTertiary": "#3C3C3C",
+    "surfaceInverse": "#292724",
+    "onSurfaceInverse": "#F8F6F0",
+    "brand": "#4F772D",
+    "brandPrimary": "#4F772D",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#90A955",
+    "onBrandSecondary": "#1C1C1C",
+    "brandTertiary": "#ECF39E",
+    "onBrandTertiary": "#1C1C1C",
+    "success": "#3A7D44",
+    "onSuccess": "#FFFFFF",
+    "warning": "#E5A93A",
+    "onWarning": "#1C1C1C",
+    "error": "#BC4749",
+    "onError": "#FFFFFF",
+    "info": "#006D77",
+    "onInfo": "#FFFFFF",
+    "border": "#DED7C5",
+    "borderStrong": "#A39F93",
+    "divider": "#DED7C5",
+    "terrain_grass": "#A3B18A",
+    "terrain_forest": "#344E41",
+    "terrain_mountain": "#7F7F7F",
+    "terrain_water": "#2A9D8F",
+    "tribe_1_nature": "#4F772D",
+    "tribe_2_desert": "#E5A93A",
+    "tribe_3_volcanic": "#BC4749",
+    "tribe_4_snow": "#D1D5DE"
+  },
+  "typography": {
+    "displayFontFamily": "Fredoka",
+    "textFontFamily": "Nunito",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous tactile spacing. Components should feel like physical game pieces. Padding must separate UI from the active map.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "2",
+  "navigation": "stack_only",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Use glass on the top HUD indicator bar and bottom action bar so the map remains visible underneath."
+    ],
+    "dont's": [
+      "Do not use glass on map tiles, units, or game pieces. They must remain solid and opaque."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Main Menu",
+      "purpose": "Launchpad for starting games and viewing stats.",
+      "states": {
+        "loading": "Centered spinning tribal icon.",
+        "empty": "N/A",
+        "error": "Failed to load save data. Retry button."
+      },
+      "layout": "Full-bleed background image with a gradient scrim. Title wordmark at the top. Oversized tactile buttons ('New Game', 'Continue') anchored in the bottom third."
+    },
+    {
+      "name": "New Game Setup",
+      "purpose": "Select tribe, opponents, and map size via tactile cards.",
+      "states": {
+        "loading": "Generating world...",
+        "empty": "N/A",
+        "error": "Error generating map. Retry button."
+      },
+      "layout": "ScrollView of horizontally snapping cards for Tribe selection. Toggle pills for map size. Sticky 'Start Game' button fixed at the bottom."
+    },
+    {
+      "name": "In-Game Map",
+      "purpose": "The core 4X strategic view. Zoomable/pan-able tile grid with HUD.",
+      "states": {
+        "loading": "Loading world...",
+        "empty": "N/A",
+        "error": "N/A"
+      },
+      "layout": "Absolute full-screen gesture-controlled map container. Top-Center floating Glass pill for Stars/Turn/Score. Bottom fixed Glass sheet containing 4 core action buttons (Tech, Build, Move, End Turn). Selected unit/city triggers contextual popovers."
+    },
+    {
+      "name": "Tech Tree",
+      "purpose": "Non-linear technology unlocking.",
+      "states": {
+        "loading": "N/A",
+        "empty": "N/A",
+        "error": "N/A"
+      },
+      "layout": "Bottom-up scrolling canvas of tech node cards connected by lines. Tech nodes show star cost. Header features sticky 'Current Stars' indicator. Close button top right."
+    }
+  ],
+  "images": {
+    "main_menu_hero": {
+      "url": "https://images.pexels.com/photos/9977654/pexels-photo-9977654.jpeg",
+      "alt": "Vibrant low-poly landscape"
+    },
+    "empty_state_texture": {
+      "url": "https://images.pexels.com/photos/11940942/pexels-photo-11940942.jpeg",
+      "alt": "Geometric metallic framework"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Follow '4 Tactile / Playful LIGHT' strictly. Game elements must feel like physical board game pieces with rounded borders.",
+    "Map implementation: The map is the primary interactive surface. Ensure it is rendered behind the HUD and action bars using full-screen coordinates, with safe area handled within the HUD components overlaying it.",
+    "HUD implementation: Use a top-center glass pill for Score/Stars/Turn. Use a bottom glass bar for the 4 fixed actions (Tech Tree, Build, Move/Attack, End Turn).",
+    "Tile Design: Represent tiles using crisp geometric shapes (squares or hexes). Color them precisely using the defined terrain palette (grass, forest, mountain, water).",
+    "Unit & City Markers: Render them as chunky tokens sitting perfectly inside the tiles. Use tribe accent colors. Give them a white or 'surfaceInverse' border to pop from the background.",
+    "Combat & Target Overlays: Draw clear target indicators directly on the tiles (e.g., using 'warning' (yellow) for valid move, 'error' (red) for attack).",
+    "Interaction: Ensure touch targets for tiles/units are at least 44x44pt. Use React Native Gesture Handler for smooth pan and zoom on the map.",
+    "STRICT COLOR COMPLIANCE: All Blues, Purples, and Oranges are banned per the rule set. Water is rendered in Teal (#2A9D8F), and tribes use specific greens, reds, yellows, and silver.",
+    "Ensure the bottom action bar has safe area padding so it doesn't collide with the iOS home indicator.",
+    "Tech tree node blueprint: Chunky cards with 'brandTertiary' background, connecting 'borderStrong' lines, and 'surface' inner tags for star cost.",
+    "Use Phosphor icons with the 'fill' weight for a chunky, highly visible game-like style."
+  ],
+  "haptics": {
+    "tap_tile": "light",
+    "select_unit": "medium",
+    "move_unit": "heavy",
+    "end_turn": "heavy",
+    "open_tech_tree": "medium",
+    "research_tech": "success"
+  }
+}
