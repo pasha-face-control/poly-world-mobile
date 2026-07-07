@@ -1,0 +1,55 @@
+{
+  "summary": "Frontend-only testing of HexTribes (Expo web preview). All 13 requested flows verified end-to-end. Main menu, setup, game screen, HUD, bottom-bar, unit selection, unit panel, city panel, train chips, tech tree modal, tech research (5 stars deducted 6->1), end-turn with AI 'thinking' indicator, turn increment, in-game menu, persistence (menu-continue appears and resumes save), stats & how-to-play screens, and Pass & Play mode toggle all work correctly. React Native deprecation warnings detected: 'shadow*' style props (theme.ts shadow helper) and 'props.pointerEvents' (multiple components) — non-blocking but should be migrated to boxShadow/style.pointerEvents.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "MainMenu (app/index.tsx)",
+        "issue": "Two elements with testID='main-menu' remain in the DOM after navigating away and back (Expo Router keeps the previous screen mounted). Playwright resolves 2 elements when searching for [data-testid=\"main-menu\"]. Only one is visible so UX is fine, but automated tests must use .first(). Consider unmounting or scoping testIDs.",
+        "testID": "main-menu",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "GameScreen",
+        "issues": [
+          "TopHUD player-name pill can truncate long tribe names (maxWidth:130) — acceptable but tight on 375px screens.",
+          "BottomBar action buttons rely on BlurView; verify contrast on very light backgrounds (labels use C.onSurface on translucent surface)."
+        ]
+      }
+    ],
+    "react_native_issues": [
+      {
+        "component": "theme.ts shadow() helper",
+        "issue": "Web console emits 'shadow*' style props are deprecated, use boxShadow. Reference: /app/frontend/src/theme.ts (shadow function returning shadowColor/shadowOffset/shadowOpacity/shadowRadius). Migrate to boxShadow for web compatibility."
+      },
+      {
+        "component": "pointerEvents prop usage",
+        "issue": "Web console emits 'props.pointerEvents is deprecated. Use style.pointerEvents'. Occurs on <View pointerEvents=\"box-none\"> in components. Reference: /app/frontend/src/components/BottomBar.tsx and /app/frontend/src/components/TopHUD.tsx. Move pointerEvents to style prop."
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Migrate shadow* style helper in /app/frontend/src/theme.ts to boxShadow (React Native Web new API) to silence deprecation warnings.",
+    "Move pointerEvents prop into style object (e.g. style={{ pointerEvents: 'box-none' }}) in BottomBar.tsx and TopHUD.tsx.",
+    "Consider unmounting stacked screens or scoping testIDs so only one [data-testid=\"main-menu\"] exists at a time to simplify automated tests.",
+    "Optional: expose per-tile testIDs (e.g. tile-{id}) to make Playwright-based tile testing deterministic; currently only pixel-tap works."
+  ],
+  "critical_code_review_comments": [
+    "engine.ts / store.tsx: state cloning via JSON.stringify/parse (clone) is fine for now but will be slow on 18x18 maps — acceptable for MVP.",
+    "store.tsx endTurn: setTimeout(300ms) around AI loop provides UX feedback; verified busy indicator shows.",
+    "Persistence uses AsyncStorage/localStorage key 'hextribes_save_v1'; save/load round-trip verified via Continue button flow.",
+    "GameMap: uses gesture handler with computed tile coordinates from local x/y — works but assumes untransformed tap coords in gesture space (which react-native-gesture-handler already handles). Verified tap-to-select and tap-to-attack.",
+    "index.tsx: Continue button is only rendered when hasSave===true; verified toggling."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (no backend)", "frontend": "100% (13/13 flows verified)" },
+  "seed_data_creation": "None. Tests clear localStorage (hextribes_save_v1, hextribes_stats_v1) at start to guarantee reproducible state.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Game runs entirely client-side; no backend to test. Use mobile viewport 390x844. Clear localStorage before tests. Tile taps require page.mouse.click at pixel coordinates on the transformed board (no per-tile testIDs). The map auto-centers on capital ~(195,422) on a 390-wide viewport. Use action-next-unit to reliably select a unit without pixel math. To test city-panel, sweep taps around center: (166,422) hit the capital in this run. Tech modal is scrollable — tech-organization may be off-viewport; use scroll_into_view_if_needed then page.mouse.click on its bounding box (Pressable inside Modal is sometimes not clickable via page.click even with force=True).",
+  "rca_of_issue": "N/A — no bugs found. Only React Native web deprecation warnings noted."
+}
