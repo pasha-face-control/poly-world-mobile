@@ -19,6 +19,8 @@ interface Props {
   centerTileId: number | null;
   focusTileId: number | null;
   focusKey: number;
+  territory: Set<number>;
+  territoryColor: string;
   onTileTap: (tileId: number) => void;
 }
 
@@ -26,7 +28,15 @@ function playerColor(state: GameState, owner: number): string {
   return TRIBE_BY_ID[state.players[owner].tribe].color;
 }
 
-export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, attackable, centerTileId, focusTileId, focusKey, onTileTap }: Props) {
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, attackable, centerTileId, focusTileId, focusKey, territory, territoryColor, onTileTap }: Props) {
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
   const scale = useSharedValue(1);
@@ -102,6 +112,9 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
 
   const reachableSet = useMemo(() => new Set(reachable), [reachable]);
   const attackableSet = useMemo(() => new Set(attackable), [attackable]);
+  const terFill = useMemo(() => hexToRgba(territoryColor, 0.18), [territoryColor]);
+  const inTer = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < state.width && y < state.height && territory.has(y * state.width + x);
 
   return (
     <View style={styles.viewport} onLayout={onLayout}>
@@ -128,6 +141,23 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                   },
                 ]}
               >
+                {!hidden && territory.has(tile.id) && (
+                  <View
+                    pointerEvents="none"
+                    style={[
+                      styles.territory,
+                      {
+                        backgroundColor: terFill,
+                        borderColor: territoryColor,
+                        borderTopWidth: inTer(tile.x, tile.y - 1) ? 0 : 3,
+                        borderBottomWidth: inTer(tile.x, tile.y + 1) ? 0 : 3,
+                        borderLeftWidth: inTer(tile.x - 1, tile.y) ? 0 : 3,
+                        borderRightWidth: inTer(tile.x + 1, tile.y) ? 0 : 3,
+                      },
+                    ]}
+                  />
+                )}
+
                 {!hidden && (tile.terrain === "forest" || tile.terrain === "mountain") && (
                   <MaterialCommunityIcons
                     name={tile.terrain === "forest" ? "pine-tree" : "triangle"}
@@ -192,6 +222,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   terrainIcon: { position: "absolute" },
+  territory: { ...StyleSheet.absoluteFillObject },
   resourceBadge: {
     position: "absolute",
     top: 2,

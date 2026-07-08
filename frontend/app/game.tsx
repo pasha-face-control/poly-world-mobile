@@ -14,7 +14,8 @@ import CityPanel from "@/src/components/CityPanel";
 import UnitPanel from "@/src/components/UnitPanel";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
-import { attackableTiles, reachableTiles } from "@/src/game/engine";
+import { attackableTiles, neighbors, reachableTiles } from "@/src/game/engine";
+import { TRIBE_BY_ID } from "@/src/game/data";
 import { UnitType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
 
@@ -60,6 +61,17 @@ export default function GameScreen() {
     if (!state || !selectedUnit || selectedUnit.owner !== state.currentPlayer) return [];
     return attackableTiles(state, selectedUnit);
   }, [state, selectedUnit]);
+
+  const territory = useMemo(() => {
+    const set = new Set<number>();
+    if (!state) return set;
+    for (const c of state.cities) {
+      if (c.owner !== state.currentPlayer) continue;
+      set.add(c.tileId);
+      for (const n of neighbors(state, c.tileId)) set.add(n);
+    }
+    return set;
+  }, [state]);
 
   if (!state) return <View style={{ flex: 1, backgroundColor: C.surface }} />;
 
@@ -150,6 +162,8 @@ export default function GameScreen() {
         centerTileId={capitalTile}
         focusTileId={focusTileId}
         focusKey={focusKey}
+        territory={territory}
+        territoryColor={TRIBE_BY_ID[state.players[state.currentPlayer].tribe].color}
         onTileTap={onTileTap}
       />
 
