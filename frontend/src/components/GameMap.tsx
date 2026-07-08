@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import Svg, { Polygon } from "react-native-svg";
+import Svg, { Ellipse, Polygon } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, shadow } from "@/src/theme";
 import { RESOURCE_ICON, TERRAIN_COLOR, TRIBE_BY_ID, UNIT_DEFS } from "@/src/game/data";
@@ -40,13 +40,57 @@ function hexToRgba(hex: string, a: number): string {
 }
 function darken(hex: string, f: number): string {
   const h = hex.replace("#", "");
-  const r = Math.round(parseInt(h.substring(0, 2), 16) * f);
-  const g = Math.round(parseInt(h.substring(2, 4), 16) * f);
-  const b = Math.round(parseInt(h.substring(4, 6), 16) * f);
-  return `rgb(${r},${g},${b})`;
+  const cl = (v: number) => Math.max(0, Math.min(255, Math.round(v * f)));
+  return `rgb(${cl(parseInt(h.substring(0, 2), 16))},${cl(parseInt(h.substring(2, 4), 16))},${cl(parseInt(h.substring(4, 6), 16))})`;
 }
 type Pt = [number, number];
 const pts = (arr: Pt[]) => arr.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+
+// Low-poly 3D unit pawn (tribe-colored gem on a disc base).
+function drawUnit(arr: React.ReactNode[], bx: number, by: number, color: string, k: string | number) {
+  const dk = darken(color, 0.66);
+  const lt = darken(color, 1.18);
+  const UB = 11;
+  const UH = 28;
+  const apex: Pt = [bx, by - 2 - UH];
+  const ls: Pt = [bx - UB, by - 2 - UH * 0.5];
+  const rs: Pt = [bx + UB, by - 2 - UH * 0.5];
+  const waist: Pt = [bx, by - 4];
+  arr.push(<Ellipse key={`ush${k}`} cx={bx} cy={by + 3} rx={12} ry={5} fill="rgba(0,0,0,0.22)" />);
+  arr.push(<Ellipse key={`ubs${k}`} cx={bx} cy={by - 1} rx={11} ry={5} fill="#F8F6F0" stroke="rgba(0,0,0,0.18)" strokeWidth={1} />);
+  arr.push(<Polygon key={`ul${k}`} points={pts([apex, ls, waist])} fill={dk} />);
+  arr.push(<Polygon key={`ur${k}`} points={pts([apex, rs, waist])} fill={lt} />);
+  arr.push(<Polygon key={`uo${k}`} points={pts([apex, ls, waist, rs])} fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth={1} />);
+}
+
+// Low-poly 3D building (walls + tribe-colored roof; flag if capital).
+function drawCity(arr: React.ReactNode[], bx: number, by: number, color: string, capital: boolean, k: string | number) {
+  const CB = 17;
+  const cd = 9;
+  const CH = 15;
+  const roofH = 16;
+  const fRight: Pt = [bx + CB, by];
+  const fBottom: Pt = [bx, by + cd];
+  const fLeft: Pt = [bx - CB, by];
+  const tTop: Pt = [bx, by - cd - CH];
+  const tRight: Pt = [bx + CB, by - CH];
+  const tBottom: Pt = [bx, by + cd - CH];
+  const tLeft: Pt = [bx - CB, by - CH];
+  arr.push(<Ellipse key={`csh${k}`} cx={bx} cy={by + 3} rx={22} ry={8} fill="rgba(0,0,0,0.22)" />);
+  arr.push(<Polygon key={`clw${k}`} points={pts([fLeft, fBottom, tBottom, tLeft])} fill="#DCD7C8" />);
+  arr.push(<Polygon key={`crw${k}`} points={pts([fRight, fBottom, tBottom, tRight])} fill="#F8F6F0" stroke="rgba(0,0,0,0.12)" strokeWidth={1} />);
+  arr.push(<Polygon key={`ct${k}`} points={pts([tTop, tRight, tBottom, tLeft])} fill="#FBFAF5" stroke="rgba(0,0,0,0.1)" strokeWidth={1} />);
+  const apex: Pt = [bx, by - cd - CH - roofH];
+  arr.push(<Polygon key={`rbl${k}`} points={pts([apex, tTop, tLeft])} fill={darken(color, 0.82)} />);
+  arr.push(<Polygon key={`rbr${k}`} points={pts([apex, tTop, tRight])} fill={darken(color, 1.0)} />);
+  arr.push(<Polygon key={`rl${k}`} points={pts([apex, tLeft, tBottom])} fill={darken(color, 0.66)} />);
+  arr.push(<Polygon key={`rr${k}`} points={pts([apex, tRight, tBottom])} fill={darken(color, 1.12)} />);
+  if (capital) {
+    const poleTopY = apex[1] - 16;
+    arr.push(<Polygon key={`cp${k}`} points={pts([[bx - 1.2, apex[1]], [bx + 1.2, apex[1]], [bx + 1.2, poleTopY], [bx - 1.2, poleTopY]])} fill="#6b6b6b" />);
+    arr.push(<Polygon key={`cf${k}`} points={pts([[bx + 1.2, poleTopY], [bx + 15, poleTopY + 5], [bx + 1.2, poleTopY + 10]])} fill={color} />);
+  }
+}
 
 export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, attackable, centerTileId, focusTileId, focusKey, territory, territoryColor, onTileTap }: Props) {
   const [rotation, setRotation] = useState(0); // 0..3 camera angle
@@ -236,6 +280,15 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     if (reachableSet.has(k)) terrainShapes.push(<Polygon key={`rc${k}`} points={pts(surface)} fill="rgba(229,169,58,0.45)" stroke={C.warning} strokeWidth={3} />);
     if (attackableSet.has(k)) terrainShapes.push(<Polygon key={`at${k}`} points={pts(surface)} fill="rgba(188,71,73,0.45)" stroke={C.error} strokeWidth={3} />);
     if (selectedTileId === k) terrainShapes.push(<Polygon key={`sel${k}`} points={pts(surface)} fill="transparent" stroke="#FFFFFF" strokeWidth={3} />);
+
+    // 3D pieces (drawn in depth order with terrain)
+    const tokLift = t.terrain === "forest" ? FE : t.terrain === "mountain" ? HH + MH * 0.55 : 0;
+    const surfY = cy - tokLift;
+    const city = t.cityId ? state.cities.find((c) => c.id === t.cityId) : undefined;
+    const unit = state.units.find((u) => u.tileId === t.id);
+    if (city) drawCity(terrainShapes, cx, surfY, playerColor(state, city.owner), city.isCapital, k);
+    else if (t.isVillage) drawCity(terrainShapes, cx, surfY, C.borderStrong, false, k);
+    if (unit && !city) drawUnit(terrainShapes, cx, surfY, playerColor(state, unit.owner), k);
   }
 
   return (
@@ -254,38 +307,37 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
             const baseY = cy - lift;
             const unit = state.units.find((u) => u.tileId === t.id);
             const city = t.cityId ? state.cities.find((c) => c.id === t.cityId) : undefined;
+            const pc = unit ? playerColor(state, unit.owner) : "#000";
 
             return (
               <React.Fragment key={`tok${t.id}`}>
                 {t.terrain === "forest" && !city && !unit && (
                   <MaterialCommunityIcons name="pine-tree" size={26} color="#CBD6AE" style={{ position: "absolute", left: cx - 13, top: baseY - 24 }} />
                 )}
-                {t.resource && !city && (
-                  <View style={[styles.resourceBadge, { left: cx + 4, top: baseY - 20 }]}>
+                {t.resource && !city && !unit && (
+                  <View style={[styles.resourceBadge, { left: cx + 6, top: baseY - 16 }]}>
                     <MaterialCommunityIcons name={RESOURCE_ICON[t.resource] as any} size={13} color={C.onSurface} />
                   </View>
                 )}
-                {t.isVillage && !city && (
-                  <View style={[styles.village, { left: cx - 17, top: baseY - 28 }]}>
-                    <MaterialCommunityIcons name="home-variant" size={20} color={C.surfaceInverse} />
-                  </View>
-                )}
                 {city && (
-                  <View style={[styles.city, { left: cx - 20, top: baseY - 36, borderColor: playerColor(state, city.owner) }]}>
-                    <MaterialCommunityIcons name={city.isCapital ? "castle" : "home-city"} size={22} color={playerColor(state, city.owner)} />
-                    <View style={[styles.cityLevel, { backgroundColor: playerColor(state, city.owner) }]}>
-                      <Text style={styles.cityLevelText}>{city.level}</Text>
-                    </View>
+                  <View style={[styles.cityLevel, { left: cx + 8, top: baseY - 8, backgroundColor: playerColor(state, city.owner) }]}>
+                    <Text style={styles.cityLevelText}>{city.level}</Text>
                   </View>
                 )}
-                {unit && (
-                  <View style={[styles.unit, { left: cx - 17, top: baseY - 34, borderColor: playerColor(state, unit.owner) }, selectedTileId === t.id && styles.unitSelected]}>
-                    <MaterialCommunityIcons name={UNIT_DEFS[unit.type].icon as any} size={18} color={playerColor(state, unit.owner)} />
-                    <View style={styles.hpBarBg}>
+                {unit && !city && (
+                  <>
+                    <MaterialCommunityIcons
+                      name={UNIT_DEFS[unit.type].icon as any}
+                      size={17}
+                      color="#FFFFFF"
+                      style={{ position: "absolute", left: cx - 8.5, top: baseY - 24 }}
+                    />
+                    <View style={[styles.hpBarBg, { left: cx - 14, top: baseY + 5 }]}>
                       <View style={[styles.hpBar, { width: `${Math.max(0, (unit.hp / unit.maxHp) * 100)}%` }]} />
                     </View>
-                    {unit.moved && unit.attacked && <View style={styles.doneDot} />}
-                  </View>
+                    {unit.moved && unit.attacked && <View style={[styles.doneDot, { left: cx + 9, top: baseY - 30 }]} />}
+                    {selectedTileId === t.id && <View style={[styles.selRing, { left: cx - 6, top: baseY - 40, borderColor: pc }]} />}
+                  </>
                 )}
               </React.Fragment>
             );
@@ -309,15 +361,12 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
 const styles = StyleSheet.create({
   viewport: { flex: 1, overflow: "hidden", backgroundColor: "#12312e" },
   resourceBadge: { position: "absolute", backgroundColor: "rgba(248,246,240,0.92)", borderRadius: 6, padding: 2 },
-  village: { position: "absolute", width: 34, height: 34, borderRadius: 8, backgroundColor: "#EBE6D8", borderWidth: 2, borderColor: C.borderStrong, alignItems: "center", justifyContent: "center" },
-  city: { position: "absolute", width: 40, height: 40, borderRadius: 10, backgroundColor: "#F8F6F0", borderWidth: 3, alignItems: "center", justifyContent: "center" },
-  cityLevel: { position: "absolute", bottom: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, alignItems: "center", justifyContent: "center" },
+  cityLevel: { position: "absolute", minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 3, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#fff" },
   cityLevelText: { color: "#fff", fontSize: 10, fontWeight: "900" },
-  unit: { position: "absolute", width: 34, height: 34, borderRadius: 17, backgroundColor: "#F8F6F0", borderWidth: 3, alignItems: "center", justifyContent: "center" },
-  unitSelected: { borderColor: C.warning, transform: [{ scale: 1.12 }] },
-  hpBarBg: { position: "absolute", bottom: -6, width: 28, height: 4, borderRadius: 2, backgroundColor: "rgba(0,0,0,0.35)", overflow: "hidden" },
+  hpBarBg: { position: "absolute", width: 28, height: 4, borderRadius: 2, backgroundColor: "rgba(0,0,0,0.4)", overflow: "hidden" },
   hpBar: { height: 4, backgroundColor: C.success },
-  doneDot: { position: "absolute", top: -3, right: -3, width: 10, height: 10, borderRadius: 5, backgroundColor: C.borderStrong, borderWidth: 1, borderColor: "#fff" },
+  doneDot: { position: "absolute", width: 10, height: 10, borderRadius: 5, backgroundColor: C.borderStrong, borderWidth: 1, borderColor: "#fff" },
+  selRing: { position: "absolute", width: 12, height: 12, borderRadius: 6, borderWidth: 3, backgroundColor: "transparent" },
   rotateControls: { position: "absolute", left: 12, bottom: 120, flexDirection: "row", gap: 8 },
   rotateBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(248,246,240,0.9)", alignItems: "center", justifyContent: "center", ...shadow(4) },
 });
