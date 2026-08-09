@@ -71,13 +71,62 @@ export interface TribeDef {
   startTech: string;
   blurb: string;
   icon: string;
+  landComposition: { terrain: TerrainType; weight: number }[];
 }
 
 export const TRIBES: TribeDef[] = [
-  { id: "nature", name: "Verdi", color: C.tribe_nature, startTech: "hunting", blurb: "Forest hunters. Start with Hunting.", icon: "pine-tree" },
-  { id: "desert", name: "Sunja", color: C.tribe_desert, startTech: "riding", blurb: "Swift nomads. Start with Riding.", icon: "cactus" },
-  { id: "volcanic", name: "Emberon", color: C.tribe_volcanic, startTech: "climbing", blurb: "Mountain folk. Start with Climbing.", icon: "image-filter-hdr" },
-  { id: "snow", name: "Frostael", color: C.tribe_snow, startTech: "fishing", blurb: "Coastal seafarers. Start with Fishing.", icon: "snowflake" },
+  {
+    id: "nature",
+    name: "Lesnoi",
+    color: C.tribe_nature,
+    startTech: "hunting",
+    blurb: "Deep-forest hunters. Start with Hunting.",
+    icon: "pine-tree",
+    landComposition: [
+      { terrain: "forest", weight: 0.8 },
+      { terrain: "mountain", weight: 0.2 },
+    ],
+  },
+  {
+    id: "desert",
+    name: "Freemen",
+    color: C.tribe_desert,
+    startTech: "riding",
+    blurb: "Desert nomads. Start with Riding.",
+    icon: "cactus",
+    landComposition: [
+      { terrain: "sand", weight: 0.6 },
+      { terrain: "mountain", weight: 0.2 },
+      { terrain: "forest", weight: 0.1 },
+      { terrain: "grass", weight: 0.1 },
+    ],
+  },
+  {
+    id: "volcanic",
+    name: "He-he",
+    color: C.tribe_volcanic,
+    startTech: "climbing",
+    blurb: "Highland climbers. Start with Climbing.",
+    icon: "image-filter-hdr",
+    landComposition: [
+      { terrain: "mountain", weight: 0.8 },
+      { terrain: "forest", weight: 0.1 },
+      { terrain: "grass", weight: 0.1 },
+    ],
+  },
+  {
+    id: "snow",
+    name: "Fishmen",
+    color: C.tribe_snow,
+    startTech: "fishing",
+    blurb: "Coastal fishers. Start with Fishing.",
+    icon: "fish",
+    landComposition: [
+      { terrain: "mountain", weight: 0.3 },
+      { terrain: "forest", weight: 0.3 },
+      { terrain: "grass", weight: 0.4 },
+    ],
+  },
 ];
 
 export const TRIBE_BY_ID: Record<TribeId, TribeDef> = Object.fromEntries(TRIBES.map((t) => [t.id, t])) as Record<TribeId, TribeDef>;
@@ -87,6 +136,7 @@ export const TERRAIN_COLOR: Record<TerrainType, string> = {
   forest: C.terrain_forest,
   mountain: C.terrain_mountain,
   water: C.terrain_water,
+  sand: "#D8C48F",
 };
 
 export const RESOURCE_ICON: Record<string, string> = {
@@ -106,4 +156,12 @@ export const MAP_SIZES: { label: string; size: number }[] = [
   { label: "Small", size: 11 },
   { label: "Medium", size: 14 },
   { label: "Large", size: 18 },
+];
+
+export const MAP_TYPES: { id: import("./types").MapType; label: string; icon: string }[] = [
+  { id: "continents", label: "Continents", icon: "map" },
+  { id: "pangea", label: "Pangea", icon: "earth" },
+  { id: "lakes", label: "Lakes", icon: "waves" },
+  { id: "dryland", label: "Dryland", icon: "terrain" },
+  { id: "archipelago", label: "Archipelago", icon: "island" },
 ];

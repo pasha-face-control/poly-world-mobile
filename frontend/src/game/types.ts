@@ -1,7 +1,8 @@
-export type TerrainType = "water" | "grass" | "forest" | "mountain";
+export type TerrainType = "water" | "grass" | "forest" | "mountain" | "sand";
 export type ResourceType = "fruit" | "animal" | "fish" | "ore" | "crop" | null;
 export type UnitType = "warrior" | "archer" | "rider" | "swordsman";
 export type TribeId = "nature" | "desert" | "volcanic" | "snow";
+export type MapType = "dryland" | "lakes" | "pangea" | "continents" | "archipelago";
 
 export interface Tile {
   id: number;
@@ -66,5 +67,6 @@ export interface NewGameConfig {
   tribe: TribeId;
   opponents: number; // 1..3
   mapSize: number; // width==height
+  mapType: MapType;
   passAndPlay: boolean;
 }

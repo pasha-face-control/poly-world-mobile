@@ -6,8 +6,8 @@ import { StatusBar } from "expo-status-bar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
-import { MAP_SIZES, TECH_BY_ID, TRIBES } from "@/src/game/data";
-import { TribeId } from "@/src/game/types";
+import { MAP_SIZES, MAP_TYPES, TECH_BY_ID, TRIBES } from "@/src/game/data";
+import { MapType, TribeId } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
 
 export default function Setup() {
@@ -18,10 +18,11 @@ export default function Setup() {
   const [tribe, setTribe] = useState<TribeId>("nature");
   const [opponents, setOpponents] = useState(1);
   const [mapSize, setMapSize] = useState(11);
+  const [mapType, setMapType] = useState<MapType>("continents");
   const [passAndPlay, setPassAndPlay] = useState(false);
 
   const start = () => {
-    startNewGame({ tribe, opponents, mapSize, passAndPlay });
+    startNewGame({ tribe, opponents, mapSize, mapType, passAndPlay });
     router.replace("/game");
   };
 
@@ -81,6 +82,19 @@ export default function Setup() {
           ))}
         </View>
 
+        <Text style={styles.label}>Map Type</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
+          {MAP_TYPES.map((m) => {
+            const active = mapType === m.id;
+            return (
+              <Pressable key={m.id} testID={`maptype-${m.id}`} onPress={() => setMapType(m.id)} style={[styles.typeCard, active && styles.typeCardActive]}>
+                <MaterialCommunityIcons name={m.icon as any} size={24} color={active ? "#fff" : C.brand} />
+                <Text style={[styles.typeText, active && { color: "#fff" }]}>{m.label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
         <Text style={styles.label}>Mode</Text>
         <Pressable testID="mode-toggle" onPress={() => setPassAndPlay((v) => !v)} style={styles.modeRow}>
           <MaterialCommunityIcons name={passAndPlay ? "account-multiple" : "robot"} size={24} color={C.brand} />
@@ -121,6 +135,10 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 16, fontWeight: "900", color: C.onSurface },
   pillSub: { fontSize: 11, fontWeight: "700", color: C.onSurfaceSecondary },
   pillTextActive: { color: "#fff" },
+  typeRow: { gap: SP.sm, paddingVertical: 4, paddingRight: 8 },
+  typeCard: { width: 96, backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingVertical: 14, alignItems: "center", gap: 6, flexShrink: 0 },
+  typeCardActive: { backgroundColor: C.brand },
+  typeText: { fontSize: 13, fontWeight: "800", color: C.onSurface },
   modeRow: { flexDirection: "row", alignItems: "center", gap: SP.md, backgroundColor: C.surfaceSecondary, borderRadius: R.lg, padding: SP.md },
   modeTitle: { fontSize: 16, fontWeight: "900", color: C.onSurface },
   modeSub: { fontSize: 12, color: C.onSurfaceSecondary },
