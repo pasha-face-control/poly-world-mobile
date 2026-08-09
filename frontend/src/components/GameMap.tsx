@@ -91,6 +91,50 @@ function drawCity(arr: React.ReactNode[], bx: number, by: number, color: string,
   }
 }
 
+// Simple isometric box (3 visible faces).
+function isoBox(arr: React.ReactNode[], bx: number, byBottom: number, halfW: number, halfD: number, height: number, top: string, leftC: string, rightC: string, key: string) {
+  const fRight: Pt = [bx + halfW, byBottom];
+  const fBottom: Pt = [bx, byBottom + halfD];
+  const fLeft: Pt = [bx - halfW, byBottom];
+  const tTop: Pt = [bx, byBottom - halfD - height];
+  const tRight: Pt = [bx + halfW, byBottom - height];
+  const tBottom: Pt = [bx, byBottom + halfD - height];
+  const tLeft: Pt = [bx - halfW, byBottom - height];
+  arr.push(<Polygon key={`${key}L`} points={pts([fLeft, fBottom, tBottom, tLeft])} fill={leftC} />);
+  arr.push(<Polygon key={`${key}R`} points={pts([fRight, fBottom, tBottom, tRight])} fill={rightC} />);
+  arr.push(<Polygon key={`${key}T`} points={pts([tTop, tRight, tBottom, tLeft])} fill={top} />);
+}
+
+// Low-poly 3D bull (wild animal).
+function drawBull(arr: React.ReactNode[], bx: number, by: number, k: string | number) {
+  const bodyT = "#9A6A3E";
+  const bodyL = "#5C3A20";
+  const bodyR = "#7A4E2C";
+  const headT = "#8A5A34";
+  const headL = "#4E3220";
+  const headR = "#6E4526";
+  const horn = "#ECE4CE";
+  const hoof = "#33231A";
+  arr.push(<Ellipse key={`ash${k}`} cx={bx} cy={by + 2} rx={20} ry={6} fill="rgba(0,0,0,0.22)" />);
+  // legs
+  const legs: Pt[] = [[-10, -3], [8, -3], [-4, 5], [12, 5]];
+  legs.forEach((o, i) => {
+    const lx = bx + o[0];
+    const ly = by + o[1];
+    arr.push(<Polygon key={`al${k}_${i}`} points={pts([[lx - 2.5, ly], [lx + 2.5, ly], [lx + 2.5, ly - 11], [lx - 2.5, ly - 11]])} fill={hoof} />);
+  });
+  // body
+  isoBox(arr, bx - 3, by - 10, 18, 10, 14, bodyT, bodyL, bodyR, `ab${k}`);
+  // head (front-right)
+  isoBox(arr, bx + 17, by - 9, 9, 6, 10, headT, headL, headR, `ahd${k}`);
+  // horns
+  const hy = by - 27;
+  arr.push(<Polygon key={`ahl${k}`} points={pts([[bx + 11, hy + 3], [bx + 4, hy - 8], [bx + 16, hy - 1]])} fill={horn} />);
+  arr.push(<Polygon key={`ahr${k}`} points={pts([[bx + 23, hy + 3], [bx + 30, hy - 8], [bx + 18, hy - 1]])} fill={horn} />);
+  // snout
+  arr.push(<Polygon key={`asn${k}`} points={pts([[bx + 26, by - 11], [bx + 31, by - 13], [bx + 31, by - 6], [bx + 26, by - 4]])} fill="#3A2A1D" />);
+}
+
 export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, attackable, centerTileId, focusTileId, focusKey, territory, territoryColor, onTileTap }: Props) {
   const [rotation, setRotation] = useState(0); // 0..3 camera angle
   const tx = useSharedValue(0);
@@ -280,6 +324,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     if (city) drawCity(terrainShapes, cx, surfY, playerColor(state, city.owner), city.isCapital, k);
     else if (t.isVillage) drawCity(terrainShapes, cx, surfY, C.borderStrong, false, k);
     if (unit && !city) drawUnit(terrainShapes, cx, surfY, playerColor(state, unit.owner), k);
+    else if (!city && t.resource === "animal") drawBull(terrainShapes, cx - 9, surfY, k);
   }
 
   return (
@@ -305,7 +350,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                 {t.terrain === "forest" && !city && !unit && (
                   <MaterialCommunityIcons name="pine-tree" size={26} color="#CBD6AE" style={{ position: "absolute", left: cx - 13, top: baseY - 24 }} />
                 )}
-                {t.resource && !city && !unit && (
+                {t.resource && t.resource !== "animal" && !city && !unit && (
                   <View style={[styles.resourceBadge, { left: cx + 6, top: baseY - 16 }]}>
                     <MaterialCommunityIcons name={RESOURCE_ICON[t.resource] as any} size={13} color={C.onSurface} />
                   </View>
