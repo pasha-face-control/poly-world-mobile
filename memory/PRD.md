@@ -8,7 +8,12 @@ Build a game similar to The Battle of Polytopia. Client-side, local persistence.
 - 2.5D isometric SVG map (diamond tiles, pyramid mountains, 3D unit pawns/city houses/bulls), 4-angle rotation, pan/zoom.
 
 ## Implemented (latest)
-- **Naval & Ports (manual embark)**: build a **Port** on a coastal water tile bordering your territory (needs Sailing). Land units may step onto a port tile and press **Embark** to become a **Rowing Boat**; boats sail on water and disembark automatically when they land. Boats upgrade Rowing → **Sailing Boat** (5★) → **Battleship** (15★, needs Expedition) with rising atk/def/move/range. Land units can't cross open water. Boats/docks render in the isometric SVG map.
+- **Quick Tutorial**: first-run 5-step overlay (Welcome → Move → Battle/Capture → Cities → Tech) with Next/Back/Skip and progress dots; auto-shows once (flag `hextribes_tutorial_seen_v1`) and re-openable from the pause menu → "How to Play".
+- **Merchant UX fix**: units garrisoned on a city are now shown as a badge beside the city; tapping a city then tapping it again selects the garrisoned unit to move it out; Merchants are trained ready-to-move; single-tap a merchant = move options, double-tap a merchant = open its trade/inventory panel.
+- **Unit move animation**: units glide tile→tile (~300ms); reachable/attackable tiles highlighted more boldly.
+- **City level-up reward modal**: human cities enqueue a reward choice on level-up (Workshop / Treasury / Wall / Grand Park); AI auto-resolves.
+- **Shareable victory card**: win/lose result renders a score card (tribe, turns, cities, techs, score) with a native Share button.
+- **Naval & Ports (manual embark)**: build a Port on coastal water; land units embark → Rowing Boat → Sailing Boat → Battleship; auto-disembark on land.
 - **Roads & Clear-Forest**: build **Roads** (needs Roads tech) on land — units chain along connected roads for free (fast travel); roads render as brown segments linking adjacent road tiles. **Clear Forest** (needs Construction) burns a forest tile into farmable grassland (adds a crop).
 - **Merchants & Trading**: train a **Merchant** (needs Trading; **Merchant Ship** = embarked merchant, 8 slots vs 4 on land). Open its **Trade** panel to load goods from your stockpile, set a per-unit price (1–20★). Each round rival (bot) tribes buy your cargo — you earn the price in stars; bots are buy-only and merchants can't be attacked.
 - **Buildings & production**: tap a cell in your territory to build production structures that yield goods/stars each turn — Lumber Hut, Wheat/Bull/Horse Farm, Iron/Gold Mine. Production credited at turn start; AI also builds. Buildings show as markers on the map.
