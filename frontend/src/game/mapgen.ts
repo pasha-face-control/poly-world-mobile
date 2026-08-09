@@ -96,7 +96,7 @@ export function generateGame(config: {
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const i = idx(x, y, w);
-      tiles.push({ id: i, x, y, terrain: water[i] ? "water" : "grass", resource: null, cityId: null, isVillage: false, explored: false });
+      tiles.push({ id: i, x, y, terrain: water[i] ? "water" : "grass", resource: null, cityId: null, isVillage: false, explored: false, building: null });
     }
 
   const landTiles = tiles.filter((t) => t.terrain !== "water");

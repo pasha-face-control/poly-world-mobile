@@ -5,7 +5,7 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 
 import Svg, { Ellipse, Polygon } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, shadow } from "@/src/theme";
-import { RESOURCE_ICON, TERRAIN_COLOR, TRIBE_BY_ID, UNIT_DEFS } from "@/src/game/data";
+import { BUILDING_BY_ID, RESOURCE_ICON, TERRAIN_COLOR, TRIBE_BY_ID, UNIT_DEFS } from "@/src/game/data";
 import { GameState } from "@/src/game/types";
 
 // Isometric (2.5D) metrics.
@@ -323,7 +323,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     if (city) drawCity(terrainShapes, cx, surfY, playerColor(state, city.owner), city.isCapital, k);
     else if (t.isVillage) drawCity(terrainShapes, cx, surfY, C.borderStrong, false, k);
     if (unit && !city) drawUnit(terrainShapes, cx, surfY, playerColor(state, unit.owner), k);
-    else if (!city && t.resource === "animal") drawBull(terrainShapes, cx - 4, surfY, k);
+    else if (!city && t.resource === "animal" && !t.building) drawBull(terrainShapes, cx - 4, surfY, k);
   }
 
   return (
@@ -346,10 +346,15 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
 
             return (
               <React.Fragment key={`tok${t.id}`}>
-                {t.terrain === "forest" && !city && !unit && (
+                {t.terrain === "forest" && !city && !unit && !t.building && (
                   <MaterialCommunityIcons name="pine-tree" size={26} color="#CBD6AE" style={{ position: "absolute", left: cx - 13, top: baseY - 24 }} />
                 )}
-                {t.resource && t.resource !== "animal" && !city && !unit && (
+                {t.building && !city && !unit && (
+                  <View style={[styles.building, { left: cx - 15, top: baseY - 30, backgroundColor: BUILDING_BY_ID[t.building]?.color ?? C.brand }]}>
+                    <MaterialCommunityIcons name={(BUILDING_BY_ID[t.building]?.icon ?? "home") as any} size={18} color="#fff" />
+                  </View>
+                )}
+                {t.resource && t.resource !== "animal" && !city && !unit && !t.building && (
                   <View style={[styles.resourceBadge, { left: cx + 6, top: baseY - 16 }]}>
                     <MaterialCommunityIcons name={RESOURCE_ICON[t.resource] as any} size={13} color={C.onSurface} />
                   </View>
@@ -396,6 +401,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
 const styles = StyleSheet.create({
   viewport: { flex: 1, overflow: "hidden", backgroundColor: "#12312e" },
   resourceBadge: { position: "absolute", backgroundColor: "rgba(248,246,240,0.92)", borderRadius: 6, padding: 2 },
+  building: { position: "absolute", width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#fff", ...shadow(3) },
   cityLevel: { position: "absolute", minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 3, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#fff" },
   cityLevelText: { color: "#fff", fontSize: 10, fontWeight: "900" },
   hpBarBg: { position: "absolute", width: 28, height: 4, borderRadius: 2, backgroundColor: "rgba(0,0,0,0.4)", overflow: "hidden" },

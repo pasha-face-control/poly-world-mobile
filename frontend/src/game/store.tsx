@@ -4,6 +4,7 @@ import { generateGame } from "./mapgen";
 import {
   advanceTurn,
   attackUnit,
+  build,
   checkVictory,
   clone,
   computeVisibility,
@@ -40,6 +41,7 @@ interface GameContextValue {
   doHarvest: (tileId: number) => boolean;
   doTrain: (cityId: string, type: UnitType) => boolean;
   doResearch: (techId: string) => boolean;
+  doBuild: (tileId: number, buildingId: string) => boolean;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -139,6 +141,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doHarvest = useCallback((tileId: number) => apply((s) => harvest(s, s.currentPlayer, tileId)), [apply]);
   const doTrain = useCallback((cityId: string, type: UnitType) => apply((s) => trainUnit(s, s.currentPlayer, cityId, type)), [apply]);
   const doResearch = useCallback((techId: string) => apply((s) => research(s, s.currentPlayer, techId)), [apply]);
+  const doBuild = useCallback((tileId: number, buildingId: string) => apply((s) => build(s, s.currentPlayer, tileId, buildingId)), [apply]);
 
   const endTurn = useCallback(() => {
     if (!state || state.status !== "playing") return;
@@ -180,6 +183,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doHarvest,
         doTrain,
         doResearch,
+        doBuild,
       }}
     >
       {children}

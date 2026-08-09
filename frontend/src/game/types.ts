@@ -14,6 +14,7 @@ export interface Tile {
   cityId: string | null;
   isVillage: boolean; // neutral, uncaptured
   explored: boolean; // human fog of war
+  building: string | null; // building def id
 }
 
 export interface Unit {

@@ -12,9 +12,10 @@ import BottomBar from "@/src/components/BottomBar";
 import TechTreeModal from "@/src/components/TechTreeModal";
 import CityPanel from "@/src/components/CityPanel";
 import UnitPanel from "@/src/components/UnitPanel";
+import BuildPanel from "@/src/components/BuildPanel";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
-import { attackableTiles, neighbors, reachableTiles } from "@/src/game/engine";
+import { attackableTiles, buildableFor, neighbors, reachableTiles } from "@/src/game/engine";
 import { TRIBE_BY_ID } from "@/src/game/data";
 import { UnitType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
@@ -22,10 +23,11 @@ import { C, R, SP, shadow } from "@/src/theme";
 export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
+  const [selectedBuildTileId, setSelectedBuildTileId] = useState<number | null>(null);
   const [techOpen, setTechOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [focusTileId, setFocusTileId] = useState<number | null>(null);
@@ -43,6 +45,7 @@ export default function GameScreen() {
       prevPlayer.current = state.currentPlayer;
       setSelectedUnitId(null);
       setSelectedCityId(null);
+      setSelectedBuildTileId(null);
     }
   }, [state?.currentPlayer, state]);
 
@@ -115,13 +118,21 @@ export default function GameScreen() {
       Haptics.selectionAsync();
       setSelectedCityId(city.id);
       setSelectedUnitId(null);
+      setSelectedBuildTileId(null);
     } else if (unit && unit.owner === cp) {
       Haptics.selectionAsync();
       setSelectedUnitId(unit.id);
       setSelectedCityId(null);
+      setSelectedBuildTileId(null);
+    } else if (buildableFor(state, cp, tileId).length > 0) {
+      Haptics.selectionAsync();
+      setSelectedBuildTileId(tileId);
+      setSelectedUnitId(null);
+      setSelectedCityId(null);
     } else {
       setSelectedUnitId(null);
       setSelectedCityId(null);
+      setSelectedBuildTileId(null);
     }
   };
 
@@ -184,6 +195,18 @@ export default function GameScreen() {
             doHarvest(id);
           }}
           onClose={() => setSelectedCityId(null)}
+        />
+      )}
+      {selectedBuildTileId != null && !selectedCity && !selectedUnit && (
+        <BuildPanel
+          state={state}
+          tileId={selectedBuildTileId}
+          bottomInset={insets.bottom}
+          onBuild={(bid) => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            if (doBuild(selectedBuildTileId, bid)) setSelectedBuildTileId(null);
+          }}
+          onClose={() => setSelectedBuildTileId(null)}
         />
       )}
 

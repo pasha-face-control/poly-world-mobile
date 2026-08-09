@@ -2,6 +2,8 @@ import {
   attackUnit,
   attackableTiles,
   availableTechs,
+  build,
+  buildableFor,
   chebyshev,
   harvest,
   moveUnit,
@@ -80,6 +82,18 @@ export function runAiTurn(state: GameState, player: number) {
       const hasTech = !def.requires || state.players[player].techs.includes(def.requires);
       if (hasTech && state.players[player].stars >= def.cost) {
         trainUnit(state, player, c.id, type);
+        break;
+      }
+    }
+  }
+
+  // 3b. Build production structures in city territory.
+  for (const c of state.cities.filter((c) => c.owner === player)) {
+    const terr = [c.tileId, ...neighbors(state, c.tileId)];
+    for (const tid of terr) {
+      const opts = buildableFor(state, player, tid);
+      if (opts.length) {
+        build(state, player, tid, opts[0]);
         break;
       }
     }

@@ -1,4 +1,6 @@
 import {
+  BUILDINGS,
+  BUILDING_BY_ID,
   RESOURCE_DEFS,
   TECH_BY_ID,
   UNIT_DEFS,
@@ -66,10 +68,56 @@ function owningCityForTile(state: GameState, player: number, tileId: number): Ci
   );
 }
 
+// Any city (any owner) controlling the tile.
+function cityControllingTile(state: GameState, tileId: number): City | undefined {
+  return state.cities.find((c) => cityTerritory(state, c).includes(tileId));
+}
+
+// ---------- Buildings ----------
+export function canBuild(state: GameState, player: number, tileId: number, buildingId: string): { ok: boolean; reason?: string } {
+  const def = BUILDING_BY_ID[buildingId];
+  if (!def) return { ok: false, reason: "Unknown building" };
+  const tile = state.tiles[tileId];
+  if (tile.building) return { ok: false, reason: "Already built" };
+  if (tile.cityId) return { ok: false, reason: "City tile" };
+  if (tile.terrain !== def.terrain) return { ok: false, reason: `Needs ${def.terrain}` };
+  if (!playerHasTech(state, player, def.tech)) return { ok: false, reason: `Requires ${TECH_BY_ID[def.tech].name}` };
+  if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };
+  if (unitAt(state, tileId)) return { ok: false, reason: "Tile occupied" };
+  if (state.players[player].stars < def.cost) return { ok: false, reason: "Not enough stars" };
+  return { ok: true };
+}
+
+export function build(state: GameState, player: number, tileId: number, buildingId: string): boolean {
+  if (!canBuild(state, player, tileId, buildingId).ok) return false;
+  const def = BUILDING_BY_ID[buildingId];
+  state.players[player].stars -= def.cost;
+  state.tiles[tileId].building = buildingId;
+  if (player === 0) computeVisibility(state, 0);
+  log(state, `${state.players[player].name} built a ${def.name}`);
+  return true;
+}
+
+export function buildableFor(state: GameState, player: number, tileId: number): string[] {
+  return BUILDINGS.filter((b) => canBuild(state, player, tileId, b.id).ok).map((b) => b.id);
+}
+
 // ---------- Economy income (turn start) ----------
 export function startPlayerTurn(state: GameState, player: number) {
   const income = state.cities.filter((c) => c.owner === player).reduce((s, c) => s + c.production, 0);
   state.players[player].stars += income;
+  // Building production for tiles the player's cities control.
+  for (const tile of state.tiles) {
+    if (!tile.building) continue;
+    const city = cityControllingTile(state, tile.id);
+    if (!city || city.owner !== player) continue;
+    const def = BUILDING_BY_ID[tile.building];
+    if (!def) continue;
+    for (const [key, amt] of Object.entries(def.produces)) {
+      if (key === "stars") state.players[player].stars += amt ?? 0;
+      else state.players[player].goods[key as GoodType] += amt ?? 0;
+    }
+  }
   for (const u of state.units) {
     if (u.owner === player) {
       u.moved = false;
