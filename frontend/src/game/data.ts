@@ -15,33 +15,76 @@ export interface UnitDef {
 }
 
 export const UNIT_DEFS: Record<UnitType, UnitDef> = {
-  warrior: { type: "warrior", name: "Warrior", icon: "sword", cost: 2, hp: 10, atk: 2, def: 2, move: 1, range: 1, requires: null },
-  rider: { type: "rider", name: "Rider", icon: "horse-variant", cost: 3, hp: 10, atk: 2, def: 1, move: 2, range: 1, requires: "riding" },
-  archer: { type: "archer", name: "Archer", icon: "bow-arrow", cost: 3, hp: 10, atk: 2, def: 1, move: 1, range: 2, requires: "archery" },
-  swordsman: { type: "swordsman", name: "Swordsman", icon: "sword-cross", cost: 5, hp: 15, atk: 3, def: 3, move: 1, range: 1, requires: "smithery" },
+  warrior: { type: "warrior", name: "Warrior", icon: "sword", cost: 2, hp: 10, atk: 1, def: 1, move: 1, range: 1, requires: null },
+  archer: { type: "archer", name: "Archer", icon: "bow-arrow", cost: 3, hp: 10, atk: 1, def: 1, move: 1, range: 2, requires: "hunting" },
+  beefeater: { type: "beefeater", name: "Beefeater", icon: "food-drumstick", cost: 5, hp: 12, atk: 1.5, def: 2, move: 1, range: 1, requires: "beef_eating" },
+  catapult: { type: "catapult", name: "Catapult", icon: "bomb", cost: 8, hp: 10, atk: 2, def: 0, move: 1, range: 4, requires: "mathematics" },
+  rider: { type: "rider", name: "Rider", icon: "horse-variant", cost: 5, hp: 10, atk: 1, def: 0.5, move: 2, range: 1, requires: "riding" },
+  armored_rider: { type: "armored_rider", name: "Armored Rider", icon: "horse", cost: 6, hp: 10, atk: 1, def: 1.5, move: 2, range: 1, requires: "armor_production" },
+  chivalry: { type: "chivalry", name: "Knight", icon: "shield-cross", cost: 8, hp: 10, atk: 2, def: 2, move: 3, range: 2, requires: "chivalry" },
+  pikemen: { type: "pikemen", name: "Pikeman", icon: "chess-rook", cost: 5, hp: 15, atk: 1.5, def: 1.5, move: 1, range: 1, requires: "pike" },
+  swordsmen: { type: "swordsmen", name: "Swordsman", icon: "sword-cross", cost: 5, hp: 15, atk: 1.5, def: 1.5, move: 1, range: 1, requires: "sword_art" },
 };
 
 export interface TechDef {
   id: string;
   name: string;
-  tier: 1 | 2;
+  tier: number;
   cost: number;
   requires: string | null;
   icon: string;
   desc: string;
 }
 
+const T = (id: string, name: string, tier: number, requires: string | null, icon: string, desc: string): TechDef => ({
+  id,
+  name,
+  tier,
+  requires,
+  icon,
+  cost: 4 + (tier - 1) * 3,
+  desc,
+});
+
 export const TECHS: TechDef[] = [
-  { id: "hunting", name: "Hunting", tier: 1, cost: 5, requires: null, icon: "paw", desc: "Hunt forest animals for population." },
-  { id: "organization", name: "Organization", tier: 1, cost: 5, requires: null, icon: "food-apple", desc: "Harvest fruit for population." },
-  { id: "climbing", name: "Climbing", tier: 1, cost: 5, requires: null, icon: "image-filter-hdr", desc: "Traverse mountains; better vision." },
-  { id: "fishing", name: "Fishing", tier: 1, cost: 5, requires: null, icon: "fish", desc: "Harvest fish from the sea." },
-  { id: "riding", name: "Riding", tier: 1, cost: 5, requires: null, icon: "horse-variant", desc: "Unlock the fast Rider unit." },
-  { id: "archery", name: "Archery", tier: 2, cost: 8, requires: "hunting", icon: "bow-arrow", desc: "Unlock the ranged Archer." },
-  { id: "mining", name: "Mining", tier: 2, cost: 8, requires: "climbing", icon: "diamond-stone", desc: "Mine mountain ore (+2 pop)." },
-  { id: "farming", name: "Farming", tier: 2, cost: 8, requires: "organization", icon: "barley", desc: "Farm crops (+2 pop)." },
-  { id: "smithery", name: "Smithery", tier: 2, cost: 8, requires: "mining", icon: "sword-cross", desc: "Unlock the mighty Swordsman." },
-  { id: "sailing", name: "Sailing", tier: 2, cost: 8, requires: "fishing", icon: "sail-boat", desc: "Move units across water as boats." },
+  // Roots (branch from the center)
+  T("forest_exploration", "Forest Exploration", 1, null, "tree", "Move units onto forest cells."),
+  T("organisation", "Organisation", 1, null, "food-apple", "Harvest fruit for population."),
+  T("climbing", "Climbing", 1, null, "image-filter-hdr", "Move units onto mountains."),
+  T("fishing", "Fishing", 1, null, "fish", "Catch fish for +1 population."),
+
+  // Forest branch
+  T("hunting", "Hunting", 2, "forest_exploration", "bow-arrow", "Unlock Archer; hunt wild animals."),
+  T("beef_eating", "Beef Eating", 3, "hunting", "food-drumstick", "Unlock the Beefeater unit."),
+  T("log_chopping", "Log Chopping", 2, "forest_exploration", "axe", "Build Lumber Hut (+2 wood/turn)."),
+  T("mathematics", "Mathematics", 3, "log_chopping", "bomb", "Unlock the Catapult unit."),
+  T("riding", "Riding", 2, "forest_exploration", "horse-variant", "Unlock the Rider unit."),
+  T("armor_production", "Armor Production", 3, "riding", "horse", "Unlock the Armored Rider."),
+  T("pike", "Pike", 4, "armor_production", "chess-rook", "Unlock the Pikeman unit."),
+  T("chivalry", "Chivalry", 5, "pike", "shield-cross", "Unlock the Knight unit."),
+  T("devotion", "Devotion", 2, "forest_exploration", "hexagram", "Build Temples on grass (+population)."),
+  T("forest_care", "Forest Care", 3, "devotion", "sprout", "Plant new forest."),
+
+  // Organisation branch
+  T("roads", "Roads", 2, "organisation", "road-variant", "Build roads for faster movement."),
+  T("construction", "Construction", 3, "roads", "home-city", "Build Windmills; burn forest to farmland."),
+  T("trading", "Trading", 4, "construction", "cart", "Unlock the Merchant unit."),
+  T("trading_overseas", "Trading Overseas", 5, "trading", "ferry", "Unlock Merchant Ship & Trade Port."),
+  T("farming", "Farming", 2, "organisation", "barley", "Build Wheat Farms on farmland."),
+  T("bull_farming", "Bull Farming", 3, "farming", "cow", "Build Bull Farms (+2 meat/turn)."),
+  T("horse_farming", "Horse Farming", 3, "farming", "horseshoe", "Build Horse Farms (+1 horse/turn)."),
+
+  // Climbing branch
+  T("forgery", "Forgery", 2, "climbing", "anvil", "Build Forge next to mines (+population)."),
+  T("sword_art", "Sword Art", 3, "forgery", "sword-cross", "Unlock the Swordsman unit."),
+  T("mining", "Mining", 2, "climbing", "diamond-stone", "Build Coal Mine (+2 population)."),
+  T("mining_technology", "Mining Technology", 3, "mining", "pickaxe", "Reveal Iron & Gold mine sites."),
+  T("iron_mine", "Iron Mine", 4, "mining_technology", "gold", "Build Iron Mines (+2 iron/turn)."),
+  T("gold_mine", "Gold Mine", 4, "mining_technology", "cash-multiple", "Build Gold Mines (+5 stars/turn)."),
+
+  // Fishing branch
+  T("sailing", "Sailing", 2, "fishing", "sail-boat", "Build ports; upgrade to Sailing Boats."),
+  T("expedition", "Expedition", 3, "sailing", "ferry", "Upgrade Sailing Boats to Battleships."),
 ];
 
 export const TECH_BY_ID: Record<string, TechDef> = Object.fromEntries(TECHS.map((t) => [t.id, t]));
@@ -57,7 +100,7 @@ export interface ResourceDef {
 }
 
 export const RESOURCE_DEFS: Record<string, ResourceDef> = {
-  fruit: { type: "fruit", name: "Fruit", icon: "food-apple", cost: 2, pop: 1, tech: "organization", terrain: "grass" },
+  fruit: { type: "fruit", name: "Fruit", icon: "food-apple", cost: 2, pop: 1, tech: "organisation", terrain: "grass" },
   animal: { type: "animal", name: "Game", icon: "paw", cost: 2, pop: 1, tech: "hunting", terrain: "forest" },
   fish: { type: "fish", name: "Fish", icon: "fish", cost: 2, pop: 1, tech: "fishing", terrain: "water" },
   ore: { type: "ore", name: "Ore", icon: "diamond-stone", cost: 5, pop: 2, tech: "mining", terrain: "mountain" },
@@ -79,8 +122,8 @@ export const TRIBES: TribeDef[] = [
     id: "nature",
     name: "Lesnoi",
     color: C.tribe_nature,
-    startTech: "hunting",
-    blurb: "Deep-forest hunters. Start with Hunting.",
+    startTech: "forest_exploration",
+    blurb: "Deep-forest hunters. Start with Forest Exploration.",
     icon: "pine-tree",
     landComposition: [
       { terrain: "forest", weight: 0.8 },

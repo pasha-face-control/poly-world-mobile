@@ -110,15 +110,15 @@ export default function GameScreen() {
       return;
     }
 
-    // Nothing selected.
-    if (unit && unit.owner === cp) {
-      Haptics.selectionAsync();
-      setSelectedUnitId(unit.id);
-      setSelectedCityId(null);
-    } else if (city && city.owner === cp) {
+    // Nothing selected — city takes priority so an occupied capital is still accessible.
+    if (city && city.owner === cp) {
       Haptics.selectionAsync();
       setSelectedCityId(city.id);
       setSelectedUnitId(null);
+    } else if (unit && unit.owner === cp) {
+      Haptics.selectionAsync();
+      setSelectedUnitId(unit.id);
+      setSelectedCityId(null);
     } else {
       setSelectedUnitId(null);
       setSelectedCityId(null);

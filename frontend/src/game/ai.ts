@@ -72,7 +72,7 @@ export function runAiTurn(state: GameState, player: number) {
   }
 
   // 3. Train units in empty cities.
-  const buildOrder: UnitType[] = ["swordsman", "rider", "archer", "warrior"];
+  const buildOrder: UnitType[] = ["chivalry", "swordsmen", "catapult", "armored_rider", "pikemen", "rider", "archer", "beefeater", "warrior"];
   for (const c of state.cities.filter((c) => c.owner === player)) {
     if (unitAt(state, c.tileId)) continue;
     for (const type of buildOrder) {

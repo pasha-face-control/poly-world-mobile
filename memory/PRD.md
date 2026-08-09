@@ -1,37 +1,27 @@
-# HexTribes — Low-Poly 4X Turn-Based Strategy (Polytopia-like)
+# HexTribes — Polytopia-style 4X (Expo/React Native)
 
-## Original Problem Statement
-Build a game very similar to The Battle of Polytopia (2016 4X turn-based strategy by Midjiwan AB).
-
-## User Choices
-- Modes: Single-player vs AI **and** local pass-and-play.
-- Mechanics: Full — tile map, cities, unit movement, combat, capturing cities, tech tree, resource/stars economy, multiple tribes with unique bonuses.
-- Maps: Procedurally generated, player-selectable size.
-- Style: Clean low-poly / minimalist tribal look.
-- Persistence: Local only (save/resume + stats).
+## Original Problem
+Build a game similar to The Battle of Polytopia. Client-side, local persistence.
 
 ## Architecture
-- **Client-side game** (Expo React Native, expo-router). No backend used.
-- Game engine in `/app/frontend/src/game/`: `types`, `data` (tribes/techs/units/terrain/resources), `rng`, `grid` (8-neighbor, reachable/attack), `combat` (Polytopia-style force formula), `mapgen` (cellular water + farthest-point capitals + villages), `factory`, `engine` (actions, economy, visibility, turn flow, victory), `ai`, `store.tsx` (React context + local persistence via `@/src/utils/storage`).
-- UI components in `/app/frontend/src/components/`: `GameMap` (gesture pan/zoom board, tiles, tokens, move/attack overlays, fog), `TopHUD` (glass pill), `BottomBar`, `TechTreeModal`, `CityPanel`, `UnitPanel`, `Button`.
-- Screens in `/app/frontend/app/`: `index` (menu), `setup`, `game`, `stats`, `how-to-play`.
-- Design system from `design_guidelines.json` (Tactile/Playful LIGHT), theme in `src/theme.ts`.
+- Pure client-side game. Engine in `/app/frontend/src/game/` (types, data, rng, grid, combat, mapgen, factory, engine, ai, store). UI in `/app/frontend/src/components/`. Screens in `/app/frontend/app/`.
+- 2.5D isometric SVG map (diamond tiles, pyramid mountains, 3D unit pawns/city houses/bulls), 4-angle rotation, pan/zoom.
 
-## Implemented (2026-07-07)
-- Main menu with Continue/New Game/Stats/How-to-Play + auto-save detection.
-- New Game setup: 4 tribes (Verdi/Sunja/Emberon/Frostael) with starting-tech bonuses, 1–3 opponents, 3 map sizes (11/14/18), vs-AI or Pass&Play toggle.
-- Procedural map (water/grass/forest/mountain + resources fruit/animal/fish/ore/crop), fog of war (vs-AI).
-- Units: Warrior, Rider (Riding), Archer (Archery, ranged 2), Swordsman (Smithery). Movement (rough-terrain stop), melee retaliation + move-in, ranged no-retaliation.
-- Cities: population growth via harvesting, level-up (production + wall/stars reward), star income per turn, capturing enemy cities & founding on neutral villages.
-- Tech tree: 10 techs across 2 tiers with dependencies, empire-scaled cost.
-- AI opponent (research/harvest/train/move/attack toward objectives) + Pass&Play.
-- Domination victory/defeat, stats tracking, save/resume — all verified by testing agent (13/13 flows pass).
+## Implemented (latest)
+- Tribes: Lesnoi, Freemen, He-he, Fishmen (Fishmen icon = fish), each with a land-composition biome.
+- World-gen: map divided into one biome region per tribe (Voronoi); map types Continents/Pangea/Lakes/Dryland/Archipelago; `sand` terrain (barren, unfarmable).
+- **Tech tree redesign (instruction.docx):** ~29 techs in a branching radial graph UI (forest_exploration / organisation / climbing / fishing roots and their branches). Nodes show researched/available/locked + cost.
+- **New units** (trainable via tech, stars-only cost for now): warrior, archer(hunting), beefeater(beef_eating), catapult(mathematics), rider(riding), armored_rider(armor_production), knight(chivalry), pikeman(pike), swordsman(sword_art). Stats per doc.
+- City panel opens even when a unit occupies it (city takes tap priority; use Next to pick units).
 
-## Backlog
-- P1: Level-up reward **choice** modal (Polytopia signature); per-tile move animations; unit veteran/heal; more tribes & unique units.
-- P1: Per-player fog in pass-and-play; camera "double-tap to zoom".
-- P2: More techs (Sailing boats visuals/ports, roads/trade), tribe-specific terrain bias, sound/music, score-based time-limit victory, difficulty levels.
-- P2: Per-tile testIDs for deterministic automated testing.
+## PHASED / NOT YET BUILT (from instruction.docx — large systems)
+- Goods economy: wood, iron, wheat, meat, horses as stockpiled resources shown in top bar; goods costs for units.
+- Buildings: Lumber Hut, Windmill, Forge, Coal/Iron/Gold Mines, Wheat/Bull/Horse Farms, Temple; tap-cell-to-build flow; per-turn production; 80% of grass = farmable land.
+- Roads (build + movement bonus), burn-forest-to-farmland.
+- Naval: Rowing Boat (auto-convert on port), Sailing Boat upgrade, Battleship; ports & trade ports.
+- Merchant & Merchant Ship trading: 4/8 inventory slots, load goods, set prices, trade sign for other players; bots buy-only, can't attack merchants.
+- Ore-site research (coal/iron/gold) revealing mine sites.
 
-## Next Tasks
-- Add level-up reward selection modal and move animations for extra polish.
+## Backlog / Next
+- Build the goods economy + resource top-bar (foundation for buildings, unit costs, trading).
+- Then buildings & per-turn production, then naval + upgrades, then merchant trading UI.
