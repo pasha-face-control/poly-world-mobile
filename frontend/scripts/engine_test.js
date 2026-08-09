@@ -46,6 +46,8 @@ s.units = s.units.filter((u) => !(u.owner === P && u.tileId === cap.tileId));
 ok("train merchant", engine.trainUnit(s, P, cap.id, "merchant"));
 const merch = s.units.find((u) => u.owner === P && u.type === "merchant");
 ok("merchant created with cargo", !!merch && !!merch.cargo);
+ok("merchant is ready to move the turn it's recruited", !!merch && merch.moved === false && merch.attacked === false);
+ok("merchant has movement options", !!merch && engine.reachableTiles(s, merch).length > 0);
 
 // ---- Merchant load + price + trade ----
 player.goods.wood = 10;

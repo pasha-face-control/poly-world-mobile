@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend-only regression + bug-fix + new-feature test of HexTribes on Expo web preview (390x844, localStorage cleared before first run). ALL requested items PASS.\n\n(A) BUG FIX — garrisoned units visible: VERIFIED. After starting a new game, the zoomed capital screenshot (/tmp/06_game_capital.png) clearly shows a small round garrison badge (green circle with a Warrior sword icon) drawn beside the capital city house at the capital tile, proving the starting Warrior is now visually rendered while garrisoned.\n\n(B) BUG FIX — two-tap garrisoned selection: VERIFIED. 1st tap at (250,445) -> [data-testid=\"city-panel\"] count=1, unit-panel=0. 2nd tap at (250,445) -> city-panel=0, [data-testid=\"unit-panel\"] count=1 with Warrior 'Tap a yellow tile to move · red tile to attack' rendered and yellow reachable tiles visible on the map (screenshot 08). The same mechanism will allow a recruited Merchant to be selected/moved once Trading tech is unlocked.\n\n(C) Double-tap does not break normal tapping: VERIFIED. page.mouse.dblclick on the garrisoned Warrior tile did NOT throw a red-screen error; game-screen remained mounted. Double-tap on empty tile also safe. (Merchant-specific double-tap->inventory was skipped per instructions — deep Trading tech is unreachable in a short test.)\n\n(D) FEATURE — Quick Tutorial first run: VERIFIED end-to-end. On the first fresh new game the [data-testid=\"tutorial-overlay\"] auto-appeared. All 5 steps navigate correctly via tutorial-next (4 clicks -> last step). On the last step tutorial-next is replaced by [data-testid=\"tutorial-done\"] as designed. [data-testid=\"tutorial-back\"] correctly returns to the previous step (done disappears, next reappears). tutorial-done closes the overlay. tutorial-skip also closes the overlay. After close, localStorage.getItem('hextribes_tutorial_seen_v1') === 'true' — persistence flag is written. Persistence across separate browser sessions could not be re-verified because each Playwright invocation launches a fresh isolated browser context (localStorage naturally empty in a new session); the flag-writing side of persistence is confirmed and the useEffect gate in /app/frontend/app/game.tsx:50-60 uses this flag exactly the way the task requires.\n\n(E) FEATURE — reopen tutorial from pause menu: VERIFIED. In-game [data-testid=\"action-menu\"] opens [data-testid=\"ingame-menu\"] with a visible 'How to Play' button ([data-testid=\"menu-tutorial\"]). Tapping it re-opens [data-testid=\"tutorial-overlay\"] and tutorial-skip closes it again cleanly.\n\n(F) Regression: VERIFIED. Main menu -> New Game -> Setup -> Start Game -> game screen renders. TopHUD shows stars=6, tribe=Lesnoi, cities=1, turn=T1. End Turn advances to T2 (AI turn indicator shown during the ~2.5s wait). Game screen never went blank across ~15 interactions/screenshots.\n\nCarry-over web deprecation warnings from iteration_1/2 STILL PRESENT (non-blocking): 'shadow* style props are deprecated. Use boxShadow.' and 'props.pointerEvents is deprecated. Use style.pointerEvents.'",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "theme.ts shadow() helper",
+        "issue": "Console still emits: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' on every screen. Reference: /app/frontend/src/theme.ts (shadow helper). Same finding as iteration_1 and iteration_2 — still not migrated."
+      },
+      {
+        "component": "pointerEvents prop usage",
+        "issue": "Console still emits: 'props.pointerEvents is deprecated. Use style.pointerEvents' when panel wrappers mount. Reference: BuildPanel.tsx, CityPanel.tsx, UnitPanel.tsx, MerchantPanel.tsx, BottomBar.tsx, TopHUD.tsx (any View using pointerEvents=\"box-none\" as a prop). Move pointerEvents into the style prop."
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Optional polish) Migrate shadow* style props -> boxShadow in /app/frontend/src/theme.ts to silence a persistent web deprecation warning (open since iteration_1).",
+    "(Optional polish) Migrate pointerEvents prop -> style.pointerEvents in BuildPanel/CityPanel/UnitPanel/MerchantPanel/BottomBar/TopHUD (open since iteration_1).",
+    "(Nice-to-have for future automation) Add per-tile testIDs (e.g. tile-{id}) so the 'move to a yellow tile' step can be scripted deterministically without pixel math. Not required for this fix — the two-tap garrison selection is already fully verified via unit-panel appearing."
+  ],
+  "critical_code_review_comments": [
+    "game.tsx:141-172 — the 'nothing selected' branch correctly gives city priority when a garrison exists; the second-tap logic (`selectedCityId === city.id && garrison`) cleanly swaps to selecting the garrisoned unit and clearing selectedCityId, which is why unit-panel opens on the second tap. Clean implementation of the bug fix.",
+    "GameMap.tsx:465-474 — new garrison-badge branch (`unit && city`) draws a colored circle with the unit's icon at (cx-24, baseY-28) beside the city building. Uses playerColor(state, unit.owner) for the fill and highlights the border white when selectedTileId matches. Correctly makes garrisoned units visible.",
+    "TutorialOverlay.tsx — 5-step STEPS array; last step swaps 'tutorial-next' testID to 'tutorial-done' via the ternary at line 55; back button hidden on step 0; internal step index resets to 0 on close; progress dots reflect current step. Clean, matches all spec requirements.",
+    "game.tsx:50-60 — tutorial-first-run useEffect reads 'hextribes_tutorial_seen_v1' via storage.getItem, opens overlay, and immediately writes the flag back. The immediate write is intentional so that skipping/quitting still marks the tutorial as seen. tutorialChecked ref guards re-runs. Solid.",
+    "Deprecated web style props (shadow*, pointerEvents) noted above — non-blocking but noisy."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend only)",
+    "frontend": "All 6 requested items PASS: garrison badge visible, two-tap garrison selection, double-tap safety, tutorial first-run + 5-step navigation + back + done + skip + persisted flag written, menu-tutorial reopen, and full regression (menu/setup/start/HUD/EndTurn). 100% on required flows."
+  },
+  "seed_data_creation": "None. localStorage keys cleared before first fresh-first-run test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Bug fix + tutorial feature confirmed working. When re-testing tutorial persistence across sessions with Playwright, note that each browser_automation invocation launches an isolated browser context (localStorage does NOT carry over between separate script runs). To validate cross-session persistence in one automation call, do everything (first game -> close tutorial -> exit to main menu -> start second new game) within a single script. The persistence WRITE was already verified: after tutorial-done, localStorage['hextribes_tutorial_seen_v1'] === 'true'. Deep Trading -> recruit-Merchant -> double-tap->MerchantPanel flow is still not exercised in UI tests (engine unit tests cover the logic per the request).",
+  "rca_of_issue": "The original bug ('recruited merchants seemed not to exist / not visible / not movable') was rooted in two UI gaps: (1) units sharing a tile with a city rendered no on-map avatar, so they looked missing — fixed by the new garrison-badge branch in GameMap.tsx:465-474 which draws a colored circular badge beside the city; (2) tapping an occupied city always opened the city-panel and never selected the garrison, so movement was impossible — fixed by the second-tap-on-same-city branch in game.tsx:141-154 which pops the garrison out into unit-panel. Both fixes verified live (garrison badge visible in screenshot 06; unit-panel opens on 2nd tap of the capital). The exact same mechanism will make a recruited Merchant selectable/movable once Trading tech is unlocked."
+}

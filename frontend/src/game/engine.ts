@@ -366,8 +366,14 @@ export function trainUnit(state: GameState, player: number, cityId: string, type
     }
   }
   const u = newUnit(type, player, city.tileId);
-  u.moved = true;
-  u.attacked = true; // trained units act next turn
+  if (type === "merchant") {
+    // Merchants are peaceful trade units — usable the turn they're recruited.
+    u.moved = false;
+    u.attacked = false;
+  } else {
+    u.moved = true;
+    u.attacked = true; // trained combat units act next turn
+  }
   state.units.push(u);
   if (player === 0) computeVisibility(state, 0);
   log(state, `${state.players[player].name} trained ${def.name}`);

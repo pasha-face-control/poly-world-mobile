@@ -15,8 +15,10 @@ import BuildPanel from "@/src/components/BuildPanel";
 import MerchantPanel from "@/src/components/MerchantPanel";
 import LevelUpModal from "@/src/components/LevelUpModal";
 import VictoryCard from "@/src/components/VictoryCard";
+import TutorialOverlay from "@/src/components/TutorialOverlay";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
+import { storage } from "@/src/utils/storage";
 import { attackableTiles, neighbors, reachableTiles, tileHasActions } from "@/src/game/engine";
 import { TRIBE_BY_ID } from "@/src/game/data";
 import { UnitType } from "@/src/game/types";
@@ -34,6 +36,8 @@ export default function GameScreen() {
   const [moveAnim, setMoveAnim] = useState<{ unitId: string; fromTileId: number; toTileId: number; key: number } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const tutorialChecked = useRef(false);
   const [focusTileId, setFocusTileId] = useState<number | null>(null);
   const [focusKey, setFocusKey] = useState(0);
   const prevPlayer = useRef<number | null>(null);
@@ -41,6 +45,19 @@ export default function GameScreen() {
   useEffect(() => {
     if (!state) router.replace("/");
   }, [state, router]);
+
+  // Show the quick tutorial the first time a player enters a game.
+  useEffect(() => {
+    if (tutorialChecked.current) return;
+    tutorialChecked.current = true;
+    (async () => {
+      const seen = await storage.getItem<boolean>("hextribes_tutorial_seen_v1", false);
+      if (!seen) {
+        setTutorialOpen(true);
+        await storage.setItem("hextribes_tutorial_seen_v1", true);
+      }
+    })();
+  }, []);
 
   // Clear selection when the active player changes.
   useEffect(() => {
@@ -123,10 +140,18 @@ export default function GameScreen() {
 
     // Nothing selected — city takes priority so an occupied capital is still accessible.
     if (city && city.owner === cp) {
+      const garrison = unit && unit.owner === cp ? unit : undefined;
       Haptics.selectionAsync();
-      setSelectedCityId(city.id);
-      setSelectedUnitId(null);
+      if (selectedCityId === city.id && garrison) {
+        // Second tap on an occupied city pulls the garrisoned unit out for movement.
+        setSelectedUnitId(garrison.id);
+        setSelectedCityId(null);
+      } else {
+        setSelectedCityId(city.id);
+        setSelectedUnitId(null);
+      }
       setSelectedBuildTileId(null);
+      setMerchantOpen(false);
     } else if (unit && unit.owner === cp) {
       Haptics.selectionAsync();
       setSelectedUnitId(unit.id);
@@ -143,6 +168,22 @@ export default function GameScreen() {
       setSelectedUnitId(null);
       setSelectedCityId(null);
       setSelectedBuildTileId(null);
+    }
+  };
+
+  // Double-tap a merchant to open its inventory / trade panel.
+  const onTileDoubleTap = (tileId: number) => {
+    if (!interactive) return;
+    const cp = state.currentPlayer;
+    const unit = state.units.find((u) => u.tileId === tileId);
+    if (unit && unit.owner === cp && unit.type === "merchant") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setSelectedUnitId(unit.id);
+      setSelectedCityId(null);
+      setSelectedBuildTileId(null);
+      setMerchantOpen(true);
+    } else {
+      onTileTap(tileId);
     }
   };
 
@@ -188,6 +229,7 @@ export default function GameScreen() {
         territoryColor={TRIBE_BY_ID[state.players[state.currentPlayer].tribe].color}
         moveAnim={moveAnim}
         onTileTap={onTileTap}
+        onTileDoubleTap={onTileDoubleTap}
       />
 
       <TopHUD state={state} topInset={insets.top} />
@@ -285,12 +327,15 @@ export default function GameScreen() {
         }}
       />
 
+      <TutorialOverlay visible={tutorialOpen} onClose={() => setTutorialOpen(false)} />
+
       {/* In-game menu */}
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <View style={styles.centerOverlay}>
           <View style={styles.dialog} testID="ingame-menu">
             <Text style={styles.dialogTitle}>Paused</Text>
             <Button testID="menu-resume" label="Resume" icon="play" onPress={() => setMenuOpen(false)} />
+            <Button testID="menu-tutorial" label="How to Play" icon="help-circle" variant="secondary" onPress={() => { setMenuOpen(false); setTutorialOpen(true); }} />
             <Button testID="menu-exit" label="Main Menu" icon="home" variant="secondary" onPress={goMenu} />
             <Text style={styles.saveNote}>Your game is auto-saved.</Text>
           </View>

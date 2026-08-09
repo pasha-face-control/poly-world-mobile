@@ -29,6 +29,7 @@ interface Props {
   territoryColor: string;
   moveAnim: { unitId: string; fromTileId: number; toTileId: number; key: number } | null;
   onTileTap: (tileId: number) => void;
+  onTileDoubleTap: (tileId: number) => void;
 }
 
 function playerColor(state: GameState, owner: number): string {
@@ -164,7 +165,7 @@ function drawDock(arr: React.ReactNode[], bx: number, by: number, k: string | nu
   arr.push(<Polygon key={`dpost${k}`} points={pts([[bx + 7, by - 2], [bx + 9, by - 2], [bx + 9, by - 14], [bx + 7, by - 14]])} fill="#5C4326" />);
 }
 
-export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, attackable, centerTileId, focusTileId, focusKey, territory, territoryColor, moveAnim, onTileTap }: Props) {
+export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, attackable, centerTileId, focusTileId, focusKey, territory, territoryColor, moveAnim, onTileTap, onTileDoubleTap }: Props) {
   const [rotation, setRotation] = useState(0); // 0..3 camera angle
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
@@ -271,6 +272,11 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     if (x >= 0 && y >= 0 && x < w && y < h) onTileTap(y * w + x);
   };
 
+  const handleViewDouble = (vx: number, vy: number) => {
+    const [x, y] = fromView(vx, vy);
+    if (x >= 0 && y >= 0 && x < w && y < h) onTileDoubleTap(y * w + x);
+  };
+
   const pan = Gesture.Pan()
     .onBegin(() => {
       startX.value = tx.value;
@@ -305,7 +311,18 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
       runOnJS(handleView)(vx, vy);
     });
 
-  const composed = Gesture.Race(Gesture.Simultaneous(pan, pinch, rotate), tap);
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .maxDuration(300)
+    .onEnd((e) => {
+      const a = (e.x - oX) / HW;
+      const b = (e.y - originY) / HH;
+      const vx = Math.round((a + b) / 2);
+      const vy = Math.round((b - a) / 2);
+      runOnJS(handleViewDouble)(vx, vy);
+    });
+
+  const composed = Gesture.Race(Gesture.Simultaneous(pan, pinch, rotate), Gesture.Exclusive(doubleTap, tap));
   const animStyle = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }] }));
   const animTokenStyle = useAnimatedStyle(() => ({ transform: [{ translateX: animOffX.value }, { translateY: animOffY.value }] }));
 
@@ -445,6 +462,16 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                     <Text style={styles.cityLevelText}>{city.level}</Text>
                   </View>
                 )}
+                {unit && city && (
+                  <View
+                    style={[
+                      styles.garrison,
+                      { left: cx - 24, top: baseY - 28, backgroundColor: playerColor(state, unit.owner), borderColor: selectedTileId === t.id ? "#FFFFFF" : "rgba(0,0,0,0.35)" },
+                    ]}
+                  >
+                    <MaterialCommunityIcons name={(unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon) as any} size={13} color="#fff" />
+                  </View>
+                )}
                 {unit && !city && unit.id !== animUnit?.id && (
                   <>
                     <MaterialCommunityIcons
@@ -502,6 +529,7 @@ const styles = StyleSheet.create({
   building: { position: "absolute", width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#fff", ...shadow(3) },
   cityLevel: { position: "absolute", minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 3, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#fff" },
   cityLevelText: { color: "#fff", fontSize: 10, fontWeight: "900" },
+  garrison: { position: "absolute", width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", borderWidth: 2, ...shadow(3) },
   hpBarBg: { position: "absolute", width: 28, height: 4, borderRadius: 2, backgroundColor: "rgba(0,0,0,0.4)", overflow: "hidden" },
   hpBar: { height: 4, backgroundColor: C.success },
   doneDot: { position: "absolute", width: 10, height: 10, borderRadius: 5, backgroundColor: C.borderStrong, borderWidth: 1, borderColor: "#fff" },
