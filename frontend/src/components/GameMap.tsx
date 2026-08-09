@@ -370,8 +370,8 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
       const boundary = !inTer(t.x, t.y - 1) || !inTer(t.x, t.y + 1) || !inTer(t.x - 1, t.y) || !inTer(t.x + 1, t.y);
       terrainShapes.push(<Polygon key={`ter${k}`} points={pts(surface)} fill={terFill} stroke={boundary ? territoryColor : "transparent"} strokeWidth={3} />);
     }
-    if (reachableSet.has(k)) terrainShapes.push(<Polygon key={`rc${k}`} points={pts(surface)} fill="rgba(229,169,58,0.45)" stroke={C.warning} strokeWidth={3} />);
-    if (attackableSet.has(k)) terrainShapes.push(<Polygon key={`at${k}`} points={pts(surface)} fill="rgba(188,71,73,0.45)" stroke={C.error} strokeWidth={3} />);
+    if (reachableSet.has(k)) terrainShapes.push(<Polygon key={`rc${k}`} points={pts(surface)} fill="rgba(229,169,58,0.62)" stroke="#FFD24A" strokeWidth={4} />);
+    if (attackableSet.has(k)) terrainShapes.push(<Polygon key={`at${k}`} points={pts(surface)} fill="rgba(188,71,73,0.6)" stroke="#FF5A5C" strokeWidth={4} />);
     if (selectedTileId === k) terrainShapes.push(<Polygon key={`sel${k}`} points={pts(surface)} fill="transparent" stroke="#FFFFFF" strokeWidth={3} />);
 
     // Roads: bed diamond + segments to adjacent road tiles.
