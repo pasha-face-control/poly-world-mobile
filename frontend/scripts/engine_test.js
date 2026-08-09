@@ -65,6 +65,28 @@ ok("bot bought (cargo down)", merch.cargo.wood === 1);
 ok("owner earned stars", player.stars === ownerStarsBefore + 5);
 ok("bot spent stars & got good", bot.stars === 95 && bot.goods.wood >= 1);
 
+// ---- Human buys from another player's merchant ----
+{
+  // give the bot (player 1) a merchant stocked with iron at price 4
+  const { newUnit: mk } = require("../src/game/factory.ts");
+  const botCity = s.cities.find((c) => c.owner === 1);
+  const bm = mk("merchant", 1, botCity ? botCity.tileId : merch.tileId);
+  bm.cargo.iron = 3;
+  bm.price = 4;
+  s.units.push(bm);
+  s.tiles[bm.tileId].explored = true; // human has discovered it
+  ok("can buy from other player's merchant", engine.canBuyFromMerchant(s, P, bm.id).ok);
+  const humanStars = player.stars;
+  const ownerStars = s.players[1].stars;
+  const humanIron = player.goods.iron;
+  ok("buy 2 iron", engine.buyFromMerchant(s, P, bm.id, "iron", 2));
+  ok("human got iron", player.goods.iron === humanIron + 2);
+  ok("human paid 8 stars", player.stars === humanStars - 8);
+  ok("merchant owner earned 8 stars", s.players[1].stars === ownerStars + 8);
+  ok("merchant cargo reduced", bm.cargo.iron === 1);
+  ok("cannot buy own merchant", !engine.canBuyFromMerchant(s, 1, bm.id).ok);
+}
+
 // ---- Infrastructure: road ----
 const nb = engine.neighbors(s, cap.tileId).map((id) => s.tiles[id]);
 const landAdj = nb.find((t) => t.terrain === "grass" && !t.cityId && !t.building && !t.road);

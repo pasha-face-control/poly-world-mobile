@@ -6,6 +6,7 @@ import {
   applyLevelReward,
   attackUnit,
   build,
+  buyFromMerchant,
   checkVictory,
   clone,
   computeVisibility,
@@ -54,6 +55,7 @@ interface GameContextValue {
   doLoadMerchant: (unitId: string, good: GoodType, amount: number) => boolean;
   doSetPrice: (unitId: string, price: number) => boolean;
   doApplyReward: (cityId: string, rewardId: string) => boolean;
+  doBuyFromMerchant: (merchantId: string, good: GoodType, amount: number) => boolean;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -162,6 +164,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doLoadMerchant = useCallback((unitId: string, good: GoodType, amount: number) => apply((s) => loadMerchant(s, unitId, good, amount)), [apply]);
   const doSetPrice = useCallback((unitId: string, price: number) => apply((s) => setMerchantPrice(s, unitId, price)), [apply]);
   const doApplyReward = useCallback((cityId: string, rewardId: string) => apply((s) => applyLevelReward(s, cityId, rewardId)), [apply]);
+  const doBuyFromMerchant = useCallback((merchantId: string, good: GoodType, amount: number) => apply((s) => buyFromMerchant(s, s.currentPlayer, merchantId, good, amount)), [apply]);
 
   const endTurn = useCallback(() => {
     if (!state || state.status !== "playing") return;
@@ -210,6 +213,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doLoadMerchant,
         doSetPrice,
         doApplyReward,
+        doBuyFromMerchant,
       }}
     >
       {children}

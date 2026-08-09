@@ -1,0 +1,42 @@
+{
+  "summary": "Frontend regression pass on HexTribes after the new onTileTap enemy-merchant intercept in /app/frontend/app/game.tsx:115-124 (BuyMerchantPanel path). ALL 6 requested regression flows PASS on a fresh vs-AI Lesnoi Small Continents game (mobile viewport 390x844, localStorage cleared before first run). No red-screen, no PAGEERROR at any point. The new intercept correctly short-circuits ONLY when unit.type==='merchant' && unit.owner!==currentPlayer (guarded by early return), so it has no effect on any of the fresh-game interactions where no enemy merchant exists yet.\n\nEvidence per flow:\n(1) Regression — unit move: action-next-unit opens [data-testid=\"unit-panel\"] with Warrior/'Tap a yellow tile to move'/'Ready'. Tap on hex neighbor (285,425) succeeded — unit-panel changed from 'Ready' to no 'Ready' badge (moved=true). No crash. Screenshot: /tmp/reg_a.png.\n(2) Regression — garrison two-tap: On a fresh game (Warrior NOT yet moved), 1st tap at (250,445) opens [data-testid=\"city-panel\"] with 'Capital · Lvl 1' + Train Units row including [data-testid=\"train-merchant\"] chip (locked). 2nd tap at same coords opens [data-testid=\"unit-panel\"] for the garrisoned Warrior showing 'Ready' + HP 10/10 + yellow reachable tiles visible on map. Screenshot: /tmp/garrison_test.png.\n(3) Regression — empty/mountain taps: 7 taps at various empty/mountain coordinates (30,200 / 360,200 / 30,700 / 360,700 / 100,750 / 250,780 / 213,388) — game-screen remained mounted, no PAGEERROR.\n(4) Regression — turn cycle: hud-turn advanced T1 -> T2 after action-end-turn (AI think ~5s). game-screen still mounted, HUD stable.\n(5) Regression — tutorial first-run: After clearing localStorage and starting New Game, [data-testid=\"tutorial-overlay\"] auto-appeared; [data-testid=\"tutorial-skip\"] closed it cleanly.\n(6) Regression — city panel content: [data-testid=\"train-merchant\"] chip present (locked as expected — Trading tech not researched). Note on Harvest row: the CityPanel only renders the Harvest section when at least one adjacent resource tile exists within city territory (CityPanel.tsx:89 `harvestTiles.length > 0`); on this specific procedurally-seeded fresh Continents-Small map the initial territory has NO resource tiles adjacent to the capital, so the Harvest row is correctly absent. This is engine-map-seed data-driven, NOT a regression from the merchant-intercept change. No console/UI error thrown when the section is skipped.\n\nBUY-from-enemy-merchant path is correctly NOT reachable in the short test (no enemy merchant exists early game; Trading tech is gated). [data-testid=\"buy-merchant-panel\"] not present — confirmed absent.\n\nCarry-over web deprecation warnings from iteration_1/2/3 still present (non-blocking, unchanged): 'shadow* style props are deprecated. Use boxShadow.' and 'props.pointerEvents is deprecated. Use style.pointerEvents.'",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "theme.ts shadow() helper",
+        "issue": "Console still emits: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' on every screen. Reference: /app/frontend/src/theme.ts (shadow helper). Same finding as iteration_1/2/3 — still not migrated."
+      },
+      {
+        "component": "pointerEvents prop usage",
+        "issue": "Console still emits: 'props.pointerEvents is deprecated. Use style.pointerEvents' when panel wrappers mount. Reference: BuildPanel/CityPanel/UnitPanel/MerchantPanel/BottomBar/TopHUD (any View using pointerEvents=\"box-none\" as a prop). Move pointerEvents into style prop."
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Optional polish, carry-over) Migrate shadow* style props -> boxShadow in /app/frontend/src/theme.ts.",
+    "(Optional polish, carry-over) Migrate pointerEvents prop -> style.pointerEvents across panel components.",
+    "(Nice-to-have) Add per-tile testIDs (e.g. tile-{id}) so unit-move + tile-tap flows can be scripted deterministically without pixel math."
+  ],
+  "critical_code_review_comments": [
+    "game.tsx:115-124 — the new onTileTap enemy-merchant intercept correctly guards with `unit && unit.type === 'merchant' && unit.owner !== cp` and does an early return AFTER clearing all other selections (setSelectedUnitId/setSelectedCityId/setSelectedBuildTileId/setMerchantOpen). Placed BEFORE the selectedUnit && selectedUnit.owner === cp branch — so any tap on an enemy merchant will preempt movement/attack. This is intentional per spec (attack an enemy merchant is not the desired action; buying is). Clean.",
+    "game.tsx:125 — `setBuyMerchantId(null)` after the intercept ensures that once a non-merchant tile is tapped, any lingering BuyMerchantPanel closes automatically. Good state hygiene.",
+    "game.tsx:285-300 — the buyMerchantId render is defensively re-validated (bm exists, still a merchant, still not owned by cp) — this correctly handles the case where the merchant is destroyed/captured between selection and render.",
+    "game.tsx:31,293-296 — doBuyFromMerchant is wired through useGame hook and into BuyMerchantPanel.onBuy; onClose clears buyMerchantId. Correctly integrated.",
+    "engine tests (scripts/engine_test.js) already cover the buy-from-merchant transaction (per task note: 32/32) so a UI-only regression pass is sufficient; the deep tech-gated buy flow was not exercised in this iteration by design."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only regression as requested)",
+    "frontend": "6/6 regression flows PASS (unit-move, garrison-two-tap, empty-tile-tap-safety, turn-cycle, tutorial-first-run, city-panel-content). No red-screen. No new deprecation warnings vs iteration_3."
+  },
+  "seed_data_creation": "None. localStorage keys hextribes_save_v1 / hextribes_stats_v1 / hextribes_tutorial_seen_v1 cleared before each fresh-first-run test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The new enemy-merchant tap intercept (game.tsx:115-124) has been UI-regression-verified on a short fresh game where no enemy merchant exists — no observable change to any pre-existing interaction. The buy-from-enemy flow itself is engine-tested (32/32 per scripts/engine_test.js) and tech-gated behind Trading + enemy owning a stocked merchant, which is not reachable in short UI runs — future testers should NOT try to grind to it. If the buy path ever needs a live UI check, hand-craft a saved-state fixture into hextribes_save_v1 in localStorage with an opponent-owned merchant adjacent to a friendly tile, or add a debug seed flag. IMPORTANT for reliable garrison-tests: do the 'two-tap capital' test BEFORE any unit movement — otherwise the Warrior has walked off the capital tile and the garrison is empty (this iteration's initial run hit that ordering pitfall until reproduced correctly).",
+  "rca_of_issue": "N/A — no regression found. The new onTileTap enemy-merchant intercept is a strictly additive branch guarded by owner!=currentPlayer && type==='merchant' with an unconditional early return. Because no enemy merchant exists in a fresh Small Continents game (Trading tech gate), the branch is never entered during a short test; all pre-existing tap paths (move, attack, garrison-select, city-select, build-tile-select, deselect) remain code-identical in flow order. Regression risk from this change is therefore effectively zero, matching the observed 6/6 PASS."
+}

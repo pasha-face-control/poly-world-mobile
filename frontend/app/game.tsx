@@ -13,6 +13,7 @@ import CityPanel from "@/src/components/CityPanel";
 import UnitPanel from "@/src/components/UnitPanel";
 import BuildPanel from "@/src/components/BuildPanel";
 import MerchantPanel from "@/src/components/MerchantPanel";
+import BuyMerchantPanel from "@/src/components/BuyMerchantPanel";
 import LevelUpModal from "@/src/components/LevelUpModal";
 import VictoryCard from "@/src/components/VictoryCard";
 import TutorialOverlay from "@/src/components/TutorialOverlay";
@@ -27,12 +28,13 @@ import { C, R, SP, shadow } from "@/src/theme";
 export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
   const [selectedBuildTileId, setSelectedBuildTileId] = useState<number | null>(null);
   const [merchantOpen, setMerchantOpen] = useState(false);
+  const [buyMerchantId, setBuyMerchantId] = useState<string | null>(null);
   const [moveAnim, setMoveAnim] = useState<{ unitId: string; fromTileId: number; toTileId: number; key: number } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -68,6 +70,7 @@ export default function GameScreen() {
       setSelectedCityId(null);
       setSelectedBuildTileId(null);
       setMerchantOpen(false);
+      setBuyMerchantId(null);
     }
   }, [state?.currentPlayer, state]);
 
@@ -108,6 +111,18 @@ export default function GameScreen() {
     const tile = state.tiles[tileId];
     const unit = state.units.find((u) => u.tileId === tileId);
     const city = tile.cityId ? state.cities.find((c) => c.id === tile.cityId) : undefined;
+
+    // Tapping another player's merchant opens its shop so you can buy goods.
+    if (unit && unit.type === "merchant" && unit.owner !== cp) {
+      Haptics.selectionAsync();
+      setBuyMerchantId(unit.id);
+      setSelectedUnitId(null);
+      setSelectedCityId(null);
+      setSelectedBuildTileId(null);
+      setMerchantOpen(false);
+      return;
+    }
+    setBuyMerchantId(null);
 
     if (selectedUnit && selectedUnit.owner === cp) {
       if (attackable.includes(tileId)) {
@@ -193,6 +208,7 @@ export default function GameScreen() {
       setSelectedUnitId(next.id);
       setSelectedCityId(null);
       setMerchantOpen(false);
+      setBuyMerchantId(null);
       setFocusTileId(next.tileId);
       setFocusKey((k) => k + 1);
       Haptics.selectionAsync();
@@ -266,6 +282,22 @@ export default function GameScreen() {
           onClose={() => setMerchantOpen(false)}
         />
       )}
+      {buyMerchantId && (() => {
+        const bm = state.units.find((u) => u.id === buyMerchantId);
+        if (!bm || bm.type !== "merchant" || bm.owner === state.currentPlayer) return null;
+        return (
+          <BuyMerchantPanel
+            state={state}
+            merchant={bm}
+            bottomInset={insets.bottom}
+            onBuy={(mid, good, amount) => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              doBuyFromMerchant(mid, good, amount);
+            }}
+            onClose={() => setBuyMerchantId(null)}
+          />
+        );
+      })()}
       {selectedCity && (
         <CityPanel
           state={state}

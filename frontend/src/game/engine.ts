@@ -266,7 +266,32 @@ export function setMerchantPrice(state: GameState, unitId: string, price: number
   return true;
 }
 
-// Each turn, other (bot) players buy goods from every merchant they can afford.
+// A player buys goods directly from another player's merchant (pays stars to the owner).
+export function canBuyFromMerchant(state: GameState, buyer: number, merchantId: string): { ok: boolean; reason?: string } {
+  const m = state.units.find((u) => u.id === merchantId);
+  if (!m || m.type !== "merchant" || !m.cargo) return { ok: false, reason: "Not a merchant" };
+  if (m.owner === buyer) return { ok: false, reason: "Your own merchant" };
+  if (buyer === 0 && !state.tiles[m.tileId].explored) return { ok: false, reason: "Not discovered" };
+  const total = Object.values(m.cargo).reduce((s, v) => s + v, 0);
+  if (total <= 0) return { ok: false, reason: "Nothing for sale" };
+  return { ok: true };
+}
+
+export function buyFromMerchant(state: GameState, buyer: number, merchantId: string, good: GoodType, amount: number): boolean {
+  if (!canBuyFromMerchant(state, buyer, merchantId).ok) return false;
+  const m = state.units.find((u) => u.id === merchantId)!;
+  const cargo = m.cargo!;
+  const price = m.price ?? 3;
+  const affordable = Math.floor(state.players[buyer].stars / price);
+  const take = Math.min(amount, cargo[good], affordable);
+  if (take <= 0) return false;
+  state.players[buyer].stars -= take * price;
+  state.players[buyer].goods[good] += take;
+  cargo[good] -= take;
+  state.players[m.owner].stars += take * price;
+  log(state, `${state.players[buyer].name} bought ${take} ${good} from ${state.players[m.owner].name}'s merchant`);
+  return true;
+}
 // Bots are buy-only; the merchant's owner earns the sale price in stars.
 export function resolveTrades(state: GameState) {
   for (const m of state.units) {

@@ -6,14 +6,16 @@ import {
   buildableFor,
   chebyshev,
   harvest,
+  loadMerchant,
   moveUnit,
   reachableTiles,
   research,
+  setMerchantPrice,
   techCost,
   trainUnit,
 } from "./engine";
 import { RESOURCE_DEFS, UNIT_DEFS } from "./data";
-import { GameState, Unit, UnitType } from "./types";
+import { GameState, GoodType, Unit, UnitType } from "./types";
 import { neighbors, unitAt } from "./grid";
 
 function objectiveTiles(state: GameState, player: number): number[] {
@@ -99,9 +101,32 @@ export function runAiTurn(state: GameState, player: number) {
     }
   }
 
-  // 4. Move & attack each unit.
+  // 3c. Trading: keep one stocked merchant for sale so rivals can buy from it.
+  if (state.players[player].techs.includes("trading")) {
+    let merchants = state.units.filter((u) => u.owner === player && u.type === "merchant");
+    if (merchants.length === 0 && state.players[player].stars >= UNIT_DEFS.merchant.cost) {
+      for (const c of state.cities.filter((c) => c.owner === player)) {
+        if (unitAt(state, c.tileId)) continue;
+        if (trainUnit(state, player, c.id, "merchant")) break;
+      }
+      merchants = state.units.filter((u) => u.owner === player && u.type === "merchant");
+    }
+    for (const m of merchants) {
+      const total = m.cargo ? Object.values(m.cargo).reduce((s, v) => s + v, 0) : 0;
+      if (total < 4) {
+        for (const g of ["wood", "meat", "wheat", "iron", "horse"] as GoodType[]) {
+          const have = state.players[player].goods[g];
+          if (have > 2) loadMerchant(state, m.id, g, Math.min(2, have - 1));
+        }
+        setMerchantPrice(state, m.id, 3);
+      }
+    }
+  }
+
+  // 4. Move & attack each unit (merchants stay put and trade).
   const myUnits = state.units.filter((u) => u.owner === player);
   for (const u of myUnits) {
+    if (u.type === "merchant") continue;
     if (!state.units.find((x) => x.id === u.id)) continue; // may have died
     if (tryAttack(state, u)) continue;
 
