@@ -65,7 +65,7 @@ export function generateGame(config: {
       if (r < 0.28) t.resource = "fruit";
       else if (r < 0.4) t.resource = "crop";
     } else if (t.terrain === "forest") {
-      if (rng.chance(0.4)) t.resource = "animal";
+      if (rng.chance(0.5)) t.resource = "animal";
     } else if (t.terrain === "mountain") {
       if (rng.chance(0.4)) t.resource = "ore";
     } else if (t.terrain === "water") {

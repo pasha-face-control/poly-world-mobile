@@ -13,7 +13,6 @@ export const TILE = 76;
 const HW = TILE / 2;
 const HH = TILE / 4;
 const PAD = TILE * 1.4;
-const FE = 15; // forest plateau height
 const MH = 46; // mountain pyramid height
 
 interface Props {
@@ -254,24 +253,16 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
       // Snow cap
       const capY = cy - HH - MH * 0.5;
       terrainShapes.push(<Polygon key={`mc${k}`} points={pts([apex, [cx - HW * 0.26, capY], [cx + HW * 0.26, capY]])} fill="#F4F4F2" />);
-    } else if (t.terrain === "forest") {
-      const tTop: Pt = [cx, cy - HH - FE];
-      const tRight: Pt = [cx + HW, cy - FE];
-      const tBottom: Pt = [cx, cy + HH - FE];
-      const tLeft: Pt = [cx - HW, cy - FE];
-      terrainShapes.push(<Polygon key={`fl${k}`} points={pts([left, bottom, tBottom, tLeft])} fill={darken(col, 0.62)} />);
-      terrainShapes.push(<Polygon key={`fr${k}`} points={pts([right, bottom, tBottom, tRight])} fill={darken(col, 0.78)} />);
-      terrainShapes.push(<Polygon key={`ft${k}`} points={pts([tTop, tRight, tBottom, tLeft])} fill={col} stroke="rgba(0,0,0,0.18)" strokeWidth={1} />);
     } else {
+      // grass, water & forest are all flat ground (forest shows trees on top)
       terrainShapes.push(<Polygon key={`g${k}`} points={pts([top, right, bottom, left])} fill={col} stroke="rgba(0,0,0,0.15)" strokeWidth={1} />);
     }
 
     // Surface overlays (territory / move / attack / selected)
-    const lift = t.terrain === "forest" ? FE : 0;
-    const sTop: Pt = [cx, cy - HH - lift];
-    const sRight: Pt = [cx + HW, cy - lift];
-    const sBottom: Pt = [cx, cy + HH - lift];
-    const sLeft: Pt = [cx - HW, cy - lift];
+    const sTop: Pt = [cx, cy - HH];
+    const sRight: Pt = [cx + HW, cy];
+    const sBottom: Pt = [cx, cy + HH];
+    const sLeft: Pt = [cx - HW, cy];
     const surface = [sTop, sRight, sBottom, sLeft];
     if (territory.has(k)) {
       const boundary = !inTer(t.x, t.y - 1) || !inTer(t.x, t.y + 1) || !inTer(t.x - 1, t.y) || !inTer(t.x + 1, t.y);
@@ -282,7 +273,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     if (selectedTileId === k) terrainShapes.push(<Polygon key={`sel${k}`} points={pts(surface)} fill="transparent" stroke="#FFFFFF" strokeWidth={3} />);
 
     // 3D pieces (drawn in depth order with terrain)
-    const tokLift = t.terrain === "forest" ? FE : t.terrain === "mountain" ? HH + MH * 0.55 : 0;
+    const tokLift = t.terrain === "mountain" ? HH + MH * 0.55 : 0;
     const surfY = cy - tokLift;
     const city = t.cityId ? state.cities.find((c) => c.id === t.cityId) : undefined;
     const unit = state.units.find((u) => u.tileId === t.id);
@@ -303,7 +294,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
             const hidden = fog && !t.explored;
             if (hidden) return null;
             const [cx, cy] = project(vx, vy);
-            const lift = t.terrain === "forest" ? FE : t.terrain === "mountain" ? HH + MH * 0.55 : 0;
+            const lift = t.terrain === "mountain" ? HH + MH * 0.55 : 0;
             const baseY = cy - lift;
             const unit = state.units.find((u) => u.tileId === t.id);
             const city = t.cityId ? state.cities.find((c) => c.id === t.cityId) : undefined;
