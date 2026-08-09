@@ -2,10 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import Svg, { Ellipse, Polygon } from "react-native-svg";
+import Svg, { Ellipse, Line, Polygon } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, shadow } from "@/src/theme";
-import { BUILDING_BY_ID, RESOURCE_ICON, TERRAIN_COLOR, TRIBE_BY_ID, UNIT_DEFS } from "@/src/game/data";
+import { BOAT_DEFS, BUILDING_BY_ID, RESOURCE_ICON, TERRAIN_COLOR, TRIBE_BY_ID, UNIT_DEFS } from "@/src/game/data";
 import { GameState } from "@/src/game/types";
 
 // Isometric (2.5D) metrics.
@@ -132,6 +132,35 @@ function drawBull(arr: React.ReactNode[], bx: number, by: number, k: string | nu
   arr.push(<Polygon key={`ahr${k}`} points={pts([P(23, -24), P(30, -35), P(18, -28)])} fill={horn} />);
   // snout
   arr.push(<Polygon key={`asn${k}`} points={pts([P(26, -11), P(31, -13), P(31, -6), P(26, -4)])} fill="#3A2A1D" />);
+}
+
+// Low-poly 3D boat (hull + tribe-colored sail). Bigger/darker for higher tiers.
+function drawBoat(arr: React.ReactNode[], bx: number, by: number, color: string, tier: string, k: string | number) {
+  const hullTop = tier === "battleship" ? "#3A2E22" : "#6B4A2A";
+  const hullSide = tier === "battleship" ? "#241C14" : "#4A3320";
+  const w = tier === "rowing" ? 15 : 18;
+  const d = 6;
+  arr.push(<Ellipse key={`bsh${k}`} cx={bx} cy={by + 3} rx={w + 3} ry={5} fill="rgba(0,0,0,0.22)" />);
+  // hull (boat-shaped trapezoid, isometric)
+  const hl: Pt = [bx - w, by - 3];
+  const hr: Pt = [bx + w, by - 3];
+  const bl: Pt = [bx - w * 0.6, by + d];
+  const br: Pt = [bx + w * 0.6, by + d];
+  arr.push(<Polygon key={`bh${k}`} points={pts([hl, hr, br, bl])} fill={hullTop} stroke="rgba(0,0,0,0.2)" strokeWidth={1} />);
+  arr.push(<Polygon key={`bhs${k}`} points={pts([bl, br, [bx + w * 0.6, by + d + 4], [bx - w * 0.6, by + d + 4]])} fill={hullSide} />);
+  // mast + sail
+  const mastTop = by - 3 - (tier === "rowing" ? 20 : 26);
+  arr.push(<Polygon key={`bm${k}`} points={pts([[bx - 1, by - 3], [bx + 1, by - 3], [bx + 1, mastTop], [bx - 1, mastTop]])} fill="#5a4632" />);
+  arr.push(<Polygon key={`bsl${k}`} points={pts([[bx + 1.5, mastTop + 2], [bx + 1.5, by - 6], [bx + 13, by - 10]])} fill={color} stroke="rgba(255,255,255,0.5)" strokeWidth={1} />);
+  if (tier === "battleship") {
+    arr.push(<Polygon key={`bg${k}`} points={pts([[bx - w, by - 3], [bx - w - 6, by - 6], [bx - w, by - 7]])} fill="#222" />);
+  }
+}
+
+// Wooden dock (port) on a water tile.
+function drawDock(arr: React.ReactNode[], bx: number, by: number, k: string | number) {
+  isoBox(arr, bx, by + 2, 10, 5, 5, "#9A7B4F", "#5C4326", "#7A5A34", `dk${k}`);
+  arr.push(<Polygon key={`dpost${k}`} points={pts([[bx + 7, by - 2], [bx + 9, by - 2], [bx + 9, by - 14], [bx + 7, by - 14]])} fill="#5C4326" />);
 }
 
 export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, attackable, centerTileId, focusTileId, focusKey, territory, territoryColor, onTileTap }: Props) {
@@ -315,15 +344,37 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     if (attackableSet.has(k)) terrainShapes.push(<Polygon key={`at${k}`} points={pts(surface)} fill="rgba(188,71,73,0.45)" stroke={C.error} strokeWidth={3} />);
     if (selectedTileId === k) terrainShapes.push(<Polygon key={`sel${k}`} points={pts(surface)} fill="transparent" stroke="#FFFFFF" strokeWidth={3} />);
 
+    // Roads: bed diamond + segments to adjacent road tiles.
+    if (t.road) {
+      terrainShapes.push(<Polygon key={`road${k}`} points={pts([[cx, cy - HH * 0.5], [cx + HW * 0.5, cy], [cx, cy + HH * 0.5], [cx - HW * 0.5, cy]])} fill="#8A7B5C" />);
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = t.x + dx;
+          const ny = t.y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const nid = ny * w + nx;
+          if (nid <= t.id) continue;
+          const nt = state.tiles[nid];
+          if (!nt.road || (fog && !nt.explored)) continue;
+          const [nvx, nvy] = toView(nx, ny);
+          const [ncx, ncy] = project(nvx, nvy);
+          terrainShapes.push(<Line key={`rl${k}_${nid}`} x1={cx} y1={cy} x2={ncx} y2={ncy} stroke="#8A7B5C" strokeWidth={7} strokeLinecap="round" />);
+        }
+    }
+
     // 3D pieces (drawn in depth order with terrain)
     const tokLift = t.terrain === "mountain" ? HH + MH * 0.55 : 0;
     const surfY = cy - tokLift;
     const city = t.cityId ? state.cities.find((c) => c.id === t.cityId) : undefined;
     const unit = state.units.find((u) => u.tileId === t.id);
+    if (t.port && !city) drawDock(terrainShapes, cx, surfY, k);
     if (city) drawCity(terrainShapes, cx, surfY, playerColor(state, city.owner), city.isCapital, k);
     else if (t.isVillage) drawCity(terrainShapes, cx, surfY, C.borderStrong, false, k);
-    if (unit && !city) drawUnit(terrainShapes, cx, surfY, playerColor(state, unit.owner), k);
-    else if (!city && t.resource === "animal" && !t.building) drawBull(terrainShapes, cx - 4, surfY, k);
+    if (unit && !city) {
+      if (unit.boat) drawBoat(terrainShapes, cx, surfY, playerColor(state, unit.owner), unit.boat, k);
+      else drawUnit(terrainShapes, cx, surfY, playerColor(state, unit.owner), k);
+    } else if (!city && t.resource === "animal" && !t.building) drawBull(terrainShapes, cx - 4, surfY, k);
   }
 
   return (
@@ -367,7 +418,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                 {unit && !city && (
                   <>
                     <MaterialCommunityIcons
-                      name={UNIT_DEFS[unit.type].icon as any}
+                      name={(unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon) as any}
                       size={17}
                       color="#FFFFFF"
                       style={{ position: "absolute", left: cx - 8.5, top: baseY - 24 }}

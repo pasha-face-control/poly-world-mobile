@@ -8,13 +8,17 @@ Build a game similar to The Battle of Polytopia. Client-side, local persistence.
 - 2.5D isometric SVG map (diamond tiles, pyramid mountains, 3D unit pawns/city houses/bulls), 4-angle rotation, pan/zoom.
 
 ## Implemented (latest)
-- **Buildings & production**: tap a cell in your territory to build production structures that yield goods/stars each turn — Lumber Hut (forest → +2 wood), Wheat Farm (grass → +2 wheat), Bull Farm (grass → +2 meat), Horse Farm (grass → +1 horse), Iron Mine (mountain → +2 iron), Gold Mine (mountain → +5 stars). Each requires its tech, costs stars, one per tile, must be in a city's territory. Production is credited at the start of each turn; AI also builds. Buildings show as markers on the map.
+- **Naval & Ports (manual embark)**: build a **Port** on a coastal water tile bordering your territory (needs Sailing). Land units may step onto a port tile and press **Embark** to become a **Rowing Boat**; boats sail on water and disembark automatically when they land. Boats upgrade Rowing → **Sailing Boat** (5★) → **Battleship** (15★, needs Expedition) with rising atk/def/move/range. Land units can't cross open water. Boats/docks render in the isometric SVG map.
+- **Roads & Clear-Forest**: build **Roads** (needs Roads tech) on land — units chain along connected roads for free (fast travel); roads render as brown segments linking adjacent road tiles. **Clear Forest** (needs Construction) burns a forest tile into farmable grassland (adds a crop).
+- **Merchants & Trading**: train a **Merchant** (needs Trading; **Merchant Ship** = embarked merchant, 8 slots vs 4 on land). Open its **Trade** panel to load goods from your stockpile, set a per-unit price (1–20★). Each round rival (bot) tribes buy your cargo — you earn the price in stars; bots are buy-only and merchants can't be attacked.
+- **Buildings & production**: tap a cell in your territory to build production structures that yield goods/stars each turn — Lumber Hut, Wheat/Bull/Horse Farm, Iron/Gold Mine. Production credited at turn start; AI also builds. Buildings show as markers on the map.
 - **Goods economy**: players hold wood/iron/wheat/meat/horses (second top-bar row). Unit training requires goods per the table; city chips show goods costs (red when short).
-- Tribes: Lesnoi, Freemen, He-he, Fishmen (Fishmen icon = fish), each with a land-composition biome.
-- World-gen: map divided into one biome region per tribe (Voronoi); map types Continents/Pangea/Lakes/Dryland/Archipelago; `sand` terrain (barren, unfarmable).
-- **Tech tree redesign (instruction.docx):** ~29 techs in a branching radial graph UI (forest_exploration / organisation / climbing / fishing roots and their branches). Nodes show researched/available/locked + cost.
-- **New units** (trainable via tech, stars-only cost for now): warrior, archer(hunting), beefeater(beef_eating), catapult(mathematics), rider(riding), armored_rider(armor_production), knight(chivalry), pikeman(pike), swordsman(sword_art). Stats per doc.
-- City panel opens even when a unit occupies it (city takes tap priority; use Next to pick units).
+- Tribes: Lesnoi, Freemen, He-he, Fishmen; biome-specific procedural world-gen (Voronoi regions); map types Continents/Pangea/Lakes/Dryland/Archipelago.
+- Branching radial tech tree (~29 techs). Units: warrior/archer/beefeater/catapult/rider/armored_rider/knight/pikeman/swordsman/merchant + naval tiers.
+- City panel opens even when a unit occupies it.
+
+## Engine verification
+- `frontend/scripts/engine_test.js` — 20 headless assertions pass (merchant train/load/price/trade, road build, burn-forest, port build, embark, boat upgrades & stats, water blocking, road reachability). Run: `node scripts/engine_test.js`.
 
 ## PHASED / NOT YET BUILT (from instruction.docx — large systems)
 - Goods PRODUCTION: buildings that generate wood/iron/wheat/meat/horses each turn (goods are spent already; production is next).

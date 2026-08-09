@@ -1,4 +1,4 @@
-import { UNIT_DEFS } from "./data";
+import { unitStats } from "./data";
 import { City, GameState, Tile, Unit } from "./types";
 
 export interface CombatResult {
@@ -15,8 +15,8 @@ export function defenseBonus(state: GameState, tile: Tile, city?: City): number 
 }
 
 export function resolveCombat(state: GameState, attacker: Unit, defender: Unit): CombatResult {
-  const aDef = UNIT_DEFS[attacker.type];
-  const dDef = UNIT_DEFS[defender.type];
+  const aDef = unitStats(attacker);
+  const dDef = unitStats(defender);
   const tile = state.tiles[defender.tileId];
   const city = tile.cityId ? state.cities.find((c) => c.id === tile.cityId) : undefined;
   const bonus = defenseBonus(state, tile, city && city.owner === defender.owner ? city : undefined);

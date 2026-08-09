@@ -8,14 +8,19 @@ import {
   checkVictory,
   clone,
   computeVisibility,
+  doInfra,
+  embark,
   harvest,
+  loadMerchant,
   moveUnit,
   research,
+  setMerchantPrice,
   startPlayerTurn,
   trainUnit,
+  upgradeBoat,
 } from "./engine";
 import { runAiTurn } from "./ai";
-import { GameState, NewGameConfig, UnitType } from "./types";
+import { GameState, GoodType, NewGameConfig, UnitType } from "./types";
 
 const SAVE_KEY = "hextribes_save_v1";
 const STATS_KEY = "hextribes_stats_v1";
@@ -42,6 +47,11 @@ interface GameContextValue {
   doTrain: (cityId: string, type: UnitType) => boolean;
   doResearch: (techId: string) => boolean;
   doBuild: (tileId: number, buildingId: string) => boolean;
+  doInfra: (tileId: number, infraId: string) => boolean;
+  doEmbark: (unitId: string) => boolean;
+  doUpgradeBoat: (unitId: string) => boolean;
+  doLoadMerchant: (unitId: string, good: GoodType, amount: number) => boolean;
+  doSetPrice: (unitId: string, price: number) => boolean;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -142,6 +152,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doTrain = useCallback((cityId: string, type: UnitType) => apply((s) => trainUnit(s, s.currentPlayer, cityId, type)), [apply]);
   const doResearch = useCallback((techId: string) => apply((s) => research(s, s.currentPlayer, techId)), [apply]);
   const doBuild = useCallback((tileId: number, buildingId: string) => apply((s) => build(s, s.currentPlayer, tileId, buildingId)), [apply]);
+  const doInfraCb = useCallback((tileId: number, infraId: string) => apply((s) => doInfra(s, s.currentPlayer, tileId, infraId)), [apply]);
+  const doEmbark = useCallback((unitId: string) => apply((s) => embark(s, unitId)), [apply]);
+  const doUpgradeBoat = useCallback((unitId: string) => apply((s) => upgradeBoat(s, unitId)), [apply]);
+  const doLoadMerchant = useCallback((unitId: string, good: GoodType, amount: number) => apply((s) => loadMerchant(s, unitId, good, amount)), [apply]);
+  const doSetPrice = useCallback((unitId: string, price: number) => apply((s) => setMerchantPrice(s, unitId, price)), [apply]);
 
   const endTurn = useCallback(() => {
     if (!state || state.status !== "playing") return;
@@ -184,6 +199,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doTrain,
         doResearch,
         doBuild,
+        doInfra: doInfraCb,
+        doEmbark,
+        doUpgradeBoat,
+        doLoadMerchant,
+        doSetPrice,
       }}
     >
       {children}

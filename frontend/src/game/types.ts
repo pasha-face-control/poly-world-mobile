@@ -1,9 +1,10 @@
 export type TerrainType = "water" | "grass" | "forest" | "mountain" | "sand";
 export type ResourceType = "fruit" | "animal" | "fish" | "ore" | "crop" | null;
-export type UnitType = "warrior" | "archer" | "beefeater" | "catapult" | "rider" | "armored_rider" | "chivalry" | "pikemen" | "swordsmen";
+export type UnitType = "warrior" | "archer" | "beefeater" | "catapult" | "rider" | "armored_rider" | "chivalry" | "pikemen" | "swordsmen" | "merchant";
 export type TribeId = "nature" | "desert" | "volcanic" | "snow";
 export type MapType = "dryland" | "lakes" | "pangea" | "continents" | "archipelago";
 export type GoodType = "wood" | "iron" | "wheat" | "meat" | "horse";
+export type NavalTier = "rowing" | "sailing" | "battleship";
 
 export interface Tile {
   id: number;
@@ -15,6 +16,8 @@ export interface Tile {
   isVillage: boolean; // neutral, uncaptured
   explored: boolean; // human fog of war
   building: string | null; // building def id
+  road: boolean; // road infrastructure
+  port: boolean; // dock built on a water tile
 }
 
 export interface Unit {
@@ -26,6 +29,9 @@ export interface Unit {
   maxHp: number;
   moved: boolean;
   attacked: boolean;
+  boat: NavalTier | null; // set when embarked onto water; null on land
+  cargo?: Record<GoodType, number>; // merchant inventory
+  price?: number; // merchant asking price (stars per good unit)
 }
 
 export interface City {

@@ -1,4 +1,4 @@
-import { UNIT_DEFS } from "./data";
+import { unitStats } from "./data";
 import { GameState, Tile, Unit } from "./types";
 
 export const idx = (x: number, y: number, w: number) => y * w + x;
@@ -31,47 +31,65 @@ export function playerHasTech(state: GameState, player: number, tech: string): b
   return state.players[player].techs.includes(tech);
 }
 
-function canEnterTerrain(state: GameState, player: number, tile: Tile): boolean {
-  if (tile.terrain === "water") return playerHasTech(state, player, "sailing");
-  if (tile.terrain === "mountain") return playerHasTech(state, player, "climbing");
+// Which terrain a unit can step onto. Land units can't enter water (embark at a
+// port instead); embarked boats travel on water and may step onto land (disembark).
+function canEnter(state: GameState, unit: Unit, tile: Tile): boolean {
+  if (unit.boat) {
+    if (tile.terrain === "mountain") return false; // can't sail up a mountain
+    return true; // water = sail, land = disembark
+  }
+  // Land units may only step onto water tiles that hold a port (to embark there).
+  if (tile.terrain === "water") return tile.port;
+  if (tile.terrain === "mountain") return playerHasTech(state, unit.owner, "climbing");
   return true;
 }
 
 // Reachable movement tiles for a unit (excludes its own tile & occupied tiles).
+// Roads let a unit chain along connected road tiles for free.
 export function reachableTiles(state: GameState, unit: Unit): number[] {
-  const def = UNIT_DEFS[unit.type];
-  const dist: Record<number, number> = { [unit.tileId]: 0 };
-  const queue: number[] = [unit.tileId];
+  const move = unitStats(unit).move;
+  const start = unit.tileId;
+  const cost: Record<number, number> = { [start]: 0 };
+  const queue: number[] = [start];
   const result: number[] = [];
   while (queue.length) {
+    queue.sort((a, b) => cost[a] - cost[b]);
     const cur = queue.shift()!;
-    if (dist[cur] >= def.move) continue;
+    if (cost[cur] >= move) continue;
+    const curTile = state.tiles[cur];
     for (const n of neighbors(state, cur)) {
       const tile = state.tiles[n];
-      if (!canEnterTerrain(state, unit.owner, tile)) continue;
+      if (!canEnter(state, unit, tile)) continue;
       if (unitAt(state, n)) continue; // blocked by any unit
-      const nd = dist[cur] + 1;
-      if (dist[n] === undefined || nd < dist[n]) {
-        dist[n] = nd;
-        result.push(n);
-        // Entering rough terrain ends movement (Polytopia-style).
-        if (tile.terrain !== "forest" && tile.terrain !== "mountain") queue.push(n);
+      // Road-to-road steps are free for land units.
+      const onRoad = !unit.boat && curTile.road && tile.road;
+      const stepCost = onRoad ? 0 : 1;
+      const nd = cost[cur] + stepCost;
+      if (nd > move) continue;
+      if (cost[n] === undefined || nd < cost[n]) {
+        cost[n] = nd;
+        if (!result.includes(n)) result.push(n);
+        // Entering rough terrain ends movement unless travelling on a road.
+        const rough = tile.terrain === "forest" || tile.terrain === "mountain";
+        if (!rough || tile.road) queue.push(n);
       }
     }
   }
   return Array.from(new Set(result));
 }
 
-// Enemy-occupied tiles this unit can attack.
+// Enemy-occupied tiles this unit can attack. Merchants are peaceful (never fight).
 export function attackableTiles(state: GameState, unit: Unit): number[] {
   if (unit.attacked) return [];
-  const def = UNIT_DEFS[unit.type];
+  const stats = unitStats(unit);
+  if (stats.range < 1) return [];
   const from = state.tiles[unit.tileId];
   const out: number[] = [];
   for (const other of state.units) {
     if (other.owner === unit.owner) continue;
+    if (other.type === "merchant") continue; // merchants can't be attacked
     const tt = state.tiles[other.tileId];
-    if (chebyshev(from, tt) <= def.range) out.push(other.tileId);
+    if (chebyshev(from, tt) <= stats.range) out.push(other.tileId);
   }
   return out;
 }

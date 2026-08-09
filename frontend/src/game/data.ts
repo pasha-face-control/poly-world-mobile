@@ -58,7 +58,68 @@ export const UNIT_DEFS: Record<UnitType, UnitDef> = {
   chivalry: { type: "chivalry", name: "Knight", icon: "shield-cross", cost: 8, hp: 10, atk: 2, def: 2, move: 3, range: 2, requires: "chivalry", goods: { wheat: 5, iron: 4, horse: 1 } },
   pikemen: { type: "pikemen", name: "Pikeman", icon: "chess-rook", cost: 5, hp: 15, atk: 1.5, def: 1.5, move: 1, range: 1, requires: "pike", goods: { meat: 2, iron: 2 } },
   swordsmen: { type: "swordsmen", name: "Swordsman", icon: "sword-cross", cost: 5, hp: 15, atk: 1.5, def: 1.5, move: 1, range: 1, requires: "sword_art", goods: { meat: 2, iron: 3 } },
+  merchant: { type: "merchant", name: "Merchant", icon: "cart", cost: 4, hp: 10, atk: 0, def: 1, move: 1, range: 0, requires: "trading" },
 };
+
+// ---------- Naval (embarked) unit stats ----------
+export interface BoatDef {
+  tier: import("./types").NavalTier;
+  name: string;
+  icon: string;
+  atk: number;
+  def: number;
+  move: number;
+  range: number;
+  upgradeCost: number; // stars to reach this tier from the previous one
+  requires: string | null; // tech needed to upgrade to this tier
+}
+
+export const BOAT_DEFS: Record<import("./types").NavalTier, BoatDef> = {
+  rowing: { tier: "rowing", name: "Rowing Boat", icon: "rowing", atk: 1, def: 1, move: 2, range: 1, upgradeCost: 0, requires: null },
+  sailing: { tier: "sailing", name: "Sailing Boat", icon: "sail-boat", atk: 2, def: 1, move: 3, range: 2, upgradeCost: 5, requires: "sailing" },
+  battleship: { tier: "battleship", name: "Battleship", icon: "ferry", atk: 4, def: 3, move: 3, range: 2, upgradeCost: 15, requires: "expedition" },
+};
+
+// Effective combat/movement stats for a unit, accounting for its embarked boat tier.
+export interface EffStats { atk: number; def: number; move: number; range: number; maxHp: number }
+export function unitStats(unit: import("./types").Unit): EffStats {
+  const base = UNIT_DEFS[unit.type];
+  const out: EffStats = { atk: base.atk, def: base.def, move: base.move, range: base.range, maxHp: base.hp };
+  if (unit.boat) {
+    const b = BOAT_DEFS[unit.boat];
+    out.move = b.move;
+    if (unit.type === "merchant") {
+      out.def = b.def; // merchant ships stay peaceful (no attack)
+    } else {
+      out.atk = b.atk;
+      out.def = b.def;
+      out.range = b.range;
+    }
+  }
+  return out;
+}
+
+// Merchant cargo capacity (slots): 4 on land, 8 as a merchant ship.
+export const merchantCapacity = (unit: import("./types").Unit) => (unit.boat ? 8 : 4);
+
+// ---------- Infrastructure (roads / ports / burn-forest) ----------
+export interface InfraDef {
+  id: "road" | "port" | "burn_forest";
+  name: string;
+  icon: string;
+  tech: string;
+  cost: number;
+  color: string;
+  desc: string;
+}
+
+export const INFRA: InfraDef[] = [
+  { id: "road", name: "Road", icon: "road-variant", tech: "roads", cost: 2, color: "#8A7B5C", desc: "Move freely along connected roads." },
+  { id: "port", name: "Port", icon: "sail-boat", tech: "sailing", cost: 4, color: "#5C7A8A", desc: "Embark land units onto boats here." },
+  { id: "burn_forest", name: "Clear Forest", icon: "fire", tech: "construction", cost: 3, color: "#B5651D", desc: "Burn forest into farmable grassland." },
+];
+
+export const INFRA_BY_ID: Record<string, InfraDef> = Object.fromEntries(INFRA.map((i) => [i.id, i]));
 
 export interface TechDef {
   id: string;

@@ -15,7 +15,7 @@ interface Props {
   onClose: () => void;
 }
 
-const TRAINABLE: UnitType[] = ["warrior", "archer", "beefeater", "catapult", "rider", "armored_rider", "chivalry", "pikemen", "swordsmen"];
+const TRAINABLE: UnitType[] = ["warrior", "archer", "beefeater", "catapult", "rider", "armored_rider", "chivalry", "pikemen", "swordsmen", "merchant"];
 
 export default function CityPanel({ state, city, bottomInset, onTrain, onHarvest, onClose }: Props) {
   const player = state.players[state.currentPlayer];

@@ -1,15 +1,18 @@
 import {
+  BOAT_DEFS,
   BUILDINGS,
   BUILDING_BY_ID,
+  INFRA_BY_ID,
   RESOURCE_DEFS,
   TECH_BY_ID,
   UNIT_DEFS,
   levelThreshold,
+  merchantCapacity,
 } from "./data";
 import { resolveCombat } from "./combat";
 import { newCity, newUnit } from "./factory";
 import { attackableTiles, chebyshev, neighbors, playerHasTech, reachableTiles, unitAt } from "./grid";
-import { City, GameState, GoodType, ResourceType, UnitType } from "./types";
+import { City, GameState, GoodType, NavalTier, ResourceType, UnitType } from "./types";
 
 export const clone = (s: GameState): GameState => JSON.parse(JSON.stringify(s));
 
@@ -102,6 +105,157 @@ export function buildableFor(state: GameState, player: number, tileId: number): 
   return BUILDINGS.filter((b) => canBuild(state, player, tileId, b.id).ok).map((b) => b.id);
 }
 
+// ---------- Infrastructure (roads / ports / burn-forest) ----------
+export function canInfra(state: GameState, player: number, tileId: number, infraId: string): { ok: boolean; reason?: string } {
+  const def = INFRA_BY_ID[infraId];
+  if (!def) return { ok: false, reason: "Unknown" };
+  const tile = state.tiles[tileId];
+  if (!playerHasTech(state, player, def.tech)) return { ok: false, reason: `Requires ${TECH_BY_ID[def.tech].name}` };
+  if (state.players[player].stars < def.cost) return { ok: false, reason: "Not enough stars" };
+  if (infraId === "road") {
+    if (tile.terrain === "water" || tile.terrain === "mountain") return { ok: false, reason: "Cannot road here" };
+    if (tile.road) return { ok: false, reason: "Already a road" };
+    if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };
+  } else if (infraId === "port") {
+    if (tile.terrain !== "water") return { ok: false, reason: "Needs water" };
+    if (tile.port) return { ok: false, reason: "Already a port" };
+    // must border land in one of your cities' territory
+    const adjOwned = neighbors(state, tileId).some((n) => state.tiles[n].terrain !== "water" && owningCityForTile(state, player, n));
+    if (!adjOwned) return { ok: false, reason: "Must border your land" };
+  } else if (infraId === "burn_forest") {
+    if (tile.terrain !== "forest") return { ok: false, reason: "Needs forest" };
+    if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };
+    if (unitAt(state, tileId)) return { ok: false, reason: "Tile occupied" };
+  }
+  return { ok: true };
+}
+
+export function doInfra(state: GameState, player: number, tileId: number, infraId: string): boolean {
+  if (!canInfra(state, player, tileId, infraId).ok) return false;
+  const def = INFRA_BY_ID[infraId];
+  state.players[player].stars -= def.cost;
+  const tile = state.tiles[tileId];
+  if (infraId === "road") tile.road = true;
+  else if (infraId === "port") tile.port = true;
+  else if (infraId === "burn_forest") {
+    tile.terrain = "grass";
+    tile.resource = "crop";
+    tile.building = null;
+  }
+  if (player === 0) computeVisibility(state, 0);
+  log(state, `${state.players[player].name} built a ${def.name}`);
+  return true;
+}
+
+export function infraFor(state: GameState, player: number, tileId: number): string[] {
+  return Object.keys(INFRA_BY_ID).filter((id) => canInfra(state, player, tileId, id).ok);
+}
+
+// Any actionable option (building or infra) for the tile — used to decide the tap panel.
+export function tileHasActions(state: GameState, player: number, tileId: number): boolean {
+  return buildableFor(state, player, tileId).length > 0 || infraFor(state, player, tileId).length > 0;
+}
+
+// ---------- Naval (embark / disembark / upgrade) ----------
+export function canEmbark(state: GameState, unitId: string): { ok: boolean; reason?: string } {
+  const u = state.units.find((x) => x.id === unitId);
+  if (!u) return { ok: false, reason: "No unit" };
+  if (u.boat) return { ok: false, reason: "Already at sea" };
+  if (!playerHasTech(state, u.owner, "sailing")) return { ok: false, reason: "Requires Sailing" };
+  if (!state.tiles[u.tileId].port) return { ok: false, reason: "Must be on a port" };
+  return { ok: true };
+}
+
+export function embark(state: GameState, unitId: string): boolean {
+  if (!canEmbark(state, unitId).ok) return false;
+  const u = state.units.find((x) => x.id === unitId)!;
+  u.boat = "rowing";
+  u.moved = true;
+  u.attacked = true;
+  log(state, `${state.players[u.owner].name} embarked a ${UNIT_DEFS[u.type].name}`);
+  return true;
+}
+
+export function nextBoatTier(tier: NavalTier): NavalTier | null {
+  if (tier === "rowing") return "sailing";
+  if (tier === "sailing") return "battleship";
+  return null;
+}
+
+export function canUpgradeBoat(state: GameState, unitId: string): { ok: boolean; reason?: string } {
+  const u = state.units.find((x) => x.id === unitId);
+  if (!u || !u.boat) return { ok: false, reason: "Not a boat" };
+  if (u.type === "merchant") return { ok: false, reason: "Merchant ships can't be armed" };
+  const next = nextBoatTier(u.boat);
+  if (!next) return { ok: false, reason: "Max tier" };
+  const def = BOAT_DEFS[next];
+  if (def.requires && !playerHasTech(state, u.owner, def.requires)) return { ok: false, reason: `Requires ${TECH_BY_ID[def.requires].name}` };
+  if (state.players[u.owner].stars < def.upgradeCost) return { ok: false, reason: "Not enough stars" };
+  return { ok: true };
+}
+
+export function upgradeBoat(state: GameState, unitId: string): boolean {
+  if (!canUpgradeBoat(state, unitId).ok) return false;
+  const u = state.units.find((x) => x.id === unitId)!;
+  const next = nextBoatTier(u.boat!)!;
+  const def = BOAT_DEFS[next];
+  state.players[u.owner].stars -= def.upgradeCost;
+  u.boat = next;
+  log(state, `${state.players[u.owner].name} upgraded to a ${def.name}`);
+  return true;
+}
+
+// ---------- Merchant trading ----------
+export function loadMerchant(state: GameState, unitId: string, good: GoodType, amount: number): boolean {
+  const u = state.units.find((x) => x.id === unitId);
+  if (!u || u.type !== "merchant" || !u.cargo) return false;
+  const player = state.players[u.owner];
+  if (amount > 0) {
+    const cap = merchantCapacity(u);
+    const total = Object.values(u.cargo).reduce((s, v) => s + v, 0);
+    const room = cap - total;
+    const take = Math.min(amount, room, player.goods[good]);
+    if (take <= 0) return false;
+    player.goods[good] -= take;
+    u.cargo[good] += take;
+  } else {
+    // unload back to stockpile
+    const give = Math.min(-amount, u.cargo[good]);
+    if (give <= 0) return false;
+    u.cargo[good] -= give;
+    player.goods[good] += give;
+  }
+  return true;
+}
+
+export function setMerchantPrice(state: GameState, unitId: string, price: number): boolean {
+  const u = state.units.find((x) => x.id === unitId);
+  if (!u || u.type !== "merchant") return false;
+  u.price = Math.max(1, Math.min(20, Math.round(price)));
+  return true;
+}
+
+// Each turn, other (bot) players buy goods from every merchant they can afford.
+// Bots are buy-only; the merchant's owner earns the sale price in stars.
+export function resolveTrades(state: GameState) {
+  for (const m of state.units) {
+    if (m.type !== "merchant" || !m.cargo) continue;
+    const cargo: Record<GoodType, number> = m.cargo;
+    const price = m.price ?? 3;
+    for (const buyer of state.players) {
+      if (buyer.index === m.owner || buyer.eliminated || buyer.isHuman) continue;
+      const avail = (Object.keys(cargo) as GoodType[]).filter((g) => cargo[g] > 0);
+      if (!avail.length) break;
+      const good = avail[0];
+      if (buyer.stars < price) continue;
+      buyer.stars -= price;
+      buyer.goods[good] += 1;
+      cargo[good] -= 1;
+      state.players[m.owner].stars += price;
+    }
+  }
+}
+
 // ---------- Economy income (turn start) ----------
 export function startPlayerTurn(state: GameState, player: number) {
   const income = state.cities.filter((c) => c.owner === player).reduce((s, c) => s + c.production, 0);
@@ -124,7 +278,10 @@ export function startPlayerTurn(state: GameState, player: number) {
       u.attacked = false;
     }
   }
-  if (player === 0) computeVisibility(state, 0);
+  if (player === 0) {
+    resolveTrades(state); // market tick each round on the human's turn
+    computeVisibility(state, 0);
+  }
 }
 
 // ---------- Player actions ----------
@@ -238,6 +395,10 @@ export function moveUnit(state: GameState, unitId: string, targetTileId: number)
   if (!reachableTiles(state, unit).includes(targetTileId)) return false;
   unit.tileId = targetTileId;
   unit.moved = true;
+  // Disembark: a boat that lands on non-water reverts to its land form.
+  if (unit.boat && state.tiles[targetTileId].terrain !== "water") {
+    unit.boat = null;
+  }
   captureTile(state, unit.owner, targetTileId);
   if (unit.owner === 0) computeVisibility(state, 0);
   return true;
@@ -258,12 +419,14 @@ export function attackUnit(state: GameState, attackerId: string, targetTileId: n
   if (result.defenderDamage) attacker.hp -= result.defenderDamage;
 
   const aDef = UNIT_DEFS[attacker.type];
+  const aRange = attacker.boat ? BOAT_DEFS[attacker.boat].range : aDef.range;
   if (result.defenderDied) {
     state.units = state.units.filter((u) => u.id !== defender.id);
     log(state, `${state.players[attacker.owner].name}'s ${aDef.name} destroyed a unit`);
     // Melee move-in to the now-empty tile.
-    if (aDef.range === 1 && !unitAt(state, targetTileId)) {
+    if (aRange === 1 && !unitAt(state, targetTileId)) {
       attacker.tileId = targetTileId;
+      if (attacker.boat && state.tiles[targetTileId].terrain !== "water") attacker.boat = null;
       captureTile(state, attacker.owner, targetTileId);
     }
   }

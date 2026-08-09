@@ -2,8 +2,8 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, SP, shadow } from "@/src/theme";
-import { BUILDINGS, GOODS } from "@/src/game/data";
-import { canBuild } from "@/src/game/engine";
+import { BUILDINGS, GOODS, INFRA } from "@/src/game/data";
+import { canBuild, canInfra } from "@/src/game/engine";
 import { GameState } from "@/src/game/types";
 
 interface Props {
@@ -11,15 +11,23 @@ interface Props {
   tileId: number;
   bottomInset: number;
   onBuild: (buildingId: string) => void;
+  onInfra: (infraId: string) => void;
   onClose: () => void;
 }
 
 const goodMeta = (id: string) => GOODS.find((g) => g.id === id);
 
-export default function BuildPanel({ state, tileId, bottomInset, onBuild, onClose }: Props) {
+export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfra, onClose }: Props) {
   const player = state.players[state.currentPlayer];
   const tile = state.tiles[tileId];
   const options = BUILDINGS.filter((b) => b.terrain === tile.terrain);
+  // Infra options that are terrain-relevant to this tile (validity handled by canInfra).
+  const infraOptions = INFRA.filter((i) => {
+    if (i.id === "road") return tile.terrain !== "water" && tile.terrain !== "mountain" && !tile.road;
+    if (i.id === "port") return tile.terrain === "water" && !tile.port;
+    if (i.id === "burn_forest") return tile.terrain === "forest";
+    return false;
+  });
 
   return (
     <View style={[styles.wrap, { paddingBottom: bottomInset + 96 }]} pointerEvents="box-none">
@@ -66,6 +74,29 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onClos
               </Pressable>
             );
           })}
+          {infraOptions.map((i) => {
+            const check = canInfra(state, player.index, tileId, i.id);
+            const lockedTech = !player.techs.includes(i.tech);
+            return (
+              <Pressable key={i.id} testID={`infra-${i.id}`} disabled={!check.ok} onPress={() => onInfra(i.id)} style={[styles.chip, !check.ok && styles.chipDisabled]}>
+                <View style={[styles.chipIcon, { backgroundColor: i.color }]}>
+                  <MaterialCommunityIcons name={i.icon as any} size={20} color="#fff" />
+                </View>
+                <Text style={styles.chipName}>{i.name}</Text>
+                <View style={styles.chipCost}>
+                  {lockedTech ? (
+                    <MaterialCommunityIcons name="lock" size={12} color={C.borderStrong} />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="star-four-points" size={11} color={C.warning} />
+                      <Text style={styles.chipCostText}>{i.cost}</Text>
+                    </>
+                  )}
+                </View>
+                <Text style={styles.infraDesc} numberOfLines={2}>{i.desc}</Text>
+              </Pressable>
+            );
+          })}
         </ScrollView>
       </View>
     </View>
@@ -88,4 +119,5 @@ const styles = StyleSheet.create({
   produce: { flexDirection: "row", gap: 6 },
   produceItem: { flexDirection: "row", alignItems: "center", gap: 1 },
   produceText: { fontSize: 10, fontWeight: "800", color: C.success },
+  infraDesc: { fontSize: 9, color: C.onSurfaceSecondary, textAlign: "center", lineHeight: 11 },
 });

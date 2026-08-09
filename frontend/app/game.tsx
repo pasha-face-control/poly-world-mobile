@@ -13,9 +13,10 @@ import TechTreeModal from "@/src/components/TechTreeModal";
 import CityPanel from "@/src/components/CityPanel";
 import UnitPanel from "@/src/components/UnitPanel";
 import BuildPanel from "@/src/components/BuildPanel";
+import MerchantPanel from "@/src/components/MerchantPanel";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
-import { attackableTiles, buildableFor, neighbors, reachableTiles } from "@/src/game/engine";
+import { attackableTiles, neighbors, reachableTiles, tileHasActions } from "@/src/game/engine";
 import { TRIBE_BY_ID } from "@/src/game/data";
 import { UnitType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
@@ -23,11 +24,12 @@ import { C, R, SP, shadow } from "@/src/theme";
 export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
   const [selectedBuildTileId, setSelectedBuildTileId] = useState<number | null>(null);
+  const [merchantOpen, setMerchantOpen] = useState(false);
   const [techOpen, setTechOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [focusTileId, setFocusTileId] = useState<number | null>(null);
@@ -46,6 +48,7 @@ export default function GameScreen() {
       setSelectedUnitId(null);
       setSelectedCityId(null);
       setSelectedBuildTileId(null);
+      setMerchantOpen(false);
     }
   }, [state?.currentPlayer, state]);
 
@@ -102,6 +105,7 @@ export default function GameScreen() {
         Haptics.selectionAsync();
         setSelectedUnitId(unit.id);
         setSelectedCityId(null);
+        setMerchantOpen(false);
         return;
       }
       if (city && city.owner === cp) {
@@ -124,11 +128,13 @@ export default function GameScreen() {
       setSelectedUnitId(unit.id);
       setSelectedCityId(null);
       setSelectedBuildTileId(null);
-    } else if (buildableFor(state, cp, tileId).length > 0) {
+      setMerchantOpen(false);
+    } else if (tileHasActions(state, cp, tileId)) {
       Haptics.selectionAsync();
       setSelectedBuildTileId(tileId);
       setSelectedUnitId(null);
       setSelectedCityId(null);
+      setMerchantOpen(false);
     } else {
       setSelectedUnitId(null);
       setSelectedCityId(null);
@@ -141,6 +147,7 @@ export default function GameScreen() {
     if (next) {
       setSelectedUnitId(next.id);
       setSelectedCityId(null);
+      setMerchantOpen(false);
       setFocusTileId(next.tileId);
       setFocusKey((k) => k + 1);
       Haptics.selectionAsync();
@@ -180,7 +187,38 @@ export default function GameScreen() {
 
       <TopHUD state={state} topInset={insets.top} />
 
-      {selectedUnit && !selectedCity && <UnitPanel unit={selectedUnit} bottomInset={insets.bottom} />}
+      {selectedUnit && !selectedCity && !merchantOpen && (
+        <UnitPanel
+          state={state}
+          unit={selectedUnit}
+          bottomInset={insets.bottom}
+          onEmbark={(id) => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            doEmbark(id);
+          }}
+          onUpgradeBoat={(id) => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            doUpgradeBoat(id);
+          }}
+          onTrade={() => setMerchantOpen(true)}
+        />
+      )}
+      {selectedUnit && merchantOpen && selectedUnit.type === "merchant" && (
+        <MerchantPanel
+          state={state}
+          unit={selectedUnit}
+          bottomInset={insets.bottom}
+          onLoad={(id, good, amount) => {
+            Haptics.selectionAsync();
+            doLoadMerchant(id, good, amount);
+          }}
+          onSetPrice={(id, price) => {
+            Haptics.selectionAsync();
+            doSetPrice(id, price);
+          }}
+          onClose={() => setMerchantOpen(false)}
+        />
+      )}
       {selectedCity && (
         <CityPanel
           state={state}
@@ -205,6 +243,10 @@ export default function GameScreen() {
           onBuild={(bid) => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             if (doBuild(selectedBuildTileId, bid)) setSelectedBuildTileId(null);
+          }}
+          onInfra={(iid) => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            if (doInfra(selectedBuildTileId, iid)) setSelectedBuildTileId(null);
           }}
           onClose={() => setSelectedBuildTileId(null)}
         />
