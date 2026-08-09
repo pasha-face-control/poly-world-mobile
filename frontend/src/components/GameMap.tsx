@@ -107,6 +107,8 @@ function isoBox(arr: React.ReactNode[], bx: number, byBottom: number, halfW: num
 
 // Low-poly 3D bull (wild animal).
 function drawBull(arr: React.ReactNode[], bx: number, by: number, k: string | number) {
+  const S = 0.5;
+  const P = (dx: number, dy: number): Pt => [bx + dx * S, by + dy * S];
   const bodyT = "#9A6A3E";
   const bodyL = "#5C3A20";
   const bodyR = "#7A4E2C";
@@ -115,24 +117,21 @@ function drawBull(arr: React.ReactNode[], bx: number, by: number, k: string | nu
   const headR = "#6E4526";
   const horn = "#ECE4CE";
   const hoof = "#33231A";
-  arr.push(<Ellipse key={`ash${k}`} cx={bx} cy={by + 2} rx={20} ry={6} fill="rgba(0,0,0,0.22)" />);
+  arr.push(<Ellipse key={`ash${k}`} cx={bx} cy={by + 2 * S} rx={20 * S} ry={6 * S} fill="rgba(0,0,0,0.22)" />);
   // legs
   const legs: Pt[] = [[-10, -3], [8, -3], [-4, 5], [12, 5]];
   legs.forEach((o, i) => {
-    const lx = bx + o[0];
-    const ly = by + o[1];
-    arr.push(<Polygon key={`al${k}_${i}`} points={pts([[lx - 2.5, ly], [lx + 2.5, ly], [lx + 2.5, ly - 11], [lx - 2.5, ly - 11]])} fill={hoof} />);
+    arr.push(<Polygon key={`al${k}_${i}`} points={pts([P(o[0] - 2.5, o[1]), P(o[0] + 2.5, o[1]), P(o[0] + 2.5, o[1] - 11), P(o[0] - 2.5, o[1] - 11)])} fill={hoof} />);
   });
   // body
-  isoBox(arr, bx - 3, by - 10, 18, 10, 14, bodyT, bodyL, bodyR, `ab${k}`);
+  isoBox(arr, bx - 3 * S, by - 10 * S, 18 * S, 10 * S, 14 * S, bodyT, bodyL, bodyR, `ab${k}`);
   // head (front-right)
-  isoBox(arr, bx + 17, by - 9, 9, 6, 10, headT, headL, headR, `ahd${k}`);
+  isoBox(arr, bx + 17 * S, by - 9 * S, 9 * S, 6 * S, 10 * S, headT, headL, headR, `ahd${k}`);
   // horns
-  const hy = by - 27;
-  arr.push(<Polygon key={`ahl${k}`} points={pts([[bx + 11, hy + 3], [bx + 4, hy - 8], [bx + 16, hy - 1]])} fill={horn} />);
-  arr.push(<Polygon key={`ahr${k}`} points={pts([[bx + 23, hy + 3], [bx + 30, hy - 8], [bx + 18, hy - 1]])} fill={horn} />);
+  arr.push(<Polygon key={`ahl${k}`} points={pts([P(11, -24), P(4, -35), P(16, -28)])} fill={horn} />);
+  arr.push(<Polygon key={`ahr${k}`} points={pts([P(23, -24), P(30, -35), P(18, -28)])} fill={horn} />);
   // snout
-  arr.push(<Polygon key={`asn${k}`} points={pts([[bx + 26, by - 11], [bx + 31, by - 13], [bx + 31, by - 6], [bx + 26, by - 4]])} fill="#3A2A1D" />);
+  arr.push(<Polygon key={`asn${k}`} points={pts([P(26, -11), P(31, -13), P(31, -6), P(26, -4)])} fill="#3A2A1D" />);
 }
 
 export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, attackable, centerTileId, focusTileId, focusKey, territory, territoryColor, onTileTap }: Props) {
@@ -324,7 +323,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     if (city) drawCity(terrainShapes, cx, surfY, playerColor(state, city.owner), city.isCapital, k);
     else if (t.isVillage) drawCity(terrainShapes, cx, surfY, C.borderStrong, false, k);
     if (unit && !city) drawUnit(terrainShapes, cx, surfY, playerColor(state, unit.owner), k);
-    else if (!city && t.resource === "animal") drawBull(terrainShapes, cx - 9, surfY, k);
+    else if (!city && t.resource === "animal") drawBull(terrainShapes, cx - 4, surfY, k);
   }
 
   return (
