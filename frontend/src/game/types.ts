@@ -3,6 +3,7 @@ export type ResourceType = "fruit" | "animal" | "fish" | "ore" | "crop" | null;
 export type UnitType = "warrior" | "archer" | "beefeater" | "catapult" | "rider" | "armored_rider" | "chivalry" | "pikemen" | "swordsmen";
 export type TribeId = "nature" | "desert" | "volcanic" | "snow";
 export type MapType = "dryland" | "lakes" | "pangea" | "continents" | "archipelago";
+export type GoodType = "wood" | "iron" | "wheat" | "meat" | "horse";
 
 export interface Tile {
   id: number;
@@ -43,6 +44,7 @@ export interface Player {
   name: string;
   isHuman: boolean;
   stars: number;
+  goods: Record<GoodType, number>;
   techs: string[];
   eliminated: boolean;
 }

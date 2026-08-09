@@ -7,7 +7,7 @@ import {
 import { resolveCombat } from "./combat";
 import { newCity, newUnit } from "./factory";
 import { attackableTiles, chebyshev, neighbors, playerHasTech, reachableTiles, unitAt } from "./grid";
-import { City, GameState, ResourceType, UnitType } from "./types";
+import { City, GameState, GoodType, ResourceType, UnitType } from "./types";
 
 export const clone = (s: GameState): GameState => JSON.parse(JSON.stringify(s));
 
@@ -109,6 +109,11 @@ export function canTrain(state: GameState, player: number, cityId: string, type:
   const def = UNIT_DEFS[type];
   if (def.requires && !playerHasTech(state, player, def.requires)) return { ok: false, reason: `Requires ${TECH_BY_ID[def.requires].name}` };
   if (state.players[player].stars < def.cost) return { ok: false, reason: "Not enough stars" };
+  if (def.goods) {
+    for (const [good, amt] of Object.entries(def.goods)) {
+      if ((state.players[player].goods[good as GoodType] ?? 0) < (amt ?? 0)) return { ok: false, reason: `Need ${amt} ${good}` };
+    }
+  }
   if (unitAt(state, city.tileId)) return { ok: false, reason: "City occupied" };
   return { ok: true };
 }
@@ -119,6 +124,11 @@ export function trainUnit(state: GameState, player: number, cityId: string, type
   const city = state.cities.find((c) => c.id === cityId)!;
   const def = UNIT_DEFS[type];
   state.players[player].stars -= def.cost;
+  if (def.goods) {
+    for (const [good, amt] of Object.entries(def.goods)) {
+      state.players[player].goods[good as GoodType] -= amt ?? 0;
+    }
+  }
   const u = newUnit(type, player, city.tileId);
   u.moved = true;
   u.attacked = true; // trained units act next turn

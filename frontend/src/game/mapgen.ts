@@ -1,7 +1,7 @@
 import { RNG } from "./rng";
 import { idx } from "./grid";
 import { GameState, MapType, TerrainType, Tile, TribeId } from "./types";
-import { START_STARS, TRIBE_BY_ID } from "./data";
+import { START_STARS, START_GOODS, TRIBE_BY_ID } from "./data";
 import { newUnit, newCity } from "./factory";
 
 function nbrs(x: number, y: number, w: number, h: number): number[] {
@@ -106,11 +106,11 @@ export function generateGame(config: {
   const players = [] as GameState["players"];
   const tribeOptions: TribeId[] = ["nature", "desert", "volcanic", "snow"];
   const usedTribes = new Set<TribeId>([config.tribe]);
-  players.push({ index: 0, tribe: config.tribe, name: TRIBE_BY_ID[config.tribe].name, isHuman: true, stars: START_STARS, techs: [TRIBE_BY_ID[config.tribe].startTech], eliminated: false });
+  players.push({ index: 0, tribe: config.tribe, name: TRIBE_BY_ID[config.tribe].name, isHuman: true, stars: START_STARS, goods: { ...START_GOODS }, techs: [TRIBE_BY_ID[config.tribe].startTech], eliminated: false });
   for (let p = 1; p < numPlayers; p++) {
     const tribe = tribeOptions.find((t) => !usedTribes.has(t)) ?? rng.pick(tribeOptions);
     usedTribes.add(tribe);
-    players.push({ index: p, tribe, name: config.passAndPlay ? `Player ${p + 1}` : `${TRIBE_BY_ID[tribe].name} AI`, isHuman: config.passAndPlay, stars: START_STARS, techs: [TRIBE_BY_ID[tribe].startTech], eliminated: false });
+    players.push({ index: p, tribe, name: config.passAndPlay ? `Player ${p + 1}` : `${TRIBE_BY_ID[tribe].name} AI`, isHuman: config.passAndPlay, stars: START_STARS, goods: { ...START_GOODS }, techs: [TRIBE_BY_ID[tribe].startTech], eliminated: false });
   }
 
   // Region seeds (= capitals): farthest-point spread across land.

@@ -4,7 +4,7 @@ import { BlurView } from "expo-blur";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, shadow } from "@/src/theme";
 import { GameState } from "@/src/game/types";
-import { TRIBE_BY_ID } from "@/src/game/data";
+import { TRIBE_BY_ID, GOODS } from "@/src/game/data";
 
 export default function TopHUD({ state, topInset }: { state: GameState; topInset: number }) {
   const player = state.players[state.currentPlayer];
@@ -34,12 +34,21 @@ export default function TopHUD({ state, topInset }: { state: GameState; topInset
           <Text style={styles.value} testID="hud-turn">T{state.turn}</Text>
         </View>
       </BlurView>
+
+      <BlurView intensity={40} tint="light" style={styles.goodsPill} testID="hud-goods">
+        {GOODS.map((g) => (
+          <View key={g.id} style={styles.good} testID={`hud-good-${g.id}`}>
+            <MaterialCommunityIcons name={g.icon as any} size={14} color={g.color} />
+            <Text style={styles.goodValue}>{player.goods[g.id]}</Text>
+          </View>
+        ))}
+      </BlurView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: "absolute", left: 0, right: 0, alignItems: "center" },
+  wrap: { position: "absolute", left: 0, right: 0, alignItems: "center", gap: 6 },
   pill: {
     flexDirection: "row",
     alignItems: "center",
@@ -52,6 +61,21 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.6)",
     ...shadow(4),
   },
+  goodsPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: R.pill,
+    overflow: "hidden",
+    backgroundColor: "rgba(248,246,240,0.75)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.6)",
+    ...shadow(3),
+  },
+  good: { flexDirection: "row", alignItems: "center", gap: 3 },
+  goodValue: { fontSize: 13, fontWeight: "900", color: C.onSurface },
   item: { flexDirection: "row", alignItems: "center", gap: 5, maxWidth: 130 },
   value: { fontSize: 15, fontWeight: "900", color: C.onSurface },
   dot: { width: 12, height: 12, borderRadius: 6 },

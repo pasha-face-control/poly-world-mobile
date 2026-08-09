@@ -1,5 +1,5 @@
 import { C } from "@/src/theme";
-import { ResourceType, TerrainType, TribeId, UnitType } from "./types";
+import { GoodType, ResourceType, TerrainType, TribeId, UnitType } from "./types";
 
 export interface UnitDef {
   type: UnitType;
@@ -12,18 +12,30 @@ export interface UnitDef {
   move: number;
   range: number;
   requires: string | null; // tech id
+  goods?: Partial<Record<GoodType, number>>;
 }
+
+export const GOODS: { id: GoodType; name: string; icon: string; color: string }[] = [
+  { id: "wood", name: "Wood", icon: "tree", color: "#7A5230" },
+  { id: "meat", name: "Meat", icon: "food-drumstick", color: "#BC4749" },
+  { id: "wheat", name: "Wheat", icon: "barley", color: "#E5A93A" },
+  { id: "iron", name: "Iron", icon: "anvil", color: "#7F8896" },
+  { id: "horse", name: "Horse", icon: "horse-variant", color: "#8A5A34" },
+];
+
+// Modest starting stockpile so goods-costed units are usable before production buildings exist.
+export const START_GOODS: Record<GoodType, number> = { wood: 12, meat: 10, wheat: 6, iron: 8, horse: 2 };
 
 export const UNIT_DEFS: Record<UnitType, UnitDef> = {
   warrior: { type: "warrior", name: "Warrior", icon: "sword", cost: 2, hp: 10, atk: 1, def: 1, move: 1, range: 1, requires: null },
-  archer: { type: "archer", name: "Archer", icon: "bow-arrow", cost: 3, hp: 10, atk: 1, def: 1, move: 1, range: 2, requires: "hunting" },
-  beefeater: { type: "beefeater", name: "Beefeater", icon: "food-drumstick", cost: 5, hp: 12, atk: 1.5, def: 2, move: 1, range: 1, requires: "beef_eating" },
-  catapult: { type: "catapult", name: "Catapult", icon: "bomb", cost: 8, hp: 10, atk: 2, def: 0, move: 1, range: 4, requires: "mathematics" },
+  archer: { type: "archer", name: "Archer", icon: "bow-arrow", cost: 3, hp: 10, atk: 1, def: 1, move: 1, range: 2, requires: "hunting", goods: { meat: 1 } },
+  beefeater: { type: "beefeater", name: "Beefeater", icon: "food-drumstick", cost: 5, hp: 12, atk: 1.5, def: 2, move: 1, range: 1, requires: "beef_eating", goods: { meat: 8 } },
+  catapult: { type: "catapult", name: "Catapult", icon: "bomb", cost: 8, hp: 10, atk: 2, def: 0, move: 1, range: 4, requires: "mathematics", goods: { wood: 8 } },
   rider: { type: "rider", name: "Rider", icon: "horse-variant", cost: 5, hp: 10, atk: 1, def: 0.5, move: 2, range: 1, requires: "riding" },
-  armored_rider: { type: "armored_rider", name: "Armored Rider", icon: "horse", cost: 6, hp: 10, atk: 1, def: 1.5, move: 2, range: 1, requires: "armor_production" },
-  chivalry: { type: "chivalry", name: "Knight", icon: "shield-cross", cost: 8, hp: 10, atk: 2, def: 2, move: 3, range: 2, requires: "chivalry" },
-  pikemen: { type: "pikemen", name: "Pikeman", icon: "chess-rook", cost: 5, hp: 15, atk: 1.5, def: 1.5, move: 1, range: 1, requires: "pike" },
-  swordsmen: { type: "swordsmen", name: "Swordsman", icon: "sword-cross", cost: 5, hp: 15, atk: 1.5, def: 1.5, move: 1, range: 1, requires: "sword_art" },
+  armored_rider: { type: "armored_rider", name: "Armored Rider", icon: "horse", cost: 3, hp: 10, atk: 1, def: 1.5, move: 2, range: 1, requires: "armor_production", goods: { wheat: 2, iron: 2, horse: 1 } },
+  chivalry: { type: "chivalry", name: "Knight", icon: "shield-cross", cost: 8, hp: 10, atk: 2, def: 2, move: 3, range: 2, requires: "chivalry", goods: { wheat: 5, iron: 4, horse: 1 } },
+  pikemen: { type: "pikemen", name: "Pikeman", icon: "chess-rook", cost: 5, hp: 15, atk: 1.5, def: 1.5, move: 1, range: 1, requires: "pike", goods: { meat: 2, iron: 2 } },
+  swordsmen: { type: "swordsmen", name: "Swordsman", icon: "sword-cross", cost: 5, hp: 15, atk: 1.5, def: 1.5, move: 1, range: 1, requires: "sword_art", goods: { meat: 2, iron: 3 } },
 };
 
 export interface TechDef {

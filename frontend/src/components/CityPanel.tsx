@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, SP, shadow } from "@/src/theme";
-import { RESOURCE_DEFS, UNIT_DEFS, levelThreshold } from "@/src/game/data";
+import { GOODS, RESOURCE_DEFS, UNIT_DEFS, levelThreshold } from "@/src/game/data";
 import { canHarvest, canTrain, neighbors } from "@/src/game/engine";
 import { City, GameState, UnitType } from "@/src/game/types";
 
@@ -67,6 +67,20 @@ export default function CityPanel({ state, city, bottomInset, onTrain, onHarvest
                     </>
                   )}
                 </View>
+                {!locked && def.goods && (
+                  <View style={styles.goodsRow}>
+                    {GOODS.filter((g) => def.goods?.[g.id]).map((g) => {
+                      const need = def.goods![g.id]!;
+                      const enough = player.goods[g.id] >= need;
+                      return (
+                        <View key={g.id} style={styles.goodCost}>
+                          <MaterialCommunityIcons name={g.icon as any} size={11} color={enough ? g.color : C.error} />
+                          <Text style={[styles.goodCostText, !enough && { color: C.error }]}>{need}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
               </Pressable>
             );
           })}
@@ -130,16 +144,20 @@ const styles = StyleSheet.create({
   section: { fontSize: 12, fontWeight: "900", color: C.onSurfaceSecondary, textTransform: "uppercase", letterSpacing: 0.8, marginTop: SP.sm, marginBottom: SP.xs },
   row: { gap: SP.sm, paddingVertical: 4 },
   chip: {
-    width: 84,
+    width: 94,
     backgroundColor: C.surfaceSecondary,
     borderRadius: R.md,
     paddingVertical: 10,
+    paddingHorizontal: 4,
     alignItems: "center",
     gap: 4,
     flexShrink: 0,
   },
   chipDisabled: { opacity: 0.45 },
-  chipName: { fontSize: 11, fontWeight: "800", color: C.onSurface },
+  chipName: { fontSize: 11, fontWeight: "800", color: C.onSurface, textAlign: "center" },
   chipCost: { flexDirection: "row", alignItems: "center", gap: 3 },
   chipCostText: { fontWeight: "900", fontSize: 12, color: C.onSurface },
+  goodsRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 5 },
+  goodCost: { flexDirection: "row", alignItems: "center", gap: 1 },
+  goodCostText: { fontSize: 10, fontWeight: "800", color: C.onSurface },
 });
