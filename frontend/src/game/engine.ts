@@ -41,14 +41,40 @@ export function computeVisibility(state: GameState, player = 0) {
 }
 
 // ---------- City growth ----------
+export interface RewardDef { id: string; name: string; icon: string; desc: string }
+
+// Reward options offered to the human when a city levels up.
+export function levelRewardOptions(city: City): RewardDef[] {
+  const opts: RewardDef[] = [
+    { id: "workshop", name: "Workshop", icon: "factory", desc: "+1 star income each turn" },
+    { id: "treasury", name: "Treasury", icon: "treasure-chest", desc: "+8 stars right now" },
+  ];
+  if (!city.hasWall) opts.push({ id: "wall", name: "City Wall", icon: "wall", desc: "Strong defense when attacked" });
+  else opts.push({ id: "growth", name: "Grand Park", icon: "tree", desc: "+2 population" });
+  return opts;
+}
+
 function grantLevelReward(state: GameState, city: City) {
+  // AI / default reward.
   city.production += 1;
-  // Alternate reward: population/star boost.
-  if (city.level % 2 === 0) {
-    state.players[city.owner].stars += 5;
-  } else {
-    city.hasWall = true;
+  if (city.level % 2 === 0) state.players[city.owner].stars += 5;
+  else city.hasWall = true;
+}
+
+export function applyLevelReward(state: GameState, cityId: string, rewardId: string): boolean {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city) return false;
+  const i = (state.pendingLevelUps ?? []).indexOf(cityId);
+  if (i < 0) return false;
+  switch (rewardId) {
+    case "workshop": city.production += 1; break;
+    case "treasury": state.players[city.owner].stars += 8; break;
+    case "wall": city.hasWall = true; break;
+    case "growth": addPopulation(state, city, 2); break;
+    default: return false;
   }
+  state.pendingLevelUps.splice(i, 1);
+  return true;
 }
 
 function addPopulation(state: GameState, city: City, amount: number) {
@@ -56,7 +82,12 @@ function addPopulation(state: GameState, city: City, amount: number) {
   while (city.population >= levelThreshold(city.level)) {
     city.population -= levelThreshold(city.level);
     city.level += 1;
-    grantLevelReward(state, city);
+    if (city.owner === 0) {
+      if (!state.pendingLevelUps) state.pendingLevelUps = [];
+      state.pendingLevelUps.push(city.id); // human picks a reward via the UI
+    } else {
+      grantLevelReward(state, city);
+    }
   }
 }
 

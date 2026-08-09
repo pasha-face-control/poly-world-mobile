@@ -70,6 +70,7 @@ export interface GameState {
   status: "playing" | "won" | "lost";
   log: string[];
   createdAt: string;
+  pendingLevelUps: string[]; // human city ids awaiting a level-up reward choice
 }
 
 export interface NewGameConfig {

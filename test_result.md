@@ -101,3 +101,69 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+## user_problem_statement: "Polytopia-style 4X strategy game. This session added: (1) Trading/Merchants, (2) Naval units + ports (manual embark), (3) Roads + clear-forest, (4) unit move animations, (5) city level-up reward choice modal, (6) shareable victory card."
+
+## frontend:
+##   - task: "Unit movement + glide animation"
+##     implemented: true
+##     working: "NA"
+##     file: "src/components/GameMap.tsx, app/game.tsx"
+##     stuck_count: 0
+##     priority: "high"
+##     needs_retesting: true
+##     status_history:
+##         -working: "NA"
+##         -agent: "main"
+##         -comment: "Select a unit (use bottom 'Next' button), tap a yellow reachable tile -> unit glides to the tile (~300ms) and ends there. Verify no crash and unit is on the new tile."
+##   - task: "City level-up reward choice modal"
+##     implemented: true
+##     working: "NA"
+##     file: "src/components/LevelUpModal.tsx, src/game/engine.ts, app/game.tsx"
+##     stuck_count: 0
+##     priority: "high"
+##     needs_retesting: true
+##     status_history:
+##         -working: "NA"
+##         -agent: "main"
+##         -comment: "Tap capital (~pixel 250,445 on 390-wide viewport) to open City panel. Harvest resources (Fruit/Game chips in the Harvest row) repeatedly to grow population; when a city levels up a modal (testID levelup-modal) appears with reward options (reward-workshop / reward-treasury / reward-wall or reward-growth). Picking one applies it and closes the modal."
+##   - task: "Build panel infrastructure (Road/Port/Clear Forest) + Merchant unit chip"
+##     implemented: true
+##     working: "NA"
+##     file: "src/components/BuildPanel.tsx, src/components/CityPanel.tsx"
+##     stuck_count: 0
+##     priority: "medium"
+##     needs_retesting: true
+##     status_history:
+##         -working: "NA"
+##         -agent: "main"
+##         -comment: "Tapping an empty grass/forest tile in your territory opens BuildPanel which should show infra chips (testID infra-road etc.) locked behind tech. City panel Train row should include a Merchant chip (testID train-merchant) locked behind Trading tech. These are tech-gated so likely shown as locked/disabled."
+##   - task: "Shareable victory card"
+##     implemented: true
+##     working: "NA"
+##     file: "src/components/VictoryCard.tsx, app/game.tsx"
+##     stuck_count: 0
+##     priority: "low"
+##     needs_retesting: true
+##     status_history:
+##         -working: "NA"
+##         -agent: "main"
+##         -comment: "On win/lose the result dialog renders a VictoryCard with score + a Share button (testID share-result). Hard to reach a real win in a test; just verify no render regressions on the game screen. Sharing itself is native-only (no-op on web)."
+
+## metadata:
+##   created_by: "main_agent"
+##   version: "1.1"
+##   test_sequence: 1
+##   run_ui: true
+
+## test_plan:
+##   current_focus:
+##     - "Unit movement + glide animation"
+##     - "City level-up reward choice modal"
+##     - "Build panel infrastructure (Road/Port/Clear Forest) + Merchant unit chip"
+##   stuck_tasks: []
+##   test_all: false
+##   test_priority: "high_first"
+
+## agent_communication:
+##     -agent: "main"
+##     -message: "Added Trading/Merchants, Naval+Ports, Roads+Clear-Forest (all engine-verified via scripts/engine_test.js -> 23/23 pass), plus move animations, city level-up reward modal, and shareable victory card. Please FRONTEND-test the three high/medium focus tasks. Game is 100% client-side (no backend). Use mobile viewport 390x844, clear localStorage (hextribes_save_v1, hextribes_stats_v1) first. Capital auto-centers ~ (250,445). Use bottom 'Next' (testID action-next-unit) to select a unit reliably. Many new systems are tech-gated (Trading/Sailing/Roads/Construction) so expect them locked in a fresh game -- just verify the UI shows the locked chips without crashing. Focus on: unit move+animation works, and city level-up reward modal appears after enough harvests."

@@ -27,6 +27,7 @@ interface Props {
   focusKey: number;
   territory: Set<number>;
   territoryColor: string;
+  moveAnim: { unitId: string; fromTileId: number; toTileId: number; key: number } | null;
   onTileTap: (tileId: number) => void;
 }
 
@@ -163,7 +164,7 @@ function drawDock(arr: React.ReactNode[], bx: number, by: number, k: string | nu
   arr.push(<Polygon key={`dpost${k}`} points={pts([[bx + 7, by - 2], [bx + 9, by - 2], [bx + 9, by - 14], [bx + 7, by - 14]])} fill="#5C4326" />);
 }
 
-export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, attackable, centerTileId, focusTileId, focusKey, territory, territoryColor, onTileTap }: Props) {
+export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, attackable, centerTileId, focusTileId, focusKey, territory, territoryColor, moveAnim, onTileTap }: Props) {
   const [rotation, setRotation] = useState(0); // 0..3 camera angle
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
@@ -173,6 +174,12 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
   const startScale = useSharedValue(0.9);
   const viewport = useRef({ w: 0, h: 0 });
   const centered = useRef(false);
+
+  // Unit move animation (glides the moving token from its old tile to the new one).
+  const animOffX = useSharedValue(0);
+  const animOffY = useSharedValue(0);
+  const animPos = useRef({ x: 0, y: 0 });
+  const [animUnit, setAnimUnit] = useState<{ id: string; color: string; icon: string; boat: string | null } | null>(null);
 
   const w = state.width;
   const h = state.height;
@@ -223,6 +230,28 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     if (focusKey > 0 && focusTileId != null && viewport.current.w > 0) centerOn(focusTileId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusKey]);
+
+  // Glide the moving unit from its old tile to the new one.
+  useEffect(() => {
+    if (!moveAnim) return;
+    const unit = state.units.find((u) => u.id === moveAnim.unitId);
+    const from = state.tiles[moveAnim.fromTileId];
+    const to = state.tiles[moveAnim.toTileId];
+    if (!unit || !from || !to) return;
+    const [fvx, fvy] = toView(from.x, from.y);
+    const [fx, fy] = project(fvx, fvy);
+    const [tvx, tvy] = toView(to.x, to.y);
+    const [txp, typ] = project(tvx, tvy);
+    animPos.current = { x: txp, y: typ };
+    animOffX.value = fx - txp;
+    animOffY.value = fy - typ;
+    setAnimUnit({ id: unit.id, color: playerColor(state, unit.owner), icon: unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon, boat: unit.boat });
+    animOffX.value = withTiming(0, { duration: 300 });
+    animOffY.value = withTiming(0, { duration: 300 }, (fin) => {
+      if (fin) runOnJS(setAnimUnit)(null);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moveAnim?.key]);
 
   useEffect(() => {
     if (viewport.current.w > 0 && centerTileId != null) centerOn(centerTileId);
@@ -278,6 +307,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
 
   const composed = Gesture.Race(Gesture.Simultaneous(pan, pinch, rotate), tap);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }] }));
+  const animTokenStyle = useAnimatedStyle(() => ({ transform: [{ translateX: animOffX.value }, { translateY: animOffY.value }] }));
 
   const reachableSet = useMemo(() => new Set(reachable), [reachable]);
   const attackableSet = useMemo(() => new Set(attackable), [attackable]);
@@ -371,7 +401,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     if (t.port && !city) drawDock(terrainShapes, cx, surfY, k);
     if (city) drawCity(terrainShapes, cx, surfY, playerColor(state, city.owner), city.isCapital, k);
     else if (t.isVillage) drawCity(terrainShapes, cx, surfY, C.borderStrong, false, k);
-    if (unit && !city) {
+    if (unit && !city && unit.id !== animUnit?.id) {
       if (unit.boat) drawBoat(terrainShapes, cx, surfY, playerColor(state, unit.owner), unit.boat, k);
       else drawUnit(terrainShapes, cx, surfY, playerColor(state, unit.owner), k);
     } else if (!city && t.resource === "animal" && !t.building) drawBull(terrainShapes, cx - 4, surfY, k);
@@ -415,7 +445,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                     <Text style={styles.cityLevelText}>{city.level}</Text>
                   </View>
                 )}
-                {unit && !city && (
+                {unit && !city && unit.id !== animUnit?.id && (
                   <>
                     <MaterialCommunityIcons
                       name={(unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon) as any}
@@ -433,6 +463,23 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
               </React.Fragment>
             );
           })}
+
+          {animUnit && (
+            <Animated.View
+              pointerEvents="none"
+              style={[{ position: "absolute", left: animPos.current.x - 30, top: animPos.current.y - 48, width: 60, height: 64 }, animTokenStyle]}
+            >
+              <Svg width={60} height={64}>
+                {(() => {
+                  const arr: React.ReactNode[] = [];
+                  if (animUnit.boat) drawBoat(arr, 30, 48, animUnit.color, animUnit.boat, "anim");
+                  else drawUnit(arr, 30, 48, animUnit.color, "anim");
+                  return arr;
+                })()}
+              </Svg>
+              <MaterialCommunityIcons name={animUnit.icon as any} size={17} color="#FFFFFF" style={{ position: "absolute", left: 21.5, top: 24 }} />
+            </Animated.View>
+          )}
         </Animated.View>
       </GestureDetector>
 

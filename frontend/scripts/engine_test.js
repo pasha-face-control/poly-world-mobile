@@ -121,5 +121,24 @@ if (anyWater) {
   }
 }
 
+// ---- City level-up reward (human enqueues a choice) ----
+{
+  const rcap = cap;
+  const terr = [rcap.tileId, ...engine.neighbors(s, rcap.tileId)];
+  // ensure organisation tech + a fruit tile in territory
+  if (!player.techs.includes("organisation")) player.techs.push("organisation");
+  const ftile = s.tiles[terr.find((id) => id !== rcap.tileId && s.tiles[id].terrain === "grass" && !s.tiles[id].cityId && !engine.unitAt(s, id)) ?? terr[1]];
+  ftile.terrain = "grass";
+  ftile.resource = "fruit";
+  rcap.population = 1; // one harvest (levelThreshold(1)=2) will level it up
+  player.stars = 50;
+  const before = (s.pendingLevelUps || []).length;
+  engine.harvest(s, P, ftile.id);
+  ok("human city level up enqueued", s.pendingLevelUps.length > before && s.pendingLevelUps.includes(rcap.id));
+  const prodBefore = rcap.production;
+  ok("apply workshop reward", engine.applyLevelReward(s, rcap.id, "workshop") && rcap.production === prodBefore + 1);
+  ok("pending cleared", !s.pendingLevelUps.includes(rcap.id));
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

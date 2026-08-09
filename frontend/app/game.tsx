@@ -4,7 +4,6 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import GameMap from "@/src/components/GameMap";
 import TopHUD from "@/src/components/TopHUD";
@@ -14,6 +13,8 @@ import CityPanel from "@/src/components/CityPanel";
 import UnitPanel from "@/src/components/UnitPanel";
 import BuildPanel from "@/src/components/BuildPanel";
 import MerchantPanel from "@/src/components/MerchantPanel";
+import LevelUpModal from "@/src/components/LevelUpModal";
+import VictoryCard from "@/src/components/VictoryCard";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
 import { attackableTiles, neighbors, reachableTiles, tileHasActions } from "@/src/game/engine";
@@ -24,12 +25,13 @@ import { C, R, SP, shadow } from "@/src/theme";
 export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
   const [selectedBuildTileId, setSelectedBuildTileId] = useState<number | null>(null);
   const [merchantOpen, setMerchantOpen] = useState(false);
+  const [moveAnim, setMoveAnim] = useState<{ unitId: string; fromTileId: number; toTileId: number; key: number } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [focusTileId, setFocusTileId] = useState<number | null>(null);
@@ -98,7 +100,9 @@ export default function GameScreen() {
       }
       if (reachable.includes(tileId)) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        doMove(selectedUnit.id, tileId);
+        const fromTileId = selectedUnit.tileId;
+        const uid = selectedUnit.id;
+        if (doMove(uid, tileId)) setMoveAnim({ unitId: uid, fromTileId, toTileId: tileId, key: Date.now() });
         return;
       }
       if (unit && unit.owner === cp) {
@@ -182,6 +186,7 @@ export default function GameScreen() {
         focusKey={focusKey}
         territory={territory}
         territoryColor={TRIBE_BY_ID[state.players[state.currentPlayer].tribe].color}
+        moveAnim={moveAnim}
         onTileTap={onTileTap}
       />
 
@@ -272,6 +277,14 @@ export default function GameScreen() {
         onClose={() => setTechOpen(false)}
       />
 
+      <LevelUpModal
+        city={state.pendingLevelUps?.length ? state.cities.find((c) => c.id === state.pendingLevelUps[0]) ?? null : null}
+        onPick={(cityId, rewardId) => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          doApplyReward(cityId, rewardId);
+        }}
+      />
+
       {/* In-game menu */}
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <View style={styles.centerOverlay}>
@@ -288,15 +301,7 @@ export default function GameScreen() {
       <Modal visible={state.status !== "playing"} transparent animationType="fade">
         <View style={styles.centerOverlay}>
           <View style={styles.dialog} testID="result-dialog">
-            <MaterialCommunityIcons
-              name={state.status === "won" ? "trophy" : "skull"}
-              size={64}
-              color={state.status === "won" ? C.warning : C.error}
-            />
-            <Text style={styles.dialogTitle}>{state.status === "won" ? "Victory!" : "Defeat"}</Text>
-            <Text style={styles.dialogSub}>
-              {state.status === "won" ? "You conquered every rival tribe." : "Your tribe has fallen."}
-            </Text>
+            {state.status !== "playing" && <VictoryCard state={state} />}
             <Button
               testID="result-newgame"
               label="New Game"

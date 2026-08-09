@@ -3,6 +3,7 @@ import { storage } from "@/src/utils/storage";
 import { generateGame } from "./mapgen";
 import {
   advanceTurn,
+  applyLevelReward,
   attackUnit,
   build,
   checkVictory,
@@ -52,6 +53,7 @@ interface GameContextValue {
   doUpgradeBoat: (unitId: string) => boolean;
   doLoadMerchant: (unitId: string, good: GoodType, amount: number) => boolean;
   doSetPrice: (unitId: string, price: number) => boolean;
+  doApplyReward: (cityId: string, rewardId: string) => boolean;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -123,7 +125,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const raw = await storage.getItem<string>(SAVE_KEY, "");
     if (!raw) return false;
     try {
-      setState(JSON.parse(raw));
+      const loaded = JSON.parse(raw) as GameState;
+      if (!loaded.pendingLevelUps) loaded.pendingLevelUps = [];
+      setState(loaded);
       return true;
     } catch {
       return false;
@@ -157,6 +161,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doUpgradeBoat = useCallback((unitId: string) => apply((s) => upgradeBoat(s, unitId)), [apply]);
   const doLoadMerchant = useCallback((unitId: string, good: GoodType, amount: number) => apply((s) => loadMerchant(s, unitId, good, amount)), [apply]);
   const doSetPrice = useCallback((unitId: string, price: number) => apply((s) => setMerchantPrice(s, unitId, price)), [apply]);
+  const doApplyReward = useCallback((cityId: string, rewardId: string) => apply((s) => applyLevelReward(s, cityId, rewardId)), [apply]);
 
   const endTurn = useCallback(() => {
     if (!state || state.status !== "playing") return;
@@ -204,6 +209,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doUpgradeBoat,
         doLoadMerchant,
         doSetPrice,
+        doApplyReward,
       }}
     >
       {children}

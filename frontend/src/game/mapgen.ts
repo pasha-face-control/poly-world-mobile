@@ -176,6 +176,7 @@ export function generateGame(config: {
     status: "playing",
     log: [],
     createdAt: new Date().toISOString(),
+    pendingLevelUps: [],
   };
 
   // Capitals at seeds (cleared to grass) + starting warrior.

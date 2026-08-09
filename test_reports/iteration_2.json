@@ -1,0 +1,54 @@
+{
+  "summary": "Frontend-only regression + new-feature test of HexTribes (Expo web preview, mobile viewport 390x844, localStorage cleared before every run). Menu -> New Game -> Setup -> Start Game -> Game screen all render correctly. TopHUD shows 6 stars, tribe (Lesnoi), city count (1), turn indicator (T1 -> T2 after End Turn). BottomBar exposes Tech / Next / Menu / End Turn with correct testIDs (action-tech, action-next-unit, action-menu, action-end-turn). action-next-unit selects a Warrior and displays unit-panel with HP 10/10 and Ready badge. End Turn advances turn (T1 -> T2 verified). CityPanel opens on capital tap and renders correctly: 'Capital \u00b7 Lvl 1', pop 0/2, +1 prod, TRAIN row (Warrior 2\u2605, Archer/Beefeater/Catapult locked), HARVEST row (5 chips: Fish/Fish/Ore/Fish/Fish - all locked behind Fishing/Mining tech in a fresh game as expected). NEW FEATURE VERIFIED: train-merchant chip is PRESENT in CityPanel with aria-disabled=true (correctly tech-gated by Trading). Level-up modal + BuildPanel could NOT be triggered end-to-end in this run because harvest chips are all tech-gated in the fresh game (need to research Fishing first to enable harvest -> pop grow -> level-up), and the tech-tree Pressable inside the Modal proved flaky to click (same issue flagged in iteration_1). Code review of LevelUpModal.tsx, BuildPanel.tsx, CityPanel.tsx and game.tsx confirms all required testIDs (levelup-modal, reward-*, build-panel, build-*, infra-*, train-merchant) are wired correctly and the reward-picking + build/infra dispatch paths look correct. React Native web deprecation warnings from iteration_1 STILL PRESENT: shadow* style props and props.pointerEvents (non-blocking, migration needed).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "GameScreen",
+        "issues": [
+          "Reachable-tile highlight (yellow) is visually subtle on the dark green map - during selected-unit state I could not visually confirm which tiles were reachable in a screenshot. Consider a stronger stroke/opacity so the affordance is unmistakable, especially on the first turn (matters for the new move animation feature).",
+          "Locked harvest chips show only a small lock icon over the star cost - no visible tech-name hint. Adding a tooltip / small caption like 'Requires Fishing' would greatly improve discoverability of the new tech-gated systems."
+        ]
+      }
+    ],
+    "react_native_issues": [
+      {
+        "component": "theme.ts shadow() helper",
+        "issue": "Web console still emits: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' on every screen. Reference: /app/frontend/src/theme.ts (shadow helper). Same finding as iteration_1 - not yet migrated."
+      },
+      {
+        "component": "pointerEvents prop usage",
+        "issue": "Web console still emits: 'props.pointerEvents is deprecated. Use style.pointerEvents' when BuildPanel/CityPanel/UnitPanel wrappers mount. Reference: <View ... pointerEvents=\"box-none\"> in /app/frontend/src/components/BuildPanel.tsx:33, CityPanel.tsx:26 (and BottomBar/TopHUD from prior iteration). Move pointerEvents into style prop."
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Deep-verify unit move + glide animation end-to-end: add per-tile testIDs (tile-{id}) so automated tests can deterministically click a reachable tile instead of relying on pixel math. Manual verification recommended in the meantime because a fresh game has few reachable tiles for the starting Warrior and pixel taps around (195,445) did not reliably move the unit in this run.",
+    "Deep-verify level-up modal end-to-end: expose a debug/dev shortcut (e.g. window.__hextribes.grantPop(cityId, n) or a keyboard shortcut) so QA can force a level-up without grinding through Fishing research and multiple harvest turns. Alternatively add a startTech default that includes Fishing on the tutorial tribe.",
+    "Deep-verify BuildPanel: same pixel-tap issue - a per-tile testID would let tests reliably open the BuildPanel and inspect build-*/infra-* chips.",
+    "Migrate shadow* style props to boxShadow in /app/frontend/src/theme.ts (still open from iteration_1).",
+    "Migrate pointerEvents prop -> style.pointerEvents in BuildPanel.tsx, CityPanel.tsx, UnitPanel.tsx, MerchantPanel.tsx, BottomBar.tsx, TopHUD.tsx (still open from iteration_1).",
+    "Consider strengthening reachable-tile highlight (yellow) so it's clearly visible on the dark game map, which will also help the new move-animation feature feel more polished."
+  ],
+  "critical_code_review_comments": [
+    "LevelUpModal.tsx: implementation is clean - correctly maps levelRewardOptions() to reward-* testIDs; onPick dispatches doApplyReward(cityId, rewardId). No issues found.",
+    "BuildPanel.tsx: correctly filters BUILDINGS by tile.terrain and INFRA by tile-specific validity; disabled state (aria-disabled) via `!check.ok` is set from canBuild/canInfra. Tech-locking shown via lock icon. No issues found.",
+    "CityPanel.tsx: TRAINABLE array includes 'merchant' at the end - train-merchant chip present and correctly disabled when Trading tech not researched (verified via UI).",
+    "game.tsx: doMove() success drives moveAnim state which is passed to GameMap for the ~300ms glide animation. Clean handoff. No error handling issues found.",
+    "game.tsx uses pointerEvents=\"box-none\" prop-style on wrappers - will produce the deprecation warning noted above.",
+    "Save persistence in store.tsx uses AsyncStorage which on web wraps localStorage - the persisted value ends up double-JSON-encoded (localStorage stores a JSON string of a JSON string). Not user-visible but any automation that inspects localStorage needs JSON.parse twice."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (no backend)",
+    "frontend": "General regression flows: 100% (Menu, New Game, Setup, Start, HUD, End Turn, Unit selection via Next, City panel, In-game menu - all verified). New-feature flows: train-merchant chip verified present + tech-gated; unit move+animation, level-up modal reward pick, and BuildPanel chip rendering: NOT FULLY VERIFIED end-to-end due to pixel-tap/tech-gating friction (code paths reviewed and appear correct)."
+  },
+  "seed_data_creation": "None. localStorage keys hextribes_save_v1 and hextribes_stats_v1 cleared before each run.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "MUST-DO to fully validate the two HIGH-priority items without adding testIDs: (1) Unit move+animation - after action-next-unit, sweep page.mouse.click across a denser grid (e.g. every 20px around 195,445 for +/-100px) and re-read state via parsing localStorage TWICE (JSON.parse(JSON.parse(raw))) because AsyncStorage on web double-encodes. Compare unit.tileId before/after to confirm move; watch for ~300ms glide animation via successive screenshots. (2) Level-up modal - first open Tech Tree (action-tech), click tech-fishing (may need bounding_box + page.mouse.click because Pressable inside Modal is flaky with page.click force:true), then open capital, then click enabled harvest-* chip (>=2 times, ending turn between if stars run low) until pendingLevelUps becomes non-empty and levelup-modal renders. Verify all reward-* chips render and picking one dispatches doApplyReward and closes the modal. Adding per-tile testIDs (recommended above) would remove all pixel-tap friction.",
+  "rca_of_issue": "Not a code bug. Testing friction stems from (a) no per-tile testIDs so tile taps require pixel math against an isometric SVG, and (b) all harvest resources on the starting tiles are tech-gated (Fishing/Mining) so the level-up modal requires 2-4 turns of setup that is difficult to script deterministically without exposing a debug shortcut. New-feature code (LevelUpModal, BuildPanel, MerchantPanel, train-merchant chip) all pass static code review; train-merchant presence + tech-gating verified live."
+}
