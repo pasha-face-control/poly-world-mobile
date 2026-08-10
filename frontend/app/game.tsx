@@ -17,10 +17,12 @@ import BuyMerchantPanel from "@/src/components/BuyMerchantPanel";
 import LevelUpModal from "@/src/components/LevelUpModal";
 import VictoryCard from "@/src/components/VictoryCard";
 import TutorialOverlay from "@/src/components/TutorialOverlay";
+import HuntChoiceModal from "@/src/components/HuntChoiceModal";
+import HuntingMiniGame from "@/src/components/HuntingMiniGame";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
 import { storage } from "@/src/utils/storage";
-import { attackableTiles, neighbors, reachableTiles, tileHasActions } from "@/src/game/engine";
+import { attackableTiles, canHunt, neighbors, reachableTiles, tileHasActions } from "@/src/game/engine";
 import { TRIBE_BY_ID } from "@/src/game/data";
 import { UnitType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
@@ -28,13 +30,15 @@ import { C, R, SP, shadow } from "@/src/theme";
 export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
   const [selectedBuildTileId, setSelectedBuildTileId] = useState<number | null>(null);
   const [merchantOpen, setMerchantOpen] = useState(false);
   const [buyMerchantId, setBuyMerchantId] = useState<string | null>(null);
+  const [huntTileId, setHuntTileId] = useState<number | null>(null);
+  const [huntPlaying, setHuntPlaying] = useState(false);
   const [moveAnim, setMoveAnim] = useState<{ unitId: string; fromTileId: number; toTileId: number; key: number } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -71,6 +75,8 @@ export default function GameScreen() {
       setSelectedBuildTileId(null);
       setMerchantOpen(false);
       setBuyMerchantId(null);
+      setHuntTileId(null);
+      setHuntPlaying(false);
     }
   }, [state?.currentPlayer, state]);
 
@@ -150,6 +156,17 @@ export default function GameScreen() {
         return;
       }
       setSelectedUnitId(null);
+      return;
+    }
+
+    // Nothing selected — a wild animal takes priority so tapping it opens the hunt choice.
+    if (tile.resource === "animal" && canHunt(state, cp, tileId).ok) {
+      Haptics.selectionAsync();
+      setHuntTileId(tileId);
+      setSelectedUnitId(null);
+      setSelectedCityId(null);
+      setSelectedBuildTileId(null);
+      setMerchantOpen(false);
       return;
     }
 
@@ -360,6 +377,36 @@ export default function GameScreen() {
       />
 
       <TutorialOverlay visible={tutorialOpen} onClose={() => setTutorialOpen(false)} />
+
+      <HuntChoiceModal
+        visible={huntTileId != null && !huntPlaying}
+        stars={state.players[state.currentPlayer]?.stars ?? 0}
+        onHire={() => {
+          if (huntTileId == null) return;
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          doHireHunter(huntTileId);
+          setHuntTileId(null);
+        }}
+        onHunt={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          setHuntPlaying(true);
+        }}
+        onClose={() => setHuntTileId(null)}
+      />
+
+      {huntPlaying && (
+        <HuntingMiniGame
+          onFinish={(result) => {
+            if (result === "kill" && huntTileId != null) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              doHuntSuccess(huntTileId);
+            }
+            setHuntPlaying(false);
+            setHuntTileId(null);
+          }}
+        />
+      )}
+
 
       {/* In-game menu */}
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>

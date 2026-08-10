@@ -385,6 +385,56 @@ export function harvest(state: GameState, player: number, tileId: number): boole
   return true;
 }
 
+// ---------- Hunting (wild animals) ----------
+function nearestPlayerCity(state: GameState, player: number, tileId: number): City | undefined {
+  const t = state.tiles[tileId];
+  let best: City | undefined;
+  let bestD = Infinity;
+  for (const c of state.cities) {
+    if (c.owner !== player) continue;
+    const ct = state.tiles[c.tileId];
+    const d = Math.max(Math.abs(ct.x - t.x), Math.abs(ct.y - t.y));
+    if (d < bestD) {
+      bestD = d;
+      best = c;
+    }
+  }
+  return best;
+}
+
+export function canHunt(state: GameState, player: number, tileId: number): { ok: boolean; reason?: string } {
+  const tile = state.tiles[tileId];
+  if (tile.resource !== "animal") return { ok: false, reason: "No animal here" };
+  if (player === 0 && !tile.explored) return { ok: false, reason: "Not discovered" };
+  if (!state.cities.some((c) => c.owner === player)) return { ok: false, reason: "You have no city" };
+  return { ok: true };
+}
+
+function grantHuntReward(state: GameState, player: number, tileId: number) {
+  const tile = state.tiles[tileId];
+  tile.resource = null; // animal consumed
+  state.players[player].goods.meat += 1;
+  const city = nearestPlayerCity(state, player, tileId);
+  if (city) addPopulation(state, city, 1);
+  if (player === 0) computeVisibility(state, 0);
+}
+
+export function hireHunter(state: GameState, player: number, tileId: number): boolean {
+  if (!canHunt(state, player, tileId).ok) return false;
+  if (state.players[player].stars < 3) return false;
+  state.players[player].stars -= 3;
+  grantHuntReward(state, player, tileId);
+  log(state, `${state.players[player].name} hired a hunter (+1 pop, +1 meat)`);
+  return true;
+}
+
+export function huntSuccess(state: GameState, player: number, tileId: number): boolean {
+  if (!canHunt(state, player, tileId).ok) return false;
+  grantHuntReward(state, player, tileId);
+  log(state, `${state.players[player].name} hunted the wild bull (+1 pop, +1 meat)`);
+  return true;
+}
+
 export function canTrain(state: GameState, player: number, cityId: string, type: UnitType): { ok: boolean; reason?: string } {
   const city = state.cities.find((c) => c.id === cityId);
   if (!city || city.owner !== player) return { ok: false, reason: "Invalid city" };

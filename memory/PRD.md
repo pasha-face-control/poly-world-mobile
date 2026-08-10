@@ -23,6 +23,7 @@ Build a game similar to The Battle of Polytopia. Client-side, local persistence.
 - Tribes: Lesnoi, Freemen, He-he, Fishmen; biome-specific procedural world-gen (Voronoi regions); map types Continents/Pangea/Lakes/Dryland/Archipelago.
 - Branching radial tech tree (~29 techs). Units: warrior/archer/beefeater/catapult/rider/armored_rider/knight/pikeman/swordsman/merchant + naval tiers.
 - City panel opens even when a unit occupies it.
+- **Hunting wild animals**: tap a wild animal (Bull) tile in your territory to open a choice modal — **Hire a Hunter** (3★, instant +1 pop & +1 meat to nearest city) or **Hunt Yourself** (free 3D first-person archery mini-game). Mini-game (`HuntingMiniGame.tsx`, react-three-fiber + expo-gl, locked landscape): player 12 HP / 12 arrows; bull charges & gores for 4 HP (with strafing dodges); hitboxes — head = 1-shot kill, body = 4 hits, legs = 12 hits. Killing the bull grants +1 pop & +1 meat to the nearest city; dying or running out of arrows = no reward. Wired in `app/game.tsx` (`doHireHunter` / `doHuntSuccess`). Note: WebGL renders in preview but is best validated on a real device / Expo Go.
 
 ## Engine verification
 - `frontend/scripts/engine_test.js` — 20 headless assertions pass (merchant train/load/price/trade, road build, burn-forest, port build, embark, boat upgrades & stats, water blocking, road reachability). Run: `node scripts/engine_test.js`.

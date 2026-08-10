@@ -13,6 +13,8 @@ import {
   doInfra,
   embark,
   harvest,
+  hireHunter,
+  huntSuccess,
   loadMerchant,
   moveUnit,
   research,
@@ -55,6 +57,8 @@ interface GameContextValue {
   doLoadMerchant: (unitId: string, slotIndex: number, good: GoodType, amount: number) => boolean;
   doSetPrice: (unitId: string, slotIndex: number, price: number) => boolean;
   doApplyReward: (cityId: string, rewardId: string) => boolean;
+  doHireHunter: (tileId: number) => boolean;
+  doHuntSuccess: (tileId: number) => boolean;
   doBuyFromMerchant: (merchantId: string, slotIndex: number, amount: number) => boolean;
 }
 
@@ -178,6 +182,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doLoadMerchant = useCallback((unitId: string, slotIndex: number, good: GoodType, amount: number) => apply((s) => loadMerchant(s, unitId, slotIndex, good, amount)), [apply]);
   const doSetPrice = useCallback((unitId: string, slotIndex: number, price: number) => apply((s) => setMerchantPrice(s, unitId, slotIndex, price)), [apply]);
   const doApplyReward = useCallback((cityId: string, rewardId: string) => apply((s) => applyLevelReward(s, cityId, rewardId)), [apply]);
+  const doHireHunter = useCallback((tileId: number) => apply((s) => hireHunter(s, s.currentPlayer, tileId)), [apply]);
+  const doHuntSuccess = useCallback((tileId: number) => apply((s) => huntSuccess(s, s.currentPlayer, tileId)), [apply]);
   const doBuyFromMerchant = useCallback((merchantId: string, slotIndex: number, amount: number) => apply((s) => buyFromMerchant(s, s.currentPlayer, merchantId, slotIndex, amount)), [apply]);
 
   const endTurn = useCallback(() => {
@@ -227,6 +233,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doLoadMerchant,
         doSetPrice,
         doApplyReward,
+        doHireHunter,
+        doHuntSuccess,
         doBuyFromMerchant,
       }}
     >
