@@ -18,8 +18,7 @@ export function newUnit(type: UnitType, owner: number, tileId: number): Unit {
     boat: null,
   };
   if (type === "merchant") {
-    u.cargo = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0 };
-    u.price = 3;
+    u.cargo = Array.from({ length: 4 }, () => ({ good: null, qty: 0, price: 3 }));
   }
   return u;
 }

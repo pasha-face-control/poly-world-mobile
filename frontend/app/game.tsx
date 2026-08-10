@@ -271,13 +271,13 @@ export default function GameScreen() {
           state={state}
           unit={selectedUnit}
           bottomInset={insets.bottom}
-          onLoad={(id, good, amount) => {
+          onLoad={(id, slotIndex, good, amount) => {
             Haptics.selectionAsync();
-            doLoadMerchant(id, good, amount);
+            doLoadMerchant(id, slotIndex, good, amount);
           }}
-          onSetPrice={(id, price) => {
+          onSetPrice={(id, slotIndex, price) => {
             Haptics.selectionAsync();
-            doSetPrice(id, price);
+            doSetPrice(id, slotIndex, price);
           }}
           onClose={() => setMerchantOpen(false)}
         />
@@ -290,9 +290,9 @@ export default function GameScreen() {
             state={state}
             merchant={bm}
             bottomInset={insets.bottom}
-            onBuy={(mid, good, amount) => {
+            onBuy={(mid, slotIndex, amount) => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              doBuyFromMerchant(mid, good, amount);
+              doBuyFromMerchant(mid, slotIndex, amount);
             }}
             onClose={() => setBuyMerchantId(null)}
           />

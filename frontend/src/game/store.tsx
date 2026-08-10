@@ -52,10 +52,10 @@ interface GameContextValue {
   doInfra: (tileId: number, infraId: string) => boolean;
   doEmbark: (unitId: string) => boolean;
   doUpgradeBoat: (unitId: string) => boolean;
-  doLoadMerchant: (unitId: string, good: GoodType, amount: number) => boolean;
-  doSetPrice: (unitId: string, price: number) => boolean;
+  doLoadMerchant: (unitId: string, slotIndex: number, good: GoodType, amount: number) => boolean;
+  doSetPrice: (unitId: string, slotIndex: number, price: number) => boolean;
   doApplyReward: (cityId: string, rewardId: string) => boolean;
-  doBuyFromMerchant: (merchantId: string, good: GoodType, amount: number) => boolean;
+  doBuyFromMerchant: (merchantId: string, slotIndex: number, amount: number) => boolean;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -130,6 +130,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const loaded = JSON.parse(raw) as GameState;
       if (!loaded.pendingLevelUps) loaded.pendingLevelUps = [];
       if (!loaded.difficulty) loaded.difficulty = "normal";
+      // Migrate old (record-based) merchant cargo to the new slot array.
+      for (const u of loaded.units) {
+        if (u.type === "merchant" && u.cargo && !Array.isArray(u.cargo)) {
+          const rec = u.cargo as unknown as Record<string, number>;
+          const oldPrice = (u as unknown as { price?: number }).price ?? 3;
+          const slots = Object.entries(rec)
+            .filter(([, q]) => q > 0)
+            .map(([good, q]) => ({ good: good as GoodType, qty: q, price: oldPrice }));
+          const count = u.boat ? 8 : 4;
+          while (slots.length < count) slots.push({ good: null as unknown as GoodType, qty: 0, price: 3 });
+          u.cargo = slots.slice(0, count) as unknown as GameState["units"][number]["cargo"];
+        }
+      }
       setState(loaded);
       return true;
     } catch {
@@ -162,10 +175,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doInfraCb = useCallback((tileId: number, infraId: string) => apply((s) => doInfra(s, s.currentPlayer, tileId, infraId)), [apply]);
   const doEmbark = useCallback((unitId: string) => apply((s) => embark(s, unitId)), [apply]);
   const doUpgradeBoat = useCallback((unitId: string) => apply((s) => upgradeBoat(s, unitId)), [apply]);
-  const doLoadMerchant = useCallback((unitId: string, good: GoodType, amount: number) => apply((s) => loadMerchant(s, unitId, good, amount)), [apply]);
-  const doSetPrice = useCallback((unitId: string, price: number) => apply((s) => setMerchantPrice(s, unitId, price)), [apply]);
+  const doLoadMerchant = useCallback((unitId: string, slotIndex: number, good: GoodType, amount: number) => apply((s) => loadMerchant(s, unitId, slotIndex, good, amount)), [apply]);
+  const doSetPrice = useCallback((unitId: string, slotIndex: number, price: number) => apply((s) => setMerchantPrice(s, unitId, slotIndex, price)), [apply]);
   const doApplyReward = useCallback((cityId: string, rewardId: string) => apply((s) => applyLevelReward(s, cityId, rewardId)), [apply]);
-  const doBuyFromMerchant = useCallback((merchantId: string, good: GoodType, amount: number) => apply((s) => buyFromMerchant(s, s.currentPlayer, merchantId, good, amount)), [apply]);
+  const doBuyFromMerchant = useCallback((merchantId: string, slotIndex: number, amount: number) => apply((s) => buyFromMerchant(s, s.currentPlayer, merchantId, slotIndex, amount)), [apply]);
 
   const endTurn = useCallback(() => {
     if (!state || state.status !== "playing") return;

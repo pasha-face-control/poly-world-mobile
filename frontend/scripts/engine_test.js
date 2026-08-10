@@ -49,42 +49,65 @@ ok("merchant created with cargo", !!merch && !!merch.cargo);
 ok("merchant is ready to move the turn it's recruited", !!merch && merch.moved === false && merch.attacked === false);
 ok("merchant has movement options", !!merch && engine.reachableTiles(s, merch).length > 0);
 
-// ---- Merchant load + price + trade ----
-player.goods.wood = 10;
-ok("load 3 wood", engine.loadMerchant(s, merch.id, "wood", 3) && merch.cargo.wood === 3);
-ok("stockpile reduced", player.goods.wood === 7);
-ok("unload 1 wood", engine.loadMerchant(s, merch.id, "wood", -1) && merch.cargo.wood === 2);
-engine.setMerchantPrice(s, merch.id, 5);
-ok("price set", merch.price === 5);
+// ---- Merchant slots: load + per-slot price + trade ----
+player.goods.wood = 20;
+ok("merchant has 4 slots", merch.cargo.length === 4);
+ok("load 16 wood into slot 0", engine.loadMerchant(s, merch.id, 0, "wood", 16) && merch.cargo[0].good === "wood" && merch.cargo[0].qty === 16);
+ok("slot cap is 16 on land (cannot exceed)", !engine.loadMerchant(s, merch.id, 0, "wood", 5) || merch.cargo[0].qty === 16);
+ok("stockpile reduced by 16", player.goods.wood === 4);
+ok("unload 1 wood", engine.loadMerchant(s, merch.id, 0, "wood", -1) && merch.cargo[0].qty === 15);
+ok("set slot-0 price to 5", engine.setMerchantPrice(s, merch.id, 0, 5) && merch.cargo[0].price === 5);
+// second slot, different good + different price
+player.goods.iron = 10;
+ok("load iron into slot 1", engine.loadMerchant(s, merch.id, 1, "iron", 4) && merch.cargo[1].good === "iron" && merch.cargo[1].qty === 4);
+ok("set slot-1 price to 9", engine.setMerchantPrice(s, merch.id, 1, 9) && merch.cargo[1].price === 9);
+ok("slots hold independent goods & prices", merch.cargo[0].good === "wood" && merch.cargo[1].good === "iron" && merch.cargo[0].price === 5 && merch.cargo[1].price === 9);
 // bot buys: give bot stars
 const bot = s.players[1];
 bot.stars = 100;
 const ownerStarsBefore = player.stars;
+const wood0 = merch.cargo[0].qty;
 engine.resolveTrades(s);
-ok("bot bought (cargo down)", merch.cargo.wood === 1);
-ok("owner earned stars", player.stars === ownerStarsBefore + 5);
+ok("bot bought 1 unit from a slot", merch.cargo[0].qty === wood0 - 1);
+ok("owner earned that slot's price", player.stars === ownerStarsBefore + 5);
 ok("bot spent stars & got good", bot.stars === 95 && bot.goods.wood >= 1);
 
-// ---- Human buys from another player's merchant ----
+// ---- Human buys from another player's merchant (per slot) ----
 {
-  // give the bot (player 1) a merchant stocked with iron at price 4
   const { newUnit: mk } = require("../src/game/factory.ts");
   const botCity = s.cities.find((c) => c.owner === 1);
   const bm = mk("merchant", 1, botCity ? botCity.tileId : merch.tileId);
-  bm.cargo.iron = 3;
-  bm.price = 4;
+  bm.cargo[0].good = "iron"; bm.cargo[0].qty = 3; bm.cargo[0].price = 4;
   s.units.push(bm);
   s.tiles[bm.tileId].explored = true; // human has discovered it
   ok("can buy from other player's merchant", engine.canBuyFromMerchant(s, P, bm.id).ok);
   const humanStars = player.stars;
   const ownerStars = s.players[1].stars;
   const humanIron = player.goods.iron;
-  ok("buy 2 iron", engine.buyFromMerchant(s, P, bm.id, "iron", 2));
+  ok("buy 2 iron from slot 0", engine.buyFromMerchant(s, P, bm.id, 0, 2));
   ok("human got iron", player.goods.iron === humanIron + 2);
   ok("human paid 8 stars", player.stars === humanStars - 8);
   ok("merchant owner earned 8 stars", s.players[1].stars === ownerStars + 8);
-  ok("merchant cargo reduced", bm.cargo.iron === 1);
+  ok("merchant slot reduced", bm.cargo[0].qty === 1);
   ok("cannot buy own merchant", !engine.canBuyFromMerchant(s, 1, bm.id).ok);
+}
+
+// ---- Merchant Ship: 8 slots, 32/slot ----
+{
+  // ensure merch is on a port so it can embark
+  const grid = require("../src/game/grid.ts");
+  let portT = s.tiles.find((t) => t.terrain === "water" && grid.neighbors(s, t.id).some((n) => s.tiles[n].terrain !== "water"));
+  if (portT) {
+    portT.port = true;
+    merch.tileId = portT.id;
+    merch.boat = null;
+    if (!player.techs.includes("sailing")) player.techs.push("sailing");
+    ok("embark merchant -> ship", engine.embark(s, merch.id) && merch.boat === "rowing");
+    ok("ship has 8 slots", merch.cargo.length === 8);
+    player.goods.wheat = 50;
+    ok("load 32 wheat into a ship slot", engine.loadMerchant(s, merch.id, 4, "wheat", 32) && merch.cargo[4].qty === 32);
+    ok("ship slot cap is 32", !engine.loadMerchant(s, merch.id, 4, "wheat", 1) || merch.cargo[4].qty === 32);
+  } else { console.log("SKIP ship slots (no coastal water)"); }
 }
 
 // ---- Infrastructure: road ----

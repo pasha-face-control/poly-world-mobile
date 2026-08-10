@@ -8,7 +8,7 @@ import {
   TECH_BY_ID,
   UNIT_DEFS,
   levelThreshold,
-  merchantCapacity,
+  slotCapacity,
 } from "./data";
 import { resolveCombat } from "./combat";
 import { newCity, newUnit } from "./factory";
@@ -208,6 +208,10 @@ export function embark(state: GameState, unitId: string): boolean {
   if (!canEmbark(state, unitId).ok) return false;
   const u = state.units.find((x) => x.id === unitId)!;
   u.boat = "rowing";
+  // Merchant ships have 8 cargo slots — grow the inventory when embarking.
+  if (u.type === "merchant" && u.cargo) {
+    while (u.cargo.length < 8) u.cargo.push({ good: null, qty: 0, price: 3 });
+  }
   u.moved = true;
   u.attacked = true;
   log(state, `${state.players[u.owner].name} embarked a ${UNIT_DEFS[u.type].name}`);
@@ -243,35 +247,45 @@ export function upgradeBoat(state: GameState, unitId: string): boolean {
   return true;
 }
 
-// ---------- Merchant trading ----------
-export function loadMerchant(state: GameState, unitId: string, good: GoodType, amount: number): boolean {
+// ---------- Merchant trading (slot-based) ----------
+// Load/unload a specific cargo slot from the owner's stockpile.
+export function loadMerchant(state: GameState, unitId: string, slotIndex: number, good: GoodType, amount: number): boolean {
   const u = state.units.find((x) => x.id === unitId);
   if (!u || u.type !== "merchant" || !u.cargo) return false;
+  const slot = u.cargo[slotIndex];
+  if (!slot) return false;
   const player = state.players[u.owner];
   if (amount > 0) {
-    const cap = merchantCapacity(u);
-    const total = Object.values(u.cargo).reduce((s, v) => s + v, 0);
-    const room = cap - total;
-    const take = Math.min(amount, room, player.goods[good]);
+    const g = slot.good ?? good;
+    if (!g) return false;
+    if (slot.good && slot.good !== g) return false; // slot already holds a different good
+    const room = slotCapacity(u) - slot.qty;
+    const take = Math.min(amount, room, player.goods[g]);
     if (take <= 0) return false;
-    player.goods[good] -= take;
-    u.cargo[good] += take;
+    player.goods[g] -= take;
+    slot.good = g;
+    slot.qty += take;
   } else {
-    // unload back to stockpile
-    const give = Math.min(-amount, u.cargo[good]);
+    if (!slot.good) return false;
+    const give = Math.min(-amount, slot.qty);
     if (give <= 0) return false;
-    u.cargo[good] -= give;
-    player.goods[good] += give;
+    slot.qty -= give;
+    player.goods[slot.good] += give;
+    if (slot.qty <= 0) slot.good = null;
   }
   return true;
 }
 
-export function setMerchantPrice(state: GameState, unitId: string, price: number): boolean {
+export function setMerchantPrice(state: GameState, unitId: string, slotIndex: number, price: number): boolean {
   const u = state.units.find((x) => x.id === unitId);
-  if (!u || u.type !== "merchant") return false;
-  u.price = Math.max(1, Math.min(20, Math.round(price)));
+  if (!u || u.type !== "merchant" || !u.cargo) return false;
+  const slot = u.cargo[slotIndex];
+  if (!slot) return false;
+  slot.price = Math.max(1, Math.min(99, Math.round(price)));
   return true;
 }
+
+const cargoTotal = (u: { cargo?: import("./types").CargoSlot[] }) => (u.cargo ? u.cargo.reduce((s, sl) => s + sl.qty, 0) : 0);
 
 // A player buys goods directly from another player's merchant (pays stars to the owner).
 export function canBuyFromMerchant(state: GameState, buyer: number, merchantId: string): { ok: boolean; reason?: string } {
@@ -279,42 +293,42 @@ export function canBuyFromMerchant(state: GameState, buyer: number, merchantId: 
   if (!m || m.type !== "merchant" || !m.cargo) return { ok: false, reason: "Not a merchant" };
   if (m.owner === buyer) return { ok: false, reason: "Your own merchant" };
   if (buyer === 0 && !state.tiles[m.tileId].explored) return { ok: false, reason: "Not discovered" };
-  const total = Object.values(m.cargo).reduce((s, v) => s + v, 0);
-  if (total <= 0) return { ok: false, reason: "Nothing for sale" };
+  if (cargoTotal(m) <= 0) return { ok: false, reason: "Nothing for sale" };
   return { ok: true };
 }
 
-export function buyFromMerchant(state: GameState, buyer: number, merchantId: string, good: GoodType, amount: number): boolean {
+export function buyFromMerchant(state: GameState, buyer: number, merchantId: string, slotIndex: number, amount: number): boolean {
   if (!canBuyFromMerchant(state, buyer, merchantId).ok) return false;
   const m = state.units.find((u) => u.id === merchantId)!;
-  const cargo = m.cargo!;
-  const price = m.price ?? 3;
-  const affordable = Math.floor(state.players[buyer].stars / price);
-  const take = Math.min(amount, cargo[good], affordable);
+  const slot = m.cargo![slotIndex];
+  if (!slot || !slot.good || slot.qty <= 0) return false;
+  const affordable = Math.floor(state.players[buyer].stars / slot.price);
+  const take = Math.min(amount, slot.qty, affordable);
   if (take <= 0) return false;
-  state.players[buyer].stars -= take * price;
-  state.players[buyer].goods[good] += take;
-  cargo[good] -= take;
-  state.players[m.owner].stars += take * price;
-  log(state, `${state.players[buyer].name} bought ${take} ${good} from ${state.players[m.owner].name}'s merchant`);
+  const g = slot.good;
+  state.players[buyer].stars -= take * slot.price;
+  state.players[buyer].goods[g] += take;
+  slot.qty -= take;
+  state.players[m.owner].stars += take * slot.price;
+  if (slot.qty <= 0) slot.good = null;
+  log(state, `${state.players[buyer].name} bought ${take} ${g} from ${state.players[m.owner].name}'s merchant`);
   return true;
 }
-// Bots are buy-only; the merchant's owner earns the sale price in stars.
+
+// Bots are buy-only; each round they buy 1 unit from an affordable stocked slot.
 export function resolveTrades(state: GameState) {
   for (const m of state.units) {
     if (m.type !== "merchant" || !m.cargo) continue;
-    const cargo: Record<GoodType, number> = m.cargo;
-    const price = m.price ?? 3;
+    const cargo = m.cargo;
     for (const buyer of state.players) {
       if (buyer.index === m.owner || buyer.eliminated || buyer.isHuman) continue;
-      const avail = (Object.keys(cargo) as GoodType[]).filter((g) => cargo[g] > 0);
-      if (!avail.length) break;
-      const good = avail[0];
-      if (buyer.stars < price) continue;
-      buyer.stars -= price;
-      buyer.goods[good] += 1;
-      cargo[good] -= 1;
-      state.players[m.owner].stars += price;
+      const slot = cargo.find((sl) => sl.good && sl.qty > 0 && buyer.stars >= sl.price);
+      if (!slot || !slot.good) continue;
+      buyer.stars -= slot.price;
+      buyer.goods[slot.good] += 1;
+      slot.qty -= 1;
+      state.players[m.owner].stars += slot.price;
+      if (slot.qty <= 0) slot.good = null;
     }
   }
 }
@@ -467,6 +481,20 @@ export function moveUnit(state: GameState, unitId: string, targetTileId: number)
   // Disembark: a boat that lands on non-water reverts to its land form.
   if (unit.boat && state.tiles[targetTileId].terrain !== "water") {
     unit.boat = null;
+    // A merchant ship shrinks back to 4 slots (cap 16); overflow returns to the stockpile.
+    if (unit.type === "merchant" && unit.cargo) {
+      const owner = state.players[unit.owner];
+      for (let i = 0; i < unit.cargo.length; i++) {
+        const sl = unit.cargo[i];
+        if (i >= 4) {
+          if (sl.good) owner.goods[sl.good] += sl.qty;
+        } else if (sl.good && sl.qty > 16) {
+          owner.goods[sl.good] += sl.qty - 16;
+          sl.qty = 16;
+        }
+      }
+      unit.cargo.length = 4;
+    }
   }
   captureTile(state, unit.owner, targetTileId);
   if (unit.owner === 0) computeVisibility(state, 0);

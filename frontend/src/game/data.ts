@@ -102,8 +102,10 @@ export function unitStats(unit: import("./types").Unit): EffStats {
   return out;
 }
 
-// Merchant cargo capacity (slots): 4 on land, 8 as a merchant ship.
-export const merchantCapacity = (unit: import("./types").Unit) => (unit.boat ? 8 : 4);
+// Merchant inventory: 4 slots on land / 8 as a ship; each slot holds one good
+// type up to a per-slot cap (16 on land, 32 as a ship).
+export const merchantSlots = (unit: import("./types").Unit) => (unit.boat ? 8 : 4);
+export const slotCapacity = (unit: import("./types").Unit) => (unit.boat ? 32 : 16);
 
 // ---------- Infrastructure (roads / ports / burn-forest) ----------
 export interface InfraDef {

@@ -142,13 +142,15 @@ export function runAiTurn(state: GameState, player: number) {
       merchants = state.units.filter((u) => u.owner === player && u.type === "merchant");
     }
     for (const m of merchants) {
-      const total = m.cargo ? Object.values(m.cargo).reduce((s, v) => s + v, 0) : 0;
-      if (total < 4) {
-        for (const g of ["wood", "meat", "wheat", "iron", "horse"] as GoodType[]) {
-          const have = state.players[player].goods[g];
-          if (have > 2) loadMerchant(state, m.id, g, Math.min(2, have - 1));
-        }
-        setMerchantPrice(state, m.id, 3);
+      if (!m.cargo) continue;
+      // Fill empty slots from surplus goods; price each at 3.
+      for (let i = 0; i < m.cargo.length; i++) {
+        const slot = m.cargo[i];
+        if (slot.good) continue;
+        const g = (["wood", "meat", "wheat", "iron", "horse"] as GoodType[]).find((gd) => state.players[player].goods[gd] > 3);
+        if (!g) break;
+        loadMerchant(state, m.id, i, g, Math.min(8, state.players[player].goods[g] - 1));
+        setMerchantPrice(state, m.id, i, 3);
       }
     }
   }

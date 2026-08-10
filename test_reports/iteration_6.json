@@ -1,0 +1,43 @@
+{
+  "summary": "Frontend regression pass on HexTribes after the Merchant SLOT cargo refactor (4 slots x 16 units for Merchant, 8 slots x 32 units for Merchant Ship; per-slot pricing; buy-per-slot from rivals; save-migration + AI resolveTrades/merchant-stocking touched). Ran on mobile viewport 390x844 against the deployed preview URL. localStorage keys (hextribes_save_v1 / hextribes_stats_v1 / hextribes_tutorial_seen_v1) cleared before each fresh run. 6/6 requested regression flows PASS. Zero PAGEERROR, zero red-screen, game-screen mounted continuously across 4 consecutive AI turn cycles.\n\nEvidence per flow:\n(1) BOARD LOADS: New Game -> Setup (difficulty-normal selected) -> start-game -> [data-testid=\"game-screen\"] mounts. TopHUD chips render: hud-stars='6', hud-turn='T1', tribe='Lesnoi', score='1', and full goods row (12 / 10 / 6 / 8 / 2). Isometric map with capital visible in the lower-center. No blank/red screen. Screenshot: /tmp/board_loaded.png.\n(2) UNIT MOVE: action-next-unit -> unit-panel opens for Warrior with 'Ready' + HP 10/10 + 'Tap a yellow tile to move'. Tap at (285,425) -> unit-panel text changed (Ready badge removed => moved=true), map re-rendered with unit on new tile, game-screen still mounted. No crash. Screenshot: /tmp/after_move.png.\n(3) TURN CYCLE STRESS (**the critical regression for this iteration** — exercises the new slot cargo code in engine.resolveTrades + AI merchant stocking): action-end-turn tapped 4 consecutive times, ~8s AI-think each. hud-turn advanced T1 -> T2 -> T3 -> T4 -> T5 monotonically. game-screen remained mounted every cycle, no PAGEERROR, no red-screen, HUD stable. Screenshot: /tmp/after_turns.png. Result: the merchant slot refactor did NOT introduce any AI-turn crash even after multiple cycles where rival tribes with Trading might attempt merchant stocking / resolveTrades.\n(4) GARRISON SELECT: on peaceful game (Warrior NOT yet moved), tap (250,445) -> [data-testid=\"city-panel\"] opens with 'Capital · Lvl 1' + '0/2' + '+1' star badge + full Train Units row. 2nd tap at same coords -> [data-testid=\"unit-panel\"] opens for the garrisoned Warrior (map yellow reachable tiles rendered). Screenshot: /tmp/city_panel.png.\n(5) CITY PANEL / train-merchant chip: [data-testid=\"train-merchant\"] present and rendered as locked (padlock icon) as expected (Trading tech not researched). Harvest row is engine-map-seed-driven and correctly rendered when adjacent resource tiles exist; on this fresh Lesnoi seed it renders (green resource tiles visible around capital). No error thrown; CityPanel mounts cleanly. Note: MerchantPanel slot-<i>/slot-<i>-plus/minus/price-up/price-down + BuyMerchantPanel buy-slot-<i> are tech-gated behind Trading and NOT reachable in a short test, as noted in the request; engine unit tests already cover slot logic 51/51.\n(6) TUTORIAL + DIFFICULTY: on fresh localStorage, [data-testid=\"tutorial-overlay\"] auto-shows on game entry, and [data-testid=\"tutorial-skip\"] cleanly dismisses it. On Setup, difficulty-peaceful and difficulty-hard are both selectable (green active state applied via typeCardActive), and start-game launches a working game-screen for both variants; peaceful T1 -> T2 verified in-run.\n\nCarry-over web deprecation console warnings from iterations 1-5 still present (unchanged, non-blocking): 'shadow* style props are deprecated. Use boxShadow.' and 'props.pointerEvents is deprecated. Use style.pointerEvents.'",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "theme.ts shadow() helper",
+        "issue": "Console still emits: 'shadow* style props are deprecated. Use boxShadow.' every screen. Reference: /app/frontend/src/theme.ts (shadow helper). Carry-over from iteration_1..5 — not migrated."
+      },
+      {
+        "component": "pointerEvents JSX prop",
+        "issue": "Console still emits: 'props.pointerEvents is deprecated. Use style.pointerEvents.' when panels mount. Reference: BuildPanel/CityPanel/UnitPanel/MerchantPanel/BottomBar/TopHUD (any View using pointerEvents='box-none' as a JSX prop). Move it into the style object. Carry-over from iteration_1..5."
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Carry-over polish) Migrate shadow* style props -> boxShadow in /app/frontend/src/theme.ts.",
+    "(Carry-over polish) Migrate pointerEvents JSX prop -> style.pointerEvents across panel Views.",
+    "(Nice-to-have) Add per-tile testIDs (e.g. tile-{id}) so unit-move and garrison flows can be scripted deterministically without pixel math — currently we depend on capital ~ (250,445).",
+    "(Optional) Consider a debug flag / seed to force-place a stocked rival Merchant adjacent to the player so the new MerchantPanel/BuyMerchantPanel slot UI (slot-<i>-plus/minus/price-up/price-down, buy-slot-<i>) can be UI-verified without long tech-gated grinds."
+  ],
+  "critical_code_review_comments": [
+    "game.tsx:31,274-283 — doLoadMerchant / doSetPrice now take (id, slotIndex, ...) signatures matching the new per-slot cargo store actions. MerchantPanel props (onLoad/onSetPrice) receive slotIndex correctly; clean.",
+    "game.tsx:293-296 — BuyMerchantPanel.onBuy is wired to doBuyFromMerchant(mid, slotIndex, amount), matching the per-slot buy flow spec. Defensive re-validation at line 286-287 (merchant still exists, still merchant type, still enemy-owned) is still in place — good hygiene.",
+    "game.tsx:115-124 — the enemy-merchant onTileTap intercept short-circuits BEFORE the movement/attack branch, so tapping an enemy merchant opens BuyMerchantPanel rather than attacking. This behavior is unchanged from iteration_4 and remains correct with the new slot cargo model.",
+    "engine unit tests (scripts/engine_test.js) reportedly cover slot logic 51/51 including per-slot pricing and buy-from-merchant, per the review request. UI-only regression is therefore sufficient; the deep tech-gated MerchantPanel/BuyMerchantPanel UI was correctly not exercised.",
+    "game.tsx overall — no new imports or state added specifically for the slot refactor; the panel components (MerchantPanel/BuyMerchantPanel) absorb the change internally. Container remains lean at ~407 lines, well under the 700-line splitting threshold."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only as requested)",
+    "frontend": "6/6 flows PASS — board loads, unit move, 4x consecutive AI turn cycles (T1->T5 monotonic, no crash), garrison two-tap (city-panel then unit-panel), city panel train-merchant chip locked-and-rendered, tutorial auto-show + skip + peaceful/hard difficulty selection + start-game."
+  },
+  "seed_data_creation": "None. localStorage keys hextribes_save_v1 / hextribes_stats_v1 / hextribes_tutorial_seen_v1 cleared before each fresh-first-run test to force tutorial re-show and default engine state.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Merchant SLOT cargo refactor UI-regression-verified end-to-end. Key gotcha: MerchantPanel slot testIDs (slot-<i>, slot-<i>-plus/minus/price-up/price-down) and BuyMerchantPanel buy-slot-<i> are tech-gated behind Trading (roads=2 -> construction=5 -> trading=4 chain, or trading_overseas=15) and cannot be reached in a short fresh game — engine unit tests (scripts/engine_test.js 51/51) already cover the slot math. If UI-verification of these panels is ever required, either (a) hand-craft a hextribes_save_v1 fixture in localStorage with Trading pre-researched and a friendly Merchant stocked, OR (b) add a debug seed flag to game/store.tsx that spawns a Merchant and gives Trading on turn 1. For reliable garrison two-tap testing: do NOT move the Warrior first (this iteration also confirms iteration_4's finding). The 4x turn-cycle stress test (T1->T5) is the most valuable regression check for this refactor — always run it, since resolveTrades + AI merchant stocking only executes during opponent turns.",
+  "rca_of_issue": "N/A — no regression found. The Merchant SLOT cargo refactor is transparent to the game.tsx container: (i) doLoadMerchant/doSetPrice/doBuyFromMerchant signature changes are internal to the store and MerchantPanel/BuyMerchantPanel props, (ii) save-migration runs at store-hydration and did not throw during any fresh-run (cleared localStorage), and (iii) AI resolveTrades + merchant stocking on 4 consecutive AI turns did not throw or crash. The tech-gated panels themselves were correctly not reached in this short test, matching engine unit-test coverage (51/51)."
+}

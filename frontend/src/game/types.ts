@@ -21,6 +21,12 @@ export interface Tile {
   port: boolean; // dock built on a water tile
 }
 
+export interface CargoSlot {
+  good: GoodType | null; // which good this slot holds (null = empty)
+  qty: number; // units stored in this slot
+  price: number; // sell price per unit for THIS slot
+}
+
 export interface Unit {
   id: string;
   type: UnitType;
@@ -31,8 +37,7 @@ export interface Unit {
   moved: boolean;
   attacked: boolean;
   boat: NavalTier | null; // set when embarked onto water; null on land
-  cargo?: Record<GoodType, number>; // merchant inventory
-  price?: number; // merchant asking price (stars per good unit)
+  cargo?: CargoSlot[]; // merchant inventory — 4 slots on land, 8 as a ship
 }
 
 export interface City {
