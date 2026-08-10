@@ -1,6 +1,6 @@
 import { RNG } from "./rng";
 import { idx } from "./grid";
-import { GameState, MapType, TerrainType, Tile, TribeId } from "./types";
+import { Difficulty, GameState, MapType, TerrainType, Tile, TribeId } from "./types";
 import { START_STARS, START_GOODS, TRIBE_BY_ID } from "./data";
 import { newUnit, newCity } from "./factory";
 
@@ -83,6 +83,7 @@ export function generateGame(config: {
   mapSize: number;
   mapType: MapType;
   passAndPlay: boolean;
+  difficulty?: Difficulty;
   seed?: number;
 }): GameState {
   const seed = config.seed ?? Math.floor(Math.random() * 1e9);
@@ -177,6 +178,7 @@ export function generateGame(config: {
     log: [],
     createdAt: new Date().toISOString(),
     pendingLevelUps: [],
+    difficulty: config.difficulty ?? "normal",
   };
 
   // Capitals at seeds (cleared to grass) + starting warrior.

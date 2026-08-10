@@ -129,6 +129,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     try {
       const loaded = JSON.parse(raw) as GameState;
       if (!loaded.pendingLevelUps) loaded.pendingLevelUps = [];
+      if (!loaded.difficulty) loaded.difficulty = "normal";
       setState(loaded);
       return true;
     } catch {

@@ -145,13 +145,11 @@ export default function TechTreeModal({ visible, state, onResearch, onClose, top
                         {!researched && (
                           <View style={styles.costTag}>
                             {unlocked ? (
-                              <>
-                                <MaterialCommunityIcons name="star-four-points" size={9} color={C.warning} />
-                                <Text style={styles.costText}>{cost}</Text>
-                              </>
+                              <MaterialCommunityIcons name="star-four-points" size={9} color={C.warning} />
                             ) : (
-                              <MaterialCommunityIcons name="lock" size={10} color={C.borderStrong} />
+                              <MaterialCommunityIcons name="lock" size={9} color={C.borderStrong} />
                             )}
+                            <Text style={styles.costText}>{cost}</Text>
                           </View>
                         )}
                       </Pressable>

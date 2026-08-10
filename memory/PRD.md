@@ -8,6 +8,8 @@ Build a game similar to The Battle of Polytopia. Client-side, local persistence.
 - 2.5D isometric SVG map (diamond tiles, pyramid mountains, 3D unit pawns/city houses/bulls), 4-angle rotation, pan/zoom.
 
 ## Implemented (latest)
+- **Difficulty**: Setup selector — Peaceful / Easy / Normal / Hard. Peaceful bots prioritise trading and only fight defensively (attack when a player unit is adjacent/in range); Easy is timid; Normal balanced; Hard aggressive with bonus star income. Difficulty is stored on game state and drives `ai.ts`.
+- **Trade-line tech pricing**: base costs set to Roads = 2, Construction = 5, Trading = 4, Trading Overseas = 15 (locked tech nodes now show their cost alongside the lock icon).
 - **Quick Tutorial**: first-run 5-step overlay (Welcome → Move → Battle/Capture → Cities → Tech) with Next/Back/Skip and progress dots; auto-shows once (flag `hextribes_tutorial_seen_v1`) and re-openable from the pause menu → "How to Play".
 - **Merchant UX fix**: units garrisoned on a city are now shown as a badge beside the city; tapping a city then tapping it again selects the garrisoned unit to move it out; Merchants are trained ready-to-move; single-tap a merchant = move options, double-tap a merchant = open its trade/inventory panel.
 - **Unit move animation**: units glide tile→tile (~300ms); reachable/attackable tiles highlighted more boldly.

@@ -164,5 +164,42 @@ if (anyWater) {
   ok("pending cleared", !s.pendingLevelUps.includes(rcap.id));
 }
 
+// ---- Tech pricing (trade line) ----
+{
+  const dataMod = require("../src/game/data.ts");
+  ok("roads costs 2", dataMod.TECH_BY_ID.roads.cost === 2);
+  ok("construction costs 5", dataMod.TECH_BY_ID.construction.cost === 5);
+  ok("trading costs 4", dataMod.TECH_BY_ID.trading.cost === 4);
+  ok("trading_overseas costs 15", dataMod.TECH_BY_ID.trading_overseas.cost === 15);
+}
+
+// ---- Difficulty: peaceful bots defend when attacked-adjacent ----
+{
+  const ai = require("../src/game/ai.ts");
+  const grid = require("../src/game/grid.ts");
+  const { newUnit: mk2 } = require("../src/game/factory.ts");
+  const g2 = generateGame({ tribe: "nature", opponents: 1, mapSize: 11, mapType: "pangea", difficulty: "peaceful", passAndPlay: false, seed: 7 });
+  ok("difficulty stored on state", g2.difficulty === "peaceful");
+  // clear starting units so we control the scenario
+  g2.units = [];
+  const landOk = (t) => (t.terrain === "grass" || t.terrain === "forest" || t.terrain === "sand") && !t.cityId;
+  let a = null, b = null;
+  for (const t of g2.tiles) {
+    if (!landOk(t)) continue;
+    const cand = grid.neighbors(g2, t.id).find((n) => landOk(g2.tiles[n]));
+    if (cand != null) { a = t.id; b = cand; break; }
+  }
+  if (a != null) {
+    const human = mk2("warrior", 0, a);
+    const bot = mk2("warrior", 1, b);
+    bot.moved = false; bot.attacked = false;
+    g2.units.push(human, bot);
+    const hpBefore = human.hp;
+    ai.runAiTurn(g2, 1);
+    const stillThere = g2.units.find((u) => u.id === human.id);
+    ok("peaceful bot defends adjacent enemy", !stillThere || stillThere.hp < hpBefore);
+  } else { console.log("SKIP peaceful defense (no adjacent grass)"); }
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

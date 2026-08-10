@@ -6,8 +6,8 @@ import { StatusBar } from "expo-status-bar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
-import { MAP_SIZES, MAP_TYPES, TECH_BY_ID, TRIBES } from "@/src/game/data";
-import { MapType, TribeId } from "@/src/game/types";
+import { DIFFICULTIES, MAP_SIZES, MAP_TYPES, TECH_BY_ID, TRIBES } from "@/src/game/data";
+import { Difficulty, MapType, TribeId } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
 
 export default function Setup() {
@@ -20,9 +20,10 @@ export default function Setup() {
   const [mapSize, setMapSize] = useState(11);
   const [mapType, setMapType] = useState<MapType>("continents");
   const [passAndPlay, setPassAndPlay] = useState(false);
+  const [difficulty, setDifficulty] = useState<Difficulty>("normal");
 
   const start = () => {
-    startNewGame({ tribe, opponents, mapSize, mapType, passAndPlay });
+    startNewGame({ tribe, opponents, mapSize, mapType, passAndPlay, difficulty });
     router.replace("/game");
   };
 
@@ -71,6 +72,20 @@ export default function Setup() {
             </Pressable>
           ))}
         </View>
+
+        <Text style={styles.label}>Difficulty</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
+          {DIFFICULTIES.map((d) => {
+            const active = difficulty === d.id;
+            return (
+              <Pressable key={d.id} testID={`difficulty-${d.id}`} onPress={() => setDifficulty(d.id)} style={[styles.diffCard, active && styles.typeCardActive]}>
+                <MaterialCommunityIcons name={d.icon as any} size={24} color={active ? "#fff" : C.brand} />
+                <Text style={[styles.typeText, active && { color: "#fff" }]}>{d.label}</Text>
+                <Text style={[styles.diffBlurb, active && { color: "rgba(255,255,255,0.85)" }]}>{d.blurb}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
 
         <Text style={styles.label}>Map Size</Text>
         <View style={styles.pillRow}>
@@ -139,6 +154,8 @@ const styles = StyleSheet.create({
   typeCard: { width: 96, backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingVertical: 14, alignItems: "center", gap: 6, flexShrink: 0 },
   typeCardActive: { backgroundColor: C.brand },
   typeText: { fontSize: 13, fontWeight: "800", color: C.onSurface },
+  diffCard: { width: 150, backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingVertical: 14, paddingHorizontal: 12, alignItems: "center", gap: 6, flexShrink: 0 },
+  diffBlurb: { fontSize: 10, color: C.onSurfaceSecondary, textAlign: "center", lineHeight: 13 },
   modeRow: { flexDirection: "row", alignItems: "center", gap: SP.md, backgroundColor: C.surfaceSecondary, borderRadius: R.lg, padding: SP.md },
   modeTitle: { fontSize: 16, fontWeight: "900", color: C.onSurface },
   modeSub: { fontSize: 12, color: C.onSurfaceSecondary },

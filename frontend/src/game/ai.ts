@@ -15,14 +15,34 @@ import {
   trainUnit,
 } from "./engine";
 import { RESOURCE_DEFS, UNIT_DEFS } from "./data";
-import { GameState, GoodType, Unit, UnitType } from "./types";
+import { Difficulty, GameState, GoodType, Unit, UnitType } from "./types";
 import { neighbors, unitAt } from "./grid";
 
-function objectiveTiles(state: GameState, player: number): number[] {
+interface DiffCfg {
+  research: number; // chance to research when affordable
+  aggressive: boolean; // seek out enemy units/cities to attack
+  attackChance: number; // chance to actually attack an in-range enemy
+  bonusStars: number; // extra stars per turn (handicap)
+  preferTrade: boolean; // prioritise the trade tech line + merchants
+}
+
+const DIFF: Record<Difficulty, DiffCfg> = {
+  peaceful: { research: 0.7, aggressive: false, attackChance: 1, bonusStars: 0, preferTrade: true },
+  easy: { research: 0.4, aggressive: true, attackChance: 0.5, bonusStars: 0, preferTrade: false },
+  normal: { research: 0.7, aggressive: true, attackChance: 1, bonusStars: 0, preferTrade: false },
+  hard: { research: 1.0, aggressive: true, attackChance: 1, bonusStars: 2, preferTrade: false },
+};
+
+const TRADE_LINE = ["organisation", "roads", "construction", "trading", "trading_overseas"];
+
+// Peaceful bots expand to neutral villages only; everyone else also hunts enemies.
+function objectiveTiles(state: GameState, player: number, aggressive: boolean): number[] {
   const out: number[] = [];
   for (const t of state.tiles) if (t.isVillage && !t.cityId) out.push(t.id);
-  for (const c of state.cities) if (c.owner !== player) out.push(c.tileId);
-  for (const u of state.units) if (u.owner !== player) out.push(u.tileId);
+  if (aggressive) {
+    for (const c of state.cities) if (c.owner !== player) out.push(c.tileId);
+    for (const u of state.units) if (u.owner !== player && u.type !== "merchant") out.push(u.tileId);
+  }
   return out;
 }
 
@@ -57,14 +77,24 @@ function tryAttack(state: GameState, unit: Unit): boolean {
 }
 
 export function runAiTurn(state: GameState, player: number) {
-  // 1. Research when affordable (prefer cheapest, some randomness).
+  const cfg = DIFF[state.difficulty] ?? DIFF.normal;
+  state.players[player].stars += cfg.bonusStars; // difficulty handicap
+
+  // 1. Research when affordable (peaceful/hard prefer the trade line).
   const avail = availableTechs(state, player);
   if (avail.length) {
     const affordable = avail
       .map((id) => ({ id, cost: techCost(state, player, id) }))
       .filter((t) => t.cost <= state.players[player].stars)
       .sort((a, b) => a.cost - b.cost);
-    if (affordable.length && Math.random() < 0.7) research(state, player, affordable[0].id);
+    if (affordable.length && Math.random() < cfg.research) {
+      let pick = affordable[0];
+      if (cfg.preferTrade) {
+        const t = affordable.find((a) => TRADE_LINE.includes(a.id));
+        if (t) pick = t;
+      }
+      research(state, player, pick.id);
+    }
   }
 
   // 2. Harvest resources in territory to grow.
@@ -128,9 +158,10 @@ export function runAiTurn(state: GameState, player: number) {
   for (const u of myUnits) {
     if (u.type === "merchant") continue;
     if (!state.units.find((x) => x.id === u.id)) continue; // may have died
-    if (tryAttack(state, u)) continue;
+    const canFight = Math.random() < cfg.attackChance;
+    if (canFight && tryAttack(state, u)) continue;
 
-    const objectives = objectiveTiles(state, player);
+    const objectives = objectiveTiles(state, player, cfg.aggressive);
     const target = nearestObjective(state, u, objectives);
     if (target == null) continue;
 
@@ -151,6 +182,6 @@ export function runAiTurn(state: GameState, player: number) {
       moveUnit(state, u.id, objReachable ?? bestTile);
     }
     // Attack after moving.
-    tryAttack(state, u);
+    if (canFight) tryAttack(state, u);
   }
 }

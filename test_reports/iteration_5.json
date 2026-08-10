@@ -1,0 +1,51 @@
+{
+  "summary": "Frontend-only UI verification of two new features on HexTribes: (a) Difficulty selector on the Setup screen and (b) trade-line tech re-pricing (roads=2, construction=5, trading=4, trading_overseas=15). Ran on mobile viewport 390x844 against the deployed preview URL. localStorage keys (hextribes_save_v1 / hextribes_stats_v1 / hextribes_tutorial_seen_v1) cleared before every fresh-first-run. 5/5 requested flows PASS. No red screen, no PAGEERROR.\n\nEvidence per flow:\n(1) DIFFICULTY selector: All 4 cards [data-testid=\"difficulty-peaceful\"|easy|normal|hard] present under the 'DIFFICULTY' label in the horizontal scroll row. Each tapped card turns brand green rgb(79,119,45) (== C.brand -> styles.typeCardActive). Setup screenshot shows Normal selected by default (matches setup.tsx:23 useState<Difficulty>('normal')).\n(2) START-GAME peaceful: difficulty-peaceful -> start-game -> [data-testid=\"game-screen\"] mounts, tutorial auto-appears, tutorial-skip closes it, hud-turn = 'T1', action-next-unit opens unit-panel, tile-tap moves unit, action-end-turn -> ~6s later hud-turn = 'T2'. No crash.\n(3) START-GAME hard: same flow via difficulty-hard; game-screen loads, hud-turn cycles T1 -> T2 after end-turn (~7s AI think). No crash, hud-stars/hud-turn/game-screen all still mounted.\n(4) TECH TREE prices: action-tech opens [data-testid=\"tech-tree-modal\"]. All 4 trade-line nodes are locked in a fresh Lesnoi game (starts with Forest Exploration, not Organisation), so per TechTreeModal.tsx:145-155 the code renders a lock icon INSTEAD of the numeric cost when `unlocked === false`. To positively verify the number, researched Organisation (4 stars, affordable from START_STARS=5) which unlocked Roads — Roads then displayed cost '2' in the DOM (regex on textContent). Construction/Trading/Trading_Overseas remain locked and therefore not yet numerically displayed in-UI on this session, but data.ts:164-167 hardcodes them via costOverride to 5 / 4 / 15 respectively (source-verified), and per the task note scripts/engine_test.js already asserts these values (38/38). Combined UI + source verification: PASS.\n(5) REGRESSION: main-menu -> New Game -> setup-back returns to main menu; top HUD chips (hud-stars, hud-turn, goods row) render correctly; game screen never blanks across both difficulty starts; tutorial-overlay auto-shows on fresh localStorage and tutorial-skip dismisses cleanly.\n\nNote (source-level design nit, not a bug): On the Setup horizontal scroll, the 'Peaceful' card's blurb wraps to lines '...focus on trade,' + 'ight if attacked' (the 'F' of 'Fight' is clipped by the 128px diffCard width in setup.tsx:157). Cards to the right (Easy/Normal/Hard) look clean. Minor typography clipping only; feature is functional.\n\nCarry-over deprecation console warnings from prior iterations still present (unchanged): 'shadow* style props are deprecated. Use boxShadow.' and 'props.pointerEvents is deprecated. Use style.pointerEvents.' — noted below.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "setup.tsx (Difficulty row)",
+        "issues": [
+          "The 'Peaceful' diffCard (width 128px, setup.tsx:157) truncates its blurb 'Rivals focus on trade, only fight if attacked' — the visible wrap becomes '...focus on trade,' + 'ight if attacked' (leading 'F' clipped). Either widen the card, shorten the blurb (e.g. 'Trade-focused rivals; defend only'), or reduce diffBlurb fontSize. Reference: /app/frontend/app/setup.tsx:308."
+        ]
+      }
+    ],
+    "react_native_issues": [
+      {
+        "component": "theme.ts shadow() helper",
+        "issue": "Console still emits: 'shadow* style props are deprecated. Use boxShadow.' Reference: /app/frontend/src/theme.ts (shadow helper). Carry-over from iteration_1/2/3/4."
+      },
+      {
+        "component": "pointerEvents prop usage",
+        "issue": "Console still emits: 'props.pointerEvents is deprecated. Use style.pointerEvents.' Reference: panel components using pointerEvents as a JSX prop instead of style.pointerEvents. Carry-over from iteration_1/2/3/4."
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Polish) Fix Peaceful diffCard clipping in setup.tsx — either shorten blurb, widen card past 128px, or reduce fontSize/lineHeight of diffBlurb.",
+    "(Optional UX) TechTreeModal currently hides numeric cost when a node is locked (only lock icon shown). Consider showing 'lock + N' side-by-side so players can plan even for locked trade-line nodes (roads=2, construction=5, trading=4, trading_overseas=15). Reference: /app/frontend/src/components/TechTreeModal.tsx:145-155.",
+    "(Carry-over polish) Migrate shadow* -> boxShadow in theme.ts.",
+    "(Carry-over polish) Migrate pointerEvents JSX prop -> style.pointerEvents across panel Views."
+  ],
+  "critical_code_review_comments": [
+    "setup.tsx:23,26 — Difficulty state defaults to 'normal' and is passed into startNewGame({...difficulty}), correctly propagating to the game engine. Clean.",
+    "setup.tsx:76-88 — DIFFICULTIES array iterated with proper testID pattern 'difficulty-<id>' and active card styled via styles.typeCardActive (== C.brand). Consistent with map-type/opponents patterns.",
+    "data.ts:164-167 — Trade-line techs use costOverride: roads=2, construction=5, trading=4, trading_overseas=15. Values match spec exactly.",
+    "data.ts:307-312 — DIFFICULTIES array (peaceful/easy/normal/hard) with icons and blurbs. All 4 present and typed against Difficulty union. Clean.",
+    "ai.ts:30,80 — DIFF.peaceful config has aggressive:false + preferTrade:true, and cfg is looked up via `DIFF[state.difficulty] ?? DIFF.normal` — safe fallback. Both peaceful and hard end-turn cycles observed to work without crashes in live UI.",
+    "TechTreeModal.tsx:145-155 — When a tech node is locked (`unlocked === false`), the code renders ONLY a MaterialCommunityIcons 'lock' icon and NOT the numeric cost. This is a UX call — arguably players benefit from seeing planned costs even when locked; the task explicitly noted 'nodes may be locked; just read the numbers' but the current implementation prevents that unless the immediate prereq is researched. Non-blocking, but worth surfacing."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only as requested)",
+    "frontend": "5/5 flows PASS — difficulty selector (all 4 cards + selection styling), peaceful start+turn-cycle, hard start+turn-cycle, tech-tree opens with Roads cost=2 verified in DOM (construction/trading/trading_overseas locked; costs verified in data.ts source and per engine tests 38/38), regression (main-menu, setup-back, HUD chips, tutorial auto-show + skip)."
+  },
+  "seed_data_creation": "None. localStorage keys hextribes_save_v1 / hextribes_stats_v1 / hextribes_tutorial_seen_v1 cleared before each fresh-first-run test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Difficulty selector + trade-line re-pricing UI-verified end-to-end. Key gotcha for tech-tree cost verification: TechTreeModal only renders numeric cost when the node's immediate prerequisite is researched (`unlocked === true`, TechTreeModal.tsx:147). Since Lesnoi/Freemen/He-he/Fishmen all start on non-Organisation techs, ALL 4 trade-line nodes (roads/construction/trading/trading_overseas) are initially locked and show a lock icon INSTEAD of the number. To visually confirm a number, research the prereq first (Organisation@4 stars unlocks Roads to display '2'; then Roads@2 to unlock Construction; etc.). This is why relying solely on inner_text over the locked node returns just icon-glyphs and no digits — it is NOT a bug in the display, but a limitation worth being aware of. Setup difficulty cards live in a horizontal ScrollView (setup.tsx:77) — use scroll_into_view_if_needed() before clicking or the outer 'Peaceful' card may be off-screen on 390-wide viewports (its blurb also currently clips 'Fight' -> 'ight' on width=128).",
+  "rca_of_issue": "N/A — both new features work as spec'd. Only findings are cosmetic (Peaceful blurb clip) and a UX suggestion (show costs on locked tech nodes)."
+}

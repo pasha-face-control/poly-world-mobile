@@ -5,6 +5,7 @@ export type TribeId = "nature" | "desert" | "volcanic" | "snow";
 export type MapType = "dryland" | "lakes" | "pangea" | "continents" | "archipelago";
 export type GoodType = "wood" | "iron" | "wheat" | "meat" | "horse";
 export type NavalTier = "rowing" | "sailing" | "battleship";
+export type Difficulty = "peaceful" | "easy" | "normal" | "hard";
 
 export interface Tile {
   id: number;
@@ -71,6 +72,7 @@ export interface GameState {
   log: string[];
   createdAt: string;
   pendingLevelUps: string[]; // human city ids awaiting a level-up reward choice
+  difficulty: Difficulty;
 }
 
 export interface NewGameConfig {
@@ -79,4 +81,5 @@ export interface NewGameConfig {
   mapSize: number; // width==height
   mapType: MapType;
   passAndPlay: boolean;
+  difficulty: Difficulty;
 }

@@ -131,13 +131,13 @@ export interface TechDef {
   desc: string;
 }
 
-const T = (id: string, name: string, tier: number, requires: string | null, icon: string, desc: string): TechDef => ({
+const T = (id: string, name: string, tier: number, requires: string | null, icon: string, desc: string, costOverride?: number): TechDef => ({
   id,
   name,
   tier,
   requires,
   icon,
-  cost: 4 + (tier - 1) * 3,
+  cost: costOverride ?? 4 + (tier - 1) * 3,
   desc,
 });
 
@@ -161,10 +161,10 @@ export const TECHS: TechDef[] = [
   T("forest_care", "Forest Care", 3, "devotion", "sprout", "Plant new forest."),
 
   // Organisation branch
-  T("roads", "Roads", 2, "organisation", "road-variant", "Build roads for faster movement."),
-  T("construction", "Construction", 3, "roads", "home-city", "Build Windmills; burn forest to farmland."),
-  T("trading", "Trading", 4, "construction", "cart", "Unlock the Merchant unit."),
-  T("trading_overseas", "Trading Overseas", 5, "trading", "ferry", "Unlock Merchant Ship & Trade Port."),
+  T("roads", "Roads", 2, "organisation", "road-variant", "Build roads for faster movement.", 2),
+  T("construction", "Construction", 3, "roads", "home-city", "Build Windmills; burn forest to farmland.", 5),
+  T("trading", "Trading", 4, "construction", "cart", "Unlock the Merchant unit.", 4),
+  T("trading_overseas", "Trading Overseas", 5, "trading", "ferry", "Unlock Merchant Ship & Trade Port.", 15),
   T("farming", "Farming", 2, "organisation", "barley", "Build Wheat Farms on farmland."),
   T("bull_farming", "Bull Farming", 3, "farming", "cow", "Build Bull Farms (+2 meat/turn)."),
   T("horse_farming", "Horse Farming", 3, "farming", "horseshoe", "Build Horse Farms (+1 horse/turn)."),
@@ -303,3 +303,11 @@ export const MAP_TYPES: { id: import("./types").MapType; label: string; icon: st
   { id: "dryland", label: "Dryland", icon: "terrain" },
   { id: "archipelago", label: "Archipelago", icon: "island" },
 ];
+
+export const DIFFICULTIES: { id: import("./types").Difficulty; label: string; icon: string; blurb: string }[] = [
+  { id: "peaceful", label: "Peaceful", icon: "peace", blurb: "Rivals trade; fight only if attacked" },
+  { id: "easy", label: "Easy", icon: "emoticon-happy", blurb: "Timid tribes, gentle challenge" },
+  { id: "normal", label: "Normal", icon: "sword-cross", blurb: "A balanced fight" },
+  { id: "hard", label: "Hard", icon: "skull", blurb: "Aggressive, resourceful tribes" },
+];
+
