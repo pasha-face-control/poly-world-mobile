@@ -48,6 +48,9 @@ export const BUILDINGS: BuildingDef[] = [
 
 export const BUILDING_BY_ID: Record<string, BuildingDef> = Object.fromEntries(BUILDINGS.map((b) => [b.id, b]));
 
+// Population a building adds to its owning city when built.
+export const BUILDING_POP: Record<string, number> = { lumber_hut: 1, wheat_farm: 2, bull_farm: 2, horse_farm: 2 };
+
 export const UNIT_DEFS: Record<UnitType, UnitDef> = {
   warrior: { type: "warrior", name: "Warrior", icon: "sword", cost: 2, hp: 10, atk: 1, def: 1, move: 1, range: 1, requires: null },
   archer: { type: "archer", name: "Archer", icon: "bow-arrow", cost: 3, hp: 10, atk: 1, def: 1, move: 1, range: 2, requires: "hunting", goods: { meat: 1 } },

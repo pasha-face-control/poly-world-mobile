@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, SP, shadow } from "@/src/theme";
-import { BUILDINGS, GOODS, INFRA } from "@/src/game/data";
+import { BUILDINGS, BUILDING_POP, GOODS, INFRA } from "@/src/game/data";
 import { canBuild, canInfra } from "@/src/game/engine";
 import { GameState } from "@/src/game/types";
 
@@ -70,6 +70,12 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfr
                       <Text style={styles.produceText}>+{amt}</Text>
                     </View>
                   ))}
+                  {BUILDING_POP[b.id] > 0 && (
+                    <View style={styles.produceItem}>
+                      <MaterialCommunityIcons name="account-group" size={11} color={C.info} />
+                      <Text style={[styles.produceText, { color: C.info }]}>+{BUILDING_POP[b.id]}</Text>
+                    </View>
+                  )}
                 </View>
               </Pressable>
             );

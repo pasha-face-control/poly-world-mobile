@@ -2,6 +2,7 @@ import {
   BOAT_DEFS,
   BUILDINGS,
   BUILDING_BY_ID,
+  BUILDING_POP,
   INFRA_BY_ID,
   RESOURCE_DEFS,
   TECH_BY_ID,
@@ -127,6 +128,12 @@ export function build(state: GameState, player: number, tileId: number, building
   const def = BUILDING_BY_ID[buildingId];
   state.players[player].stars -= def.cost;
   state.tiles[tileId].building = buildingId;
+  // Farms & lumber huts grow the owning city's population.
+  const popGain = BUILDING_POP[buildingId] ?? 0;
+  if (popGain > 0) {
+    const owner = owningCityForTile(state, player, tileId);
+    if (owner) addPopulation(state, owner, popGain);
+  }
   if (player === 0) computeVisibility(state, 0);
   log(state, `${state.players[player].name} built a ${def.name}`);
   return true;

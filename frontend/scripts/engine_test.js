@@ -201,5 +201,34 @@ if (anyWater) {
   } else { console.log("SKIP peaceful defense (no adjacent grass)"); }
 }
 
+// ---- Buildings grant population to owning city ----
+{
+  const grid = require("../src/game/grid.ts");
+  const g3 = generateGame({ tribe: "nature", opponents: 1, mapSize: 11, mapType: "pangea", difficulty: "normal", passAndPlay: false, seed: 3 });
+  const pl = g3.players[0];
+  pl.stars = 80;
+  pl.techs = ["log_chopping", "farming", "bull_farming", "horse_farming"];
+  const cap3 = g3.cities.find((c) => c.owner === 0);
+  cap3.population = 0;
+  cap3.level = 5; // high level so pop won't spill into a level-up during this test
+  const terr = grid.neighbors(g3, cap3.tileId);
+  // lumber hut on a forest tile -> +1 pop
+  const forest = terr.map((id) => g3.tiles[id]).find((t) => t.terrain === "forest" && !t.cityId && !grid.unitAt(g3, t.id));
+  if (forest) {
+    const p0 = cap3.population;
+    ok("build lumber hut", engine.build(g3, 0, forest.id, "lumber_hut"));
+    ok("lumber hut +1 population", cap3.population === p0 + 1);
+  } else { console.log("SKIP lumber (no forest adj)"); }
+  // wheat farm on a grass tile -> +2 pop (force a neighbor to grass to guarantee coverage)
+  const gid = terr.find((id) => !g3.tiles[id].cityId && !g3.tiles[id].building && g3.tiles[id].terrain !== "water" && !grid.unitAt(g3, id));
+  if (gid != null) {
+    g3.tiles[gid].terrain = "grass";
+    g3.tiles[gid].building = null;
+    const p0 = cap3.population;
+    ok("build wheat farm", engine.build(g3, 0, gid, "wheat_farm"));
+    ok("wheat farm +2 population", cap3.population === p0 + 2);
+  } else { console.log("SKIP farm (no land adj)"); }
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
