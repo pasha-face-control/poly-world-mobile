@@ -19,6 +19,8 @@ export interface Tile {
   building: string | null; // building def id
   road: boolean; // road infrastructure
   port: boolean; // dock built on a water tile
+  claimBy?: number | null; // player index currently claiming this village (capture completes next turn)
+  claimTurn?: number; // round number when the claim started
 }
 
 export interface CargoSlot {
@@ -77,7 +79,7 @@ export interface GameState {
   log: string[];
   createdAt: string;
   pendingLevelUps: string[]; // human city ids awaiting a level-up reward choice
-  pendingSale?: { goods: Partial<Record<GoodType, number>>; stars: number } | null; // human merchant sales awaiting a notification
+  pendingSales?: Record<number, { goods: Partial<Record<GoodType, number>>; stars: number }>; // per-player merchant sales awaiting a notification
   difficulty: Difficulty;
 }
 

@@ -417,7 +417,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     const unit = state.units.find((u) => u.tileId === t.id);
     if (t.port && !city) drawDock(terrainShapes, cx, surfY, k);
     if (city) drawCity(terrainShapes, cx, surfY, playerColor(state, city.owner), city.isCapital, k);
-    else if (t.isVillage) drawCity(terrainShapes, cx, surfY, C.borderStrong, false, k);
+    else if (t.isVillage) drawCity(terrainShapes, cx, surfY, t.claimBy != null ? playerColor(state, t.claimBy) : C.borderStrong, false, k);
     if (unit && !city && unit.id !== animUnit?.id) {
       if (unit.boat) drawBoat(terrainShapes, cx, surfY, playerColor(state, unit.owner), unit.boat, k);
       else drawUnit(terrainShapes, cx, surfY, playerColor(state, unit.owner), k);

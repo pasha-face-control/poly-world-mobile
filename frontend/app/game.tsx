@@ -20,10 +20,11 @@ import TutorialOverlay from "@/src/components/TutorialOverlay";
 import HuntChoiceModal from "@/src/components/HuntChoiceModal";
 import HuntingMiniGame from "@/src/components/HuntingMiniGame";
 import SaleModal from "@/src/components/SaleModal";
+import CaptureModal, { CaptureTarget } from "@/src/components/CaptureModal";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
 import { storage } from "@/src/utils/storage";
-import { attackableTiles, canHunt, neighbors, reachableTiles, tileHasActions } from "@/src/game/engine";
+import { attackableTiles, canBuyCity, canBuyVillage, canHunt, neighbors, reachableTiles, tileHasActions } from "@/src/game/engine";
 import { TRIBE_BY_ID } from "@/src/game/data";
 import { UnitType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
@@ -31,7 +32,7 @@ import { C, R, SP, shadow } from "@/src/theme";
 export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doClearSale, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doClearSale, doBuyVillage, doBuyCity, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
@@ -40,6 +41,7 @@ export default function GameScreen() {
   const [buyMerchantId, setBuyMerchantId] = useState<string | null>(null);
   const [huntTileId, setHuntTileId] = useState<number | null>(null);
   const [huntPlaying, setHuntPlaying] = useState(false);
+  const [captureTarget, setCaptureTarget] = useState<(CaptureTarget & { tileId: number; cityId?: string }) | null>(null);
   const [moveAnim, setMoveAnim] = useState<{ unitId: string; fromTileId: number; toTileId: number; key: number } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -78,6 +80,7 @@ export default function GameScreen() {
       setBuyMerchantId(null);
       setHuntTileId(null);
       setHuntPlaying(false);
+      setCaptureTarget(null);
     }
   }, [state?.currentPlayer, state]);
 
@@ -130,6 +133,28 @@ export default function GameScreen() {
       return;
     }
     setBuyMerchantId(null);
+
+    // Peaceful acquisition: tapping an enemy city or a neutral village offers a buy option,
+    // unless a selected unit can act on that tile militarily (attack / move-in takes priority).
+    const militaryTarget = !!selectedUnit && selectedUnit.owner === cp && (attackable.includes(tileId) || reachable.includes(tileId));
+    if (!militaryTarget) {
+      if (city && city.owner !== cp && canBuyCity(state, cp, city.id).price > 0) {
+        Haptics.selectionAsync();
+        setCaptureTarget({ kind: "city", price: canBuyCity(state, cp, city.id).price, level: city.level, tileId, cityId: city.id });
+        setSelectedUnitId(null);
+        setSelectedCityId(null);
+        setSelectedBuildTileId(null);
+        return;
+      }
+      if (tile.isVillage && !tile.cityId && (cp !== 0 || tile.explored)) {
+        Haptics.selectionAsync();
+        setCaptureTarget({ kind: "village", price: canBuyVillage(state, cp, tileId).price, tileId });
+        setSelectedUnitId(null);
+        setSelectedCityId(null);
+        setSelectedBuildTileId(null);
+        return;
+      }
+    }
 
     if (selectedUnit && selectedUnit.owner === cp) {
       if (attackable.includes(tileId)) {
@@ -379,7 +404,20 @@ export default function GameScreen() {
 
       <TutorialOverlay visible={tutorialOpen} onClose={() => setTutorialOpen(false)} />
 
-      <SaleModal sale={state.pendingSale ?? null} onClose={() => doClearSale()} />
+      <SaleModal sale={state.pendingSales?.[state.currentPlayer] ?? null} onClose={() => doClearSale()} />
+
+      <CaptureModal
+        target={captureTarget}
+        stars={state.players[state.currentPlayer]?.stars ?? 0}
+        onBuy={() => {
+          if (!captureTarget) return;
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          if (captureTarget.kind === "city" && captureTarget.cityId) doBuyCity(captureTarget.cityId);
+          else if (captureTarget.kind === "village") doBuyVillage(captureTarget.tileId);
+          setCaptureTarget(null);
+        }}
+        onClose={() => setCaptureTarget(null)}
+      />
 
       <HuntChoiceModal
         visible={huntTileId != null && !huntPlaying}

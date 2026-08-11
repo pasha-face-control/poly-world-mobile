@@ -312,18 +312,20 @@ export function buyFromMerchant(state: GameState, buyer: number, merchantId: str
   state.players[buyer].goods[g] += take;
   slot.qty -= take;
   state.players[m.owner].stars += take * slot.price;
-  recordHumanSale(state, m.owner, g, take, take * slot.price);
+  recordSale(state, m.owner, g, take, take * slot.price);
   if (slot.qty <= 0) slot.good = null;
   log(state, `${state.players[buyer].name} bought ${take} ${g} from ${state.players[m.owner].name}'s merchant`);
   return true;
 }
 
-// Records a sale made by the human player's (player 0) merchant for a turn-start notification.
-function recordHumanSale(state: GameState, owner: number, good: GoodType, qty: number, stars: number) {
-  if (owner !== 0 || qty <= 0) return;
-  if (!state.pendingSale) state.pendingSale = { goods: {}, stars: 0 };
-  state.pendingSale.goods[good] = (state.pendingSale.goods[good] ?? 0) + qty;
-  state.pendingSale.stars += stars;
+// Records a sale made by a HUMAN player's merchant so their turn-start notification can show it.
+function recordSale(state: GameState, owner: number, good: GoodType, qty: number, stars: number) {
+  if (qty <= 0 || !state.players[owner]?.isHuman) return;
+  if (!state.pendingSales) state.pendingSales = {};
+  if (!state.pendingSales[owner]) state.pendingSales[owner] = { goods: {}, stars: 0 };
+  const bucket = state.pendingSales[owner];
+  bucket.goods[good] = (bucket.goods[good] ?? 0) + qty;
+  bucket.stars += stars;
 }
 
 // Bots are buy-only; each round they buy 1 unit from an affordable stocked slot.
@@ -340,7 +342,7 @@ export function resolveTrades(state: GameState) {
       buyer.goods[good] += 1;
       slot.qty -= 1;
       state.players[m.owner].stars += slot.price;
-      recordHumanSale(state, m.owner, good, 1, slot.price);
+      recordSale(state, m.owner, good, 1, slot.price);
       if (slot.qty <= 0) slot.good = null;
     }
   }
@@ -368,6 +370,7 @@ export function startPlayerTurn(state: GameState, player: number) {
       u.attacked = false;
     }
   }
+  completeVillageClaims(state, player);
   if (player === 0) {
     resolveTrades(state); // market tick each round on the human's turn
     computeVisibility(state, 0);
@@ -521,11 +524,12 @@ export function research(state: GameState, player: number, techId: string): bool
 function captureTile(state: GameState, player: number, tileId: number) {
   const tile = state.tiles[tileId];
   if (tile.isVillage && !tile.cityId) {
-    const city = newCity(player, tileId, false);
-    tile.cityId = city.id;
-    tile.isVillage = false;
-    state.cities.push(city);
-    log(state, `${state.players[player].name} founded a city`);
+    // Villages are not taken instantly — entering one starts a claim that completes next turn.
+    if (tile.claimBy !== player) {
+      tile.claimBy = player;
+      tile.claimTurn = state.turn;
+      log(state, `${state.players[player].name} is claiming a village (captures next turn)`);
+    }
   } else if (tile.cityId) {
     const city = state.cities.find((c) => c.id === tile.cityId);
     if (city && city.owner !== player) {
@@ -534,6 +538,88 @@ function captureTile(state: GameState, player: number, tileId: number) {
       log(state, `${state.players[player].name} captured a city!`);
     }
   }
+}
+
+// Completes any village claims for this player that have waited a full turn.
+function completeVillageClaims(state: GameState, player: number) {
+  for (const tile of state.tiles) {
+    if (!tile.isVillage || tile.cityId || tile.claimBy !== player) continue;
+    if ((tile.claimTurn ?? state.turn) >= state.turn) continue; // not yet a turn old
+    const occupant = unitAt(state, tile.id);
+    if (occupant && occupant.owner === player) {
+      const city = newCity(player, tile.id, false);
+      tile.cityId = city.id;
+      tile.isVillage = false;
+      tile.claimBy = null;
+      tile.claimTurn = undefined;
+      state.cities.push(city);
+      log(state, `${state.players[player].name} captured a village`);
+    } else {
+      // The claimant left before the capture could complete; village stays neutral.
+      tile.claimBy = null;
+      tile.claimTurn = undefined;
+    }
+  }
+}
+
+// ---------- Peaceful acquisition (buy villages & enemy cities) ----------
+export function villageBuyPrice(): number {
+  return 15;
+}
+
+export function cityBuyPrice(city: City): number {
+  return 25 * city.level;
+}
+
+export function canBuyVillage(state: GameState, player: number, tileId: number): { ok: boolean; reason?: string; price: number } {
+  const price = villageBuyPrice();
+  const tile = state.tiles[tileId];
+  if (!tile || !tile.isVillage || tile.cityId) return { ok: false, reason: "Not a village", price };
+  if (player === 0 && !tile.explored) return { ok: false, reason: "Not discovered", price };
+  const occ = unitAt(state, tileId);
+  if (occ && occ.owner !== player) return { ok: false, reason: "Occupied by an enemy", price };
+  if (state.players[player].stars < price) return { ok: false, reason: "Not enough stars", price };
+  return { ok: true, price };
+}
+
+export function buyVillage(state: GameState, player: number, tileId: number): boolean {
+  const check = canBuyVillage(state, player, tileId);
+  if (!check.ok) return false;
+  const tile = state.tiles[tileId];
+  state.players[player].stars -= check.price;
+  const city = newCity(player, tileId, false);
+  tile.cityId = city.id;
+  tile.isVillage = false;
+  tile.claimBy = null;
+  tile.claimTurn = undefined;
+  state.cities.push(city);
+  log(state, `${state.players[player].name} bought a village for ${check.price} stars`);
+  if (player === 0) computeVisibility(state, 0);
+  return true;
+}
+
+export function canBuyCity(state: GameState, player: number, cityId: string): { ok: boolean; reason?: string; price: number } {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city) return { ok: false, reason: "No city", price: 0 };
+  const price = cityBuyPrice(city);
+  if (city.owner === player) return { ok: false, reason: "Already yours", price };
+  if (player === 0 && !state.tiles[city.tileId].explored) return { ok: false, reason: "Not discovered", price };
+  const occ = unitAt(state, city.tileId);
+  if (occ && occ.owner !== player) return { ok: false, reason: "City is defended", price };
+  if (state.players[player].stars < price) return { ok: false, reason: "Not enough stars", price };
+  return { ok: true, price };
+}
+
+export function buyCity(state: GameState, player: number, cityId: string): boolean {
+  const check = canBuyCity(state, player, cityId);
+  if (!check.ok) return false;
+  const city = state.cities.find((c) => c.id === cityId)!;
+  state.players[player].stars -= check.price;
+  city.owner = player;
+  city.hasWall = false;
+  log(state, `${state.players[player].name} bought a city for ${check.price} stars`);
+  if (player === 0) computeVisibility(state, 0);
+  return true;
 }
 
 export function moveUnit(state: GameState, unitId: string, targetTileId: number): boolean {
