@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { ScrollView, Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, SP, shadow } from "@/src/theme";
@@ -21,6 +21,13 @@ export default function BuyMerchantPanel({ state, merchant, bottomInset, onBuy, 
   const tribe = TRIBE_BY_ID[owner.tribe];
   const slots = (merchant.cargo ?? []).map((s, i) => ({ ...s, i })).filter((s) => s.good && s.qty > 0);
 
+  // Per-slot chosen quantity (defaults to 1).
+  const [qty, setQty] = useState<Record<number, number>>({});
+  const getQty = (slotIndex: number, max: number) => Math.min(Math.max(qty[slotIndex] ?? 1, 1), Math.max(max, 1));
+  const setSlotQty = (slotIndex: number, value: number, max: number) => {
+    setQty((prev) => ({ ...prev, [slotIndex]: Math.min(Math.max(value, 1), Math.max(max, 1)) }));
+  };
+
   return (
     <View style={[styles.wrap, { paddingBottom: bottomInset + 96 }]} pointerEvents="box-none">
       <View style={styles.card} testID="buy-merchant-panel">
@@ -39,28 +46,67 @@ export default function BuyMerchantPanel({ state, merchant, bottomInset, onBuy, 
         {slots.length === 0 ? (
           <Text style={styles.empty}>This merchant has nothing left to sell.</Text>
         ) : (
-          <ScrollView style={{ maxHeight: 240 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+          <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
             {slots.map((slot) => {
               const meta = goodMeta(slot.good!);
-              const canAfford = buyer.stars >= slot.price;
+              const affordableMax = Math.floor(buyer.stars / slot.price);
+              const maxBuy = Math.min(slot.qty, affordableMax); // most the player can take
+              const canAfford = maxBuy >= 1;
+              const n = getQty(slot.i, maxBuy);
+              const total = n * slot.price;
               return (
                 <View key={slot.i} style={styles.row}>
-                  <MaterialCommunityIcons name={meta.icon as any} size={20} color={meta.color} />
-                  <Text style={styles.goodName}>{meta.name}</Text>
-                  <Text style={styles.avail}>x{slot.qty}</Text>
-                  <View style={styles.priceChip}>
-                    <MaterialCommunityIcons name="star-four-points" size={11} color={C.warning} />
-                    <Text style={styles.priceText}>{slot.price}</Text>
+                  <View style={styles.rowTop}>
+                    <MaterialCommunityIcons name={meta.icon as any} size={20} color={meta.color} />
+                    <Text style={styles.goodName}>{meta.name}</Text>
+                    <Text style={styles.avail}>x{slot.qty}</Text>
+                    <View style={styles.priceChip}>
+                      <MaterialCommunityIcons name="star-four-points" size={11} color={C.warning} />
+                      <Text style={styles.priceText}>{slot.price} ea</Text>
+                    </View>
                   </View>
-                  <Pressable
-                    testID={`buy-slot-${slot.i}`}
-                    disabled={!canAfford}
-                    onPress={() => onBuy(merchant.id, slot.i, 1)}
-                    style={[styles.buyBtn, !canAfford && styles.buyOff]}
-                  >
-                    <MaterialCommunityIcons name="cart-plus" size={15} color="#fff" />
-                    <Text style={styles.buyText}>Buy</Text>
-                  </Pressable>
+                  <View style={styles.rowBottom}>
+                    <View style={styles.stepper}>
+                      <Pressable
+                        testID={`buy-minus-${slot.i}`}
+                        disabled={!canAfford || n <= 1}
+                        onPress={() => setSlotQty(slot.i, n - 1, maxBuy)}
+                        style={[styles.stepBtn, (!canAfford || n <= 1) && styles.stepOff]}
+                      >
+                        <MaterialCommunityIcons name="minus" size={16} color={C.onSurface} />
+                      </Pressable>
+                      <Text testID={`buy-qty-${slot.i}`} style={styles.qtyText}>{canAfford ? n : 0}</Text>
+                      <Pressable
+                        testID={`buy-plus-${slot.i}`}
+                        disabled={!canAfford || n >= maxBuy}
+                        onPress={() => setSlotQty(slot.i, n + 1, maxBuy)}
+                        style={[styles.stepBtn, (!canAfford || n >= maxBuy) && styles.stepOff]}
+                      >
+                        <MaterialCommunityIcons name="plus" size={16} color={C.onSurface} />
+                      </Pressable>
+                      <Pressable
+                        testID={`buy-max-${slot.i}`}
+                        disabled={!canAfford || n >= maxBuy}
+                        onPress={() => setSlotQty(slot.i, maxBuy, maxBuy)}
+                        style={[styles.maxBtn, (!canAfford || n >= maxBuy) && styles.stepOff]}
+                      >
+                        <Text style={styles.maxText}>MAX</Text>
+                      </Pressable>
+                    </View>
+                    <Pressable
+                      testID={`buy-slot-${slot.i}`}
+                      disabled={!canAfford}
+                      onPress={() => { onBuy(merchant.id, slot.i, n); setSlotQty(slot.i, 1, maxBuy); }}
+                      style={[styles.buyBtn, !canAfford && styles.buyOff]}
+                    >
+                      <MaterialCommunityIcons name="cart-plus" size={15} color="#fff" />
+                      <Text style={styles.buyText}>Buy {canAfford ? n : ""}</Text>
+                      <View style={styles.buyCost}>
+                        <MaterialCommunityIcons name="star-four-points" size={11} color="#fff" />
+                        <Text style={styles.buyText}>{canAfford ? total : "—"}</Text>
+                      </View>
+                    </Pressable>
+                  </View>
                 </View>
               );
             })}
@@ -80,13 +126,22 @@ const styles = StyleSheet.create({
   walletChip: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: C.surfaceSecondary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: R.pill },
   walletText: { fontWeight: "800", color: C.onSurface, fontSize: 12 },
   close: { padding: 6, backgroundColor: C.surfaceSecondary, borderRadius: R.pill },
-  row: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingHorizontal: 10, paddingVertical: 8 },
+  row: { backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingHorizontal: 10, paddingVertical: 8, gap: 8 },
+  rowTop: { flexDirection: "row", alignItems: "center", gap: 8 },
+  rowBottom: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   goodName: { fontSize: 14, fontWeight: "800", color: C.onSurface, flex: 1 },
   avail: { fontSize: 13, fontWeight: "800", color: C.onSurfaceSecondary },
   priceChip: { flexDirection: "row", alignItems: "center", gap: 2 },
   priceText: { fontSize: 13, fontWeight: "900", color: C.onSurface },
+  stepper: { flexDirection: "row", alignItems: "center", gap: 6 },
+  stepBtn: { width: 32, height: 32, borderRadius: R.sm, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center" },
+  stepOff: { opacity: 0.35 },
+  qtyText: { fontSize: 15, fontWeight: "900", color: C.onSurface, minWidth: 26, textAlign: "center" },
+  maxBtn: { paddingHorizontal: 8, height: 32, borderRadius: R.sm, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center" },
+  maxText: { fontSize: 11, fontWeight: "900", color: C.onSurfaceSecondary },
   buyBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.brand, paddingHorizontal: 12, paddingVertical: 8, borderRadius: R.pill },
   buyOff: { opacity: 0.4 },
+  buyCost: { flexDirection: "row", alignItems: "center", gap: 2, marginLeft: 2, paddingLeft: 6, borderLeftWidth: 1, borderLeftColor: "rgba(255,255,255,0.4)" },
   buyText: { color: "#fff", fontWeight: "900", fontSize: 12 },
   empty: { fontSize: 13, color: C.onSurfaceSecondary, textAlign: "center", paddingVertical: SP.md },
   note: { fontSize: 11, color: C.onSurfaceSecondary, marginTop: SP.sm, textAlign: "center" },
