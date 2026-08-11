@@ -115,12 +115,19 @@ export function generateGame(config: {
   }
 
   // Region seeds (= capitals): farthest-point spread across land.
+  // Capitals must have at least 5 land cells around them (out of 8 neighbours).
+  const landNbrCount = (t: Tile) => nbrs(t.x, t.y, w, h).filter((k) => !water[k]).length;
   const inner = landTiles.filter((t) => t.x > 1 && t.y > 1 && t.x < w - 2 && t.y < h - 2);
-  const seeds: Tile[] = [rng.pick(inner.length ? inner : landTiles)];
+  const valid = landTiles.filter((t) => landNbrCount(t) >= 5);
+  const innerValid = inner.filter((t) => landNbrCount(t) >= 5);
+  // Prefer well-surrounded tiles; gracefully relax on very fragmented maps.
+  const pool = valid.length >= numPlayers ? valid : landTiles;
+  const firstPool = innerValid.length ? innerValid : valid.length ? valid : inner.length ? inner : landTiles;
+  const seeds: Tile[] = [rng.pick(firstPool)];
   while (seeds.length < numPlayers) {
     let best: Tile | null = null;
     let bestDist = -1;
-    for (const t of landTiles) {
+    for (const t of pool) {
       const minD = Math.min(...seeds.map((s) => Math.max(Math.abs(s.x - t.x), Math.abs(s.y - t.y))));
       if (minD > bestDist) {
         bestDist = minD;
@@ -155,7 +162,11 @@ export function generateGame(config: {
     } else if (t.terrain === "forest") {
       if (rng.chance(0.25)) t.resource = "animal";
     } else if (t.terrain === "mountain") {
-      if (rng.chance(0.4)) t.resource = "ore";
+      // Ore distribution: 40% coal, 30% iron, 10% gold, 20% barren (no mine).
+      const r = rng.next();
+      if (r < 0.4) t.resource = "coal";
+      else if (r < 0.7) t.resource = "iron_ore";
+      else if (r < 0.8) t.resource = "gold";
     } else if (t.terrain === "water") {
       const adjLand = nbrs(t.x, t.y, w, h).some((k) => tiles[k].terrain !== "water");
       if (adjLand && rng.chance(0.3)) t.resource = "fish";
@@ -200,7 +211,7 @@ export function generateGame(config: {
   const shuffled = [...landTiles].sort(() => rng.next() - 0.5);
   for (const t of shuffled) {
     if (placed.length >= villageTarget) break;
-    if (tiles[t.id].terrain === "water" || tiles[t.id].cityId) continue;
+    if (tiles[t.id].terrain === "water" || tiles[t.id].terrain === "mountain" || tiles[t.id].cityId) continue;
     const tooClose = [...capIds, ...placed].some((id) => {
       const o = tiles[id];
       return Math.max(Math.abs(o.x - t.x), Math.abs(o.y - t.y)) < 2;

@@ -116,6 +116,7 @@ export function canBuild(state: GameState, player: number, tileId: number, build
   if (tile.building) return { ok: false, reason: "Already built" };
   if (tile.cityId) return { ok: false, reason: "City tile" };
   if (tile.terrain !== def.terrain) return { ok: false, reason: `Needs ${def.terrain}` };
+  if (def.requiresResource && tile.resource !== def.requiresResource) return { ok: false, reason: "No matching ore" };
   if (!playerHasTech(state, player, def.tech)) return { ok: false, reason: `Requires ${TECH_BY_ID[def.tech].name}` };
   if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };
   if (unitAt(state, tileId)) return { ok: false, reason: "Tile occupied" };
@@ -128,6 +129,7 @@ export function build(state: GameState, player: number, tileId: number, building
   const def = BUILDING_BY_ID[buildingId];
   state.players[player].stars -= def.cost;
   state.tiles[tileId].building = buildingId;
+  if (def.requiresResource) state.tiles[tileId].resource = null; // ore consumed by the mine
   // Farms & lumber huts grow the owning city's population.
   const popGain = BUILDING_POP[buildingId] ?? 0;
   if (popGain > 0) {
@@ -377,6 +379,7 @@ export function canHarvest(state: GameState, player: number, tileId: number): { 
   const tile = state.tiles[tileId];
   if (!tile.resource) return { ok: false, reason: "No resource" };
   const def = RESOURCE_DEFS[tile.resource];
+  if (!def) return { ok: false, reason: "Not harvestable" };
   if (!playerHasTech(state, player, def.tech)) return { ok: false, reason: `Requires ${TECH_BY_ID[def.tech].name}` };
   if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };
   if (state.players[player].stars < def.cost) return { ok: false, reason: "Not enough stars" };

@@ -35,6 +35,7 @@ export interface BuildingDef {
   cost: number; // stars
   produces: Partial<Record<GoodType | "stars", number>>;
   color: string;
+  requiresResource?: ResourceType; // must sit on a tile carrying this ore/resource
 }
 
 export const BUILDINGS: BuildingDef[] = [
@@ -42,14 +43,15 @@ export const BUILDINGS: BuildingDef[] = [
   { id: "wheat_farm", name: "Wheat Farm", icon: "barley", terrain: "grass", tech: "farming", cost: 3, produces: { wheat: 2 }, color: "#E5A93A" },
   { id: "bull_farm", name: "Bull Farm", icon: "cow", terrain: "grass", tech: "bull_farming", cost: 4, produces: { meat: 2 }, color: "#BC4749" },
   { id: "horse_farm", name: "Horse Farm", icon: "horseshoe", terrain: "grass", tech: "horse_farming", cost: 4, produces: { horse: 1 }, color: "#8A5A34" },
-  { id: "iron_mine", name: "Iron Mine", icon: "pickaxe", terrain: "mountain", tech: "iron_mine", cost: 5, produces: { iron: 2 }, color: "#7F8896" },
-  { id: "gold_mine", name: "Gold Mine", icon: "cash-multiple", terrain: "mountain", tech: "gold_mine", cost: 6, produces: { stars: 5 }, color: "#E5A93A" },
+  { id: "coal_mine", name: "Coal Mine", icon: "fire", terrain: "mountain", tech: "mining", cost: 4, produces: {}, color: "#3A3A3A", requiresResource: "coal" },
+  { id: "iron_mine", name: "Iron Mine", icon: "pickaxe", terrain: "mountain", tech: "iron_mine", cost: 5, produces: { iron: 2 }, color: "#7F8896", requiresResource: "iron_ore" },
+  { id: "gold_mine", name: "Gold Mine", icon: "cash-multiple", terrain: "mountain", tech: "gold_mine", cost: 6, produces: { stars: 5 }, color: "#E5A93A", requiresResource: "gold" },
 ];
 
 export const BUILDING_BY_ID: Record<string, BuildingDef> = Object.fromEntries(BUILDINGS.map((b) => [b.id, b]));
 
 // Population a building adds to its owning city when built.
-export const BUILDING_POP: Record<string, number> = { lumber_hut: 1, wheat_farm: 2, bull_farm: 2, horse_farm: 2 };
+export const BUILDING_POP: Record<string, number> = { lumber_hut: 1, wheat_farm: 2, bull_farm: 2, horse_farm: 2, coal_mine: 2 };
 
 export const UNIT_DEFS: Record<UnitType, UnitDef> = {
   warrior: { type: "warrior", name: "Warrior", icon: "sword", cost: 2, hp: 10, atk: 1, def: 1, move: 1, range: 1, requires: null },
@@ -288,6 +290,9 @@ export const RESOURCE_ICON: Record<string, string> = {
   fish: "fish",
   ore: "diamond-stone",
   crop: "barley",
+  coal: "fire",
+  iron_ore: "anvil",
+  gold: "gold",
 };
 
 // City growth: population needed to advance from `level` to `level+1`.
@@ -296,9 +301,9 @@ export const levelThreshold = (level: number) => level + 1;
 export const START_STARS = 5;
 
 export const MAP_SIZES: { label: string; size: number }[] = [
-  { label: "Small", size: 11 },
-  { label: "Medium", size: 14 },
-  { label: "Large", size: 18 },
+  { label: "Small", size: 12 },
+  { label: "Normal", size: 24 },
+  { label: "Large", size: 36 },
 ];
 
 export const MAP_TYPES: { id: import("./types").MapType; label: string; icon: string }[] = [

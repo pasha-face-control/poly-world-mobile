@@ -101,6 +101,7 @@ export function runAiTurn(state: GameState, player: number) {
   for (const t of state.tiles) {
     if (!t.resource) continue;
     const def = RESOURCE_DEFS[t.resource];
+    if (!def) continue; // ores that gate mines aren't harvestable
     if (!state.players[player].techs.includes(def.tech)) continue;
     harvest(state, player, t.id); // no-op if not in territory / unaffordable
   }

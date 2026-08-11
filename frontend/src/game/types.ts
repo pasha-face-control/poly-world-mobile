@@ -1,5 +1,5 @@
 export type TerrainType = "water" | "grass" | "forest" | "mountain" | "sand";
-export type ResourceType = "fruit" | "animal" | "fish" | "ore" | "crop" | null;
+export type ResourceType = "fruit" | "animal" | "fish" | "ore" | "crop" | "coal" | "iron_ore" | "gold" | null;
 export type UnitType = "warrior" | "archer" | "beefeater" | "catapult" | "rider" | "armored_rider" | "chivalry" | "pikemen" | "swordsmen" | "merchant";
 export type TribeId = "nature" | "desert" | "volcanic" | "snow";
 export type MapType = "dryland" | "lakes" | "pangea" | "continents" | "archipelago";

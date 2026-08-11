@@ -17,7 +17,7 @@ export default function Setup() {
 
   const [tribe, setTribe] = useState<TribeId>("nature");
   const [opponents, setOpponents] = useState(1);
-  const [mapSize, setMapSize] = useState(11);
+  const [mapSize, setMapSize] = useState(24);
   const [mapType, setMapType] = useState<MapType>("continents");
   const [passAndPlay, setPassAndPlay] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");

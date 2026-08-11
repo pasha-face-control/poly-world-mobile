@@ -20,7 +20,10 @@ const TRAINABLE: UnitType[] = ["warrior", "archer", "beefeater", "catapult", "ri
 export default function CityPanel({ state, city, bottomInset, onTrain, onHarvest, onClose }: Props) {
   const player = state.players[state.currentPlayer];
   const territory = [city.tileId, ...neighbors(state, city.tileId)];
-  const harvestTiles = territory.filter((id) => state.tiles[id].resource);
+  const harvestTiles = territory.filter((id) => {
+    const r = state.tiles[id].resource;
+    return r && RESOURCE_DEFS[r];
+  });
 
   return (
     <View style={[styles.wrap, { paddingBottom: bottomInset + 96 }]} pointerEvents="box-none">
