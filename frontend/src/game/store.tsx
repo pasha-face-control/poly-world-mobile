@@ -60,6 +60,7 @@ interface GameContextValue {
   doHireHunter: (tileId: number) => boolean;
   doHuntSuccess: (tileId: number) => boolean;
   doBuyFromMerchant: (merchantId: string, slotIndex: number, amount: number) => boolean;
+  doClearSale: () => boolean;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -185,6 +186,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doHireHunter = useCallback((tileId: number) => apply((s) => hireHunter(s, s.currentPlayer, tileId)), [apply]);
   const doHuntSuccess = useCallback((tileId: number) => apply((s) => huntSuccess(s, s.currentPlayer, tileId)), [apply]);
   const doBuyFromMerchant = useCallback((merchantId: string, slotIndex: number, amount: number) => apply((s) => buyFromMerchant(s, s.currentPlayer, merchantId, slotIndex, amount)), [apply]);
+  const doClearSale = useCallback(() => apply((s) => { s.pendingSale = null; return true; }), [apply]);
 
   const endTurn = useCallback(() => {
     if (!state || state.status !== "playing") return;
@@ -236,6 +238,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doHireHunter,
         doHuntSuccess,
         doBuyFromMerchant,
+        doClearSale,
       }}
     >
       {children}

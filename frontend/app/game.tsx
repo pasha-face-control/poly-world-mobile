@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -19,6 +19,7 @@ import VictoryCard from "@/src/components/VictoryCard";
 import TutorialOverlay from "@/src/components/TutorialOverlay";
 import HuntChoiceModal from "@/src/components/HuntChoiceModal";
 import HuntingMiniGame from "@/src/components/HuntingMiniGame";
+import SaleModal from "@/src/components/SaleModal";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
 import { storage } from "@/src/utils/storage";
@@ -30,7 +31,7 @@ import { C, R, SP, shadow } from "@/src/theme";
 export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doClearSale, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
@@ -377,6 +378,8 @@ export default function GameScreen() {
       />
 
       <TutorialOverlay visible={tutorialOpen} onClose={() => setTutorialOpen(false)} />
+
+      <SaleModal sale={state.pendingSale ?? null} onClose={() => doClearSale()} />
 
       <HuntChoiceModal
         visible={huntTileId != null && !huntPlaying}

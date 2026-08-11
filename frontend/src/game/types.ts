@@ -77,6 +77,7 @@ export interface GameState {
   log: string[];
   createdAt: string;
   pendingLevelUps: string[]; // human city ids awaiting a level-up reward choice
+  pendingSale?: { goods: Partial<Record<GoodType, number>>; stars: number } | null; // human merchant sales awaiting a notification
   difficulty: Difficulty;
 }
 

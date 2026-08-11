@@ -310,9 +310,18 @@ export function buyFromMerchant(state: GameState, buyer: number, merchantId: str
   state.players[buyer].goods[g] += take;
   slot.qty -= take;
   state.players[m.owner].stars += take * slot.price;
+  recordHumanSale(state, m.owner, g, take, take * slot.price);
   if (slot.qty <= 0) slot.good = null;
   log(state, `${state.players[buyer].name} bought ${take} ${g} from ${state.players[m.owner].name}'s merchant`);
   return true;
+}
+
+// Records a sale made by the human player's (player 0) merchant for a turn-start notification.
+function recordHumanSale(state: GameState, owner: number, good: GoodType, qty: number, stars: number) {
+  if (owner !== 0 || qty <= 0) return;
+  if (!state.pendingSale) state.pendingSale = { goods: {}, stars: 0 };
+  state.pendingSale.goods[good] = (state.pendingSale.goods[good] ?? 0) + qty;
+  state.pendingSale.stars += stars;
 }
 
 // Bots are buy-only; each round they buy 1 unit from an affordable stocked slot.
@@ -324,10 +333,12 @@ export function resolveTrades(state: GameState) {
       if (buyer.index === m.owner || buyer.eliminated || buyer.isHuman) continue;
       const slot = cargo.find((sl) => sl.good && sl.qty > 0 && buyer.stars >= sl.price);
       if (!slot || !slot.good) continue;
+      const good = slot.good;
       buyer.stars -= slot.price;
-      buyer.goods[slot.good] += 1;
+      buyer.goods[good] += 1;
       slot.qty -= 1;
       state.players[m.owner].stars += slot.price;
+      recordHumanSale(state, m.owner, good, 1, slot.price);
       if (slot.qty <= 0) slot.good = null;
     }
   }
