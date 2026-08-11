@@ -5,18 +5,20 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, shadow } from "@/src/theme";
 import { GameState } from "@/src/game/types";
 import { TRIBE_BY_ID, GOODS } from "@/src/game/data";
+import { starIncome } from "@/src/game/engine";
 
 export default function TopHUD({ state, topInset }: { state: GameState; topInset: number }) {
   const player = state.players[state.currentPlayer];
   const color = TRIBE_BY_ID[player.tribe].color;
   const cities = state.cities.filter((c) => c.owner === player.index).length;
+  const income = starIncome(state, player.index);
 
   return (
     <View style={[styles.wrap, { top: topInset + 8 }]} pointerEvents="box-none">
       <BlurView intensity={40} tint="light" style={styles.pill} testID="top-hud">
         <View style={styles.item}>
           <MaterialCommunityIcons name="star-four-points" size={18} color={C.warning} />
-          <Text style={styles.value} testID="hud-stars">{player.stars}</Text>
+          <Text style={styles.value} testID="hud-income">+{income}</Text>
         </View>
         <View style={styles.sep} />
         <View style={styles.item}>
@@ -36,6 +38,11 @@ export default function TopHUD({ state, topInset }: { state: GameState; topInset
       </BlurView>
 
       <BlurView intensity={40} tint="light" style={styles.goodsPill} testID="hud-goods">
+        <View style={styles.good} testID="hud-stars">
+          <MaterialCommunityIcons name="star-four-points" size={14} color={C.warning} />
+          <Text style={styles.goodValue}>{player.stars}</Text>
+        </View>
+        <View style={styles.goodSep} />
         {GOODS.map((g) => (
           <View key={g.id} style={styles.good} testID={`hud-good-${g.id}`}>
             <MaterialCommunityIcons name={g.icon as any} size={14} color={g.color} />
@@ -75,6 +82,7 @@ const styles = StyleSheet.create({
     ...shadow(3),
   },
   good: { flexDirection: "row", alignItems: "center", gap: 3 },
+  goodSep: { width: 1, height: 14, backgroundColor: C.border },
   goodValue: { fontSize: 13, fontWeight: "900", color: C.onSurface },
   item: { flexDirection: "row", alignItems: "center", gap: 5, maxWidth: 130 },
   value: { fontSize: 15, fontWeight: "900", color: C.onSurface },

@@ -28,7 +28,7 @@ Build a game similar to The Battle of Polytopia. Client-side, local persistence.
 - **AI annexation**: a wealthy bot will peacefully **buy a weak, undefended, nearby rival city** (level ≤ 2, keeping a stars buffer) each turn, adding late-game pressure.
 - **Peaceful (economic) victory**: if the human comes to own **every city on the map** while at least one rival still has units (i.e. taken over by buying, not destroying), the game ends as a **"Capital Win"** — the human wins peacefully and no one is defeated (`state.peacefulWin`; VictoryCard shows the shared-win framing).
 - **Claim progress ring**: a village being claimed shows a small hourglass ring in the claimer's colour ("captures next turn").
-- City panel opens even when a unit occupies it.
+- **HUD**: the top pill shows your **star income per turn** (e.g. "+3"), while your **actual star balance** now sits in the resources panel alongside wood/iron/wheat/meat/horses (`starIncome()` in engine). City panel opens even when a unit occupies it.
 - **Hunting wild animals**: tap a wild animal (Bull) tile in your territory to open a choice modal — **Hire a Hunter** (3★, instant +1 pop & +1 meat to nearest city) or **Hunt Yourself** (free 3D first-person archery mini-game). Mini-game (`HuntingMiniGame.tsx`, react-three-fiber + expo-gl, locked landscape): player 12 HP / 12 arrows; bull charges & gores for 4 HP (with strafing dodges); hitboxes — head = 1-shot kill, body = 4 hits, legs = 12 hits. Killing the bull grants +1 pop & +1 meat to the nearest city; dying or running out of arrows = no reward. Wired in `app/game.tsx` (`doHireHunter` / `doHuntSuccess`). Note: WebGL renders in preview but is best validated on a real device / Expo Go.
 
 ## Engine verification

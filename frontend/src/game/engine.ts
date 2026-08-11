@@ -349,6 +349,20 @@ export function resolveTrades(state: GameState) {
 }
 
 // ---------- Economy income (turn start) ----------
+// Stars a player gains at the start of each of their turns (cities + star-producing buildings).
+export function starIncome(state: GameState, player: number): number {
+  let income = state.cities.filter((c) => c.owner === player).reduce((s, c) => s + c.production, 0);
+  for (const tile of state.tiles) {
+    if (!tile.building) continue;
+    const city = cityControllingTile(state, tile.id);
+    if (!city || city.owner !== player) continue;
+    const def = BUILDING_BY_ID[tile.building];
+    if (!def) continue;
+    income += def.produces.stars ?? 0;
+  }
+  return income;
+}
+
 export function startPlayerTurn(state: GameState, player: number) {
   const income = state.cities.filter((c) => c.owner === player).reduce((s, c) => s + c.production, 0);
   state.players[player].stars += income;
