@@ -30,6 +30,7 @@ export default function VictoryCard({ state }: { state: GameState }) {
   const shotRef = useRef<ViewShot>(null);
   const [status, setStatus] = useState<"idle" | "sharing" | "unavailable">("idle");
   const won = state.status === "won";
+  const peaceful = won && !!state.peacefulWin;
   const tribe = TRIBE_BY_ID[state.players[0].tribe];
   const cities = state.cities.filter((c) => c.owner === 0).length;
   const units = state.units.filter((u) => u.owner === 0).length;
@@ -59,9 +60,10 @@ export default function VictoryCard({ state }: { state: GameState }) {
       <ViewShot ref={shotRef} options={{ format: "png", quality: 0.95 }}>
         <View style={[styles.card, { backgroundColor: won ? "#2E4A22" : "#3A2222" }]}>
           <View style={styles.badge}>
-            <MaterialCommunityIcons name={won ? "trophy-variant" : "skull-crossbones"} size={44} color={won ? C.warning : "#E88" } />
+            <MaterialCommunityIcons name={peaceful ? "handshake" : won ? "trophy-variant" : "skull-crossbones"} size={44} color={won ? C.warning : "#E88"} />
           </View>
-          <Text style={styles.outcome}>{won ? "VICTORY" : "DEFEAT"}</Text>
+          <Text style={styles.outcome}>{peaceful ? "CAPITAL WIN" : won ? "VICTORY" : "DEFEAT"}</Text>
+          {peaceful && <Text style={styles.peaceNote}>You united the map by trade — a capital win for all. No one was defeated.</Text>}
           <View style={styles.tribeRow}>
             <View style={[styles.dot, { backgroundColor: tribe.color }]} />
             <Text style={styles.tribeName}>{tribe.name}</Text>
@@ -95,6 +97,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: R.lg, padding: SP.xl, alignItems: "center", gap: SP.sm, overflow: "hidden" },
   badge: { width: 76, height: 76, borderRadius: 38, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center", marginBottom: SP.xs },
   outcome: { fontSize: 30, fontWeight: "900", color: "#F8F6F0", letterSpacing: 2 },
+  peaceNote: { fontSize: 12, fontWeight: "700", color: "rgba(248,246,240,0.85)", textAlign: "center", marginTop: 2, paddingHorizontal: 6 },
   tribeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: SP.sm },
   dot: { width: 14, height: 14, borderRadius: 7 },
   tribeName: { fontSize: 16, fontWeight: "800", color: "rgba(248,246,240,0.9)" },

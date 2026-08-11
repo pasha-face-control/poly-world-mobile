@@ -691,6 +691,16 @@ export function checkVictory(state: GameState) {
     const hasUnit = state.units.some((u) => u.owner === p.index);
     if (!hasCity && !hasUnit) p.eliminated = true;
   }
+  // Peaceful (economic) victory: the human owns every city on the map while at
+  // least one rival still has units. Nobody is destroyed — everyone gets a capital win.
+  const totalCities = state.cities.length;
+  const humanOwnsAll = totalCities > 0 && state.cities.every((c) => c.owner === 0);
+  const rivalHasUnits = state.players.some((p) => p.index !== 0 && !p.eliminated && state.units.some((u) => u.owner === p.index));
+  if (humanOwnsAll && rivalHasUnits) {
+    state.status = "won";
+    state.peacefulWin = true;
+    return;
+  }
   const humanAlive = !state.players[0].eliminated;
   const enemiesAlive = state.players.some((p) => p.index !== 0 && !p.eliminated);
   if (!humanAlive) state.status = "lost";

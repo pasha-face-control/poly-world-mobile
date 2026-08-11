@@ -462,6 +462,11 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                     <Text style={styles.cityLevelText}>{city.level}</Text>
                   </View>
                 )}
+                {t.isVillage && t.claimBy != null && !city && (
+                  <View style={[styles.claimRing, { left: cx - 12, top: baseY - 36, borderColor: playerColor(state, t.claimBy) }]}>
+                    <MaterialCommunityIcons name="timer-sand" size={13} color={playerColor(state, t.claimBy)} />
+                  </View>
+                )}
                 {unit && city && (
                   <View
                     style={[
@@ -534,6 +539,7 @@ const styles = StyleSheet.create({
   hpBar: { height: 4, backgroundColor: C.success },
   doneDot: { position: "absolute", width: 10, height: 10, borderRadius: 5, backgroundColor: C.borderStrong, borderWidth: 1, borderColor: "#fff" },
   selRing: { position: "absolute", width: 12, height: 12, borderRadius: 6, borderWidth: 3, backgroundColor: "transparent" },
+  claimRing: { position: "absolute", width: 24, height: 24, borderRadius: 12, borderWidth: 2, backgroundColor: "rgba(248,246,240,0.9)", alignItems: "center", justifyContent: "center", ...shadow(3) },
   rotateControls: { position: "absolute", left: 12, bottom: 120, flexDirection: "row", gap: 8 },
   rotateBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(248,246,240,0.9)", alignItems: "center", justifyContent: "center", ...shadow(4) },
 });

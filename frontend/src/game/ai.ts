@@ -4,7 +4,12 @@ import {
   availableTechs,
   build,
   buildableFor,
+  buyCity,
+  canBuyCity,
   chebyshev,
+  cityBuyPrice,
+  doInfra,
+  embark,
   harvest,
   loadMerchant,
   moveUnit,
@@ -34,6 +39,26 @@ const DIFF: Record<Difficulty, DiffCfg> = {
 };
 
 const TRADE_LINE = ["organisation", "roads", "construction", "trading", "trading_overseas"];
+const NAVAL_LINE = ["fishing", "sailing", "expedition"];
+
+// Tiles that make up a player's territory (their cities + surrounding cells).
+function ownedTerritory(state: GameState, player: number): Set<number> {
+  const set = new Set<number>();
+  for (const c of state.cities) {
+    if (c.owner !== player) continue;
+    set.add(c.tileId);
+    for (const n of neighbors(state, c.tileId)) set.add(n);
+  }
+  return set;
+}
+
+function isCoastal(state: GameState, terr: Set<number>): boolean {
+  for (const tid of terr) {
+    if (state.tiles[tid].terrain === "water") continue;
+    if (neighbors(state, tid).some((n) => state.tiles[n].terrain === "water")) return true;
+  }
+  return false;
+}
 
 // Peaceful bots expand to neutral villages only; everyone else also hunts enemies.
 function objectiveTiles(state: GameState, player: number, aggressive: boolean): number[] {
@@ -80,7 +105,10 @@ export function runAiTurn(state: GameState, player: number) {
   const cfg = DIFF[state.difficulty] ?? DIFF.normal;
   state.players[player].stars += cfg.bonusStars; // difficulty handicap
 
-  // 1. Research when affordable (peaceful/hard prefer the trade line).
+  const terr = ownedTerritory(state, player);
+  const coastal = isCoastal(state, terr);
+
+  // 1. Research when affordable (peaceful/hard prefer the trade line; coastal bots invest in sailing).
   const avail = availableTechs(state, player);
   if (avail.length) {
     const affordable = avail
@@ -92,6 +120,11 @@ export function runAiTurn(state: GameState, player: number) {
       if (cfg.preferTrade) {
         const t = affordable.find((a) => TRADE_LINE.includes(a.id));
         if (t) pick = t;
+      }
+      // Coastal bots frequently prioritise the naval line so the seas stay active.
+      if (coastal) {
+        const nav = affordable.find((a) => NAVAL_LINE.includes(a.id));
+        if (nav && Math.random() < 0.6) pick = nav;
       }
       research(state, player, pick.id);
     }
@@ -156,8 +189,44 @@ export function runAiTurn(state: GameState, player: number) {
     }
   }
 
+  // 3d. Seafaring: coastal bots build a port so units can put out to sea.
+  if (coastal && state.players[player].techs.includes("sailing")) {
+    const hasPort = state.tiles.some((t) => t.port && neighbors(state, t.id).some((n) => terr.has(n) && state.tiles[n].terrain !== "water"));
+    if (!hasPort) {
+      for (const t of state.tiles) {
+        if (t.terrain !== "water" || t.port) continue;
+        if (!neighbors(state, t.id).some((n) => terr.has(n) && state.tiles[n].terrain !== "water")) continue;
+        if (doInfra(state, player, t.id, "port")) break;
+      }
+    }
+  }
+
+  // 3e. Annexation: a wealthy bot peacefully buys a weak, undefended, nearby rival city.
+  {
+    const myStars = state.players[player].stars;
+    const candidate = state.cities
+      .filter((c) => c.owner !== player)
+      .map((c) => ({ c, price: cityBuyPrice(c) }))
+      .filter(({ c, price }) => price <= 50 && myStars - price >= 15 && canBuyCity(state, player, c.id).ok)
+      .filter(({ c }) => [...terr].some((tid) => chebyshev(state.tiles[tid], state.tiles[c.tileId]) <= 4))
+      .sort((a, b) => a.price - b.price)[0];
+    if (candidate) buyCity(state, player, candidate.c.id);
+  }
+
   // 4. Move & attack each unit (merchants stay put and trade).
   const myUnits = state.units.filter((u) => u.owner === player);
+
+  // Embark units already sitting on a port when their nearest objective is across the water.
+  if (state.players[player].techs.includes("sailing")) {
+    const seaObjs = objectiveTiles(state, player, true);
+    for (const u of myUnits) {
+      if (u.boat || u.type === "merchant" || u.moved) continue;
+      if (!state.tiles[u.tileId].port) continue;
+      const near = nearestObjective(state, u, seaObjs);
+      if (near != null && chebyshev(state.tiles[u.tileId], state.tiles[near]) >= 4) embark(state, u.id);
+    }
+  }
+
   for (const u of myUnits) {
     if (u.type === "merchant") continue;
     if (!state.units.find((x) => x.id === u.id)) continue; // may have died
