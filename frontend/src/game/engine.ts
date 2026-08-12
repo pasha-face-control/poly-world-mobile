@@ -56,8 +56,7 @@ export function levelRewardOptions(city: City): RewardDef[] {
 }
 
 function grantLevelReward(state: GameState, city: City) {
-  // AI / default reward.
-  city.production += 1;
+  // AI / default reward (the base +1 star/turn per level is applied in addPopulation).
   if (city.level % 2 === 0) state.players[city.owner].stars += 5;
   else city.hasWall = true;
 }
@@ -83,6 +82,7 @@ function addPopulation(state: GameState, city: City, amount: number) {
   while (city.population >= levelThreshold(city.level)) {
     city.population -= levelThreshold(city.level);
     city.level += 1;
+    city.production += 1; // every new level yields +1 star per turn
     if (city.owner === 0) {
       if (!state.pendingLevelUps) state.pendingLevelUps = [];
       state.pendingLevelUps.push(city.id); // human picks a reward via the UI
