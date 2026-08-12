@@ -77,6 +77,16 @@ function pickTerrain(rng: RNG, comp: { terrain: TerrainType; weight: number }[])
   return comp[comp.length - 1].terrain;
 }
 
+// Max mountains allowed per 3x3 chunk for each tribe's landscape.
+const MOUNTAIN_CAP: Record<TribeId, number> = { nature: 1, desert: 2, volcanic: 3, snow: 1 };
+
+// The terrain a demoted (excess) mountain becomes — the tribe's dominant non-mountain terrain.
+function fallbackTerrain(tribe: TribeId): TerrainType {
+  const comp = TRIBE_BY_ID[tribe].landComposition.filter((c) => c.terrain !== "mountain");
+  if (!comp.length) return "grass";
+  return comp.reduce((a, b) => (b.weight > a.weight ? b : a)).terrain;
+}
+
 export function generateGame(config: {
   tribe: TribeId;
   opponents: number;
@@ -139,6 +149,7 @@ export function generateGame(config: {
   }
 
   // Assign each land tile to nearest seed's region, then sample terrain from that tribe's composition.
+  const regionOf = new Array<number>(tiles.length).fill(-1);
   for (const t of landTiles) {
     let region = 0;
     let bestD = Infinity;
@@ -149,8 +160,43 @@ export function generateGame(config: {
         region = s;
       }
     }
+    regionOf[t.id] = region;
     const comp = TRIBE_BY_ID[players[region].tribe].landComposition;
     tiles[t.id].terrain = pickTerrain(rng, comp);
+  }
+
+  // Enforce per-tribe mountain density: scan the map in non-overlapping 3x3 chunks and
+  // demote surplus mountains to the controlling tribe's dominant non-mountain terrain.
+  for (let by = 0; by < h; by += 3) {
+    for (let bx = 0; bx < w; bx += 3) {
+      const mtns: number[] = [];
+      const tribeVotes: Record<number, number> = {};
+      for (let dy = 0; dy < 3 && by + dy < h; dy++) {
+        for (let dx = 0; dx < 3 && bx + dx < w; dx++) {
+          const id = idx(bx + dx, by + dy, w);
+          const region = regionOf[id];
+          if (region < 0) continue; // water
+          tribeVotes[region] = (tribeVotes[region] ?? 0) + 1;
+          if (tiles[id].terrain === "mountain") mtns.push(id);
+        }
+      }
+      if (mtns.length === 0) continue;
+      // Dominant region (tribe) governing this chunk.
+      let domRegion = 0;
+      let domVotes = -1;
+      for (const [r, v] of Object.entries(tribeVotes)) {
+        if (v > domVotes) {
+          domVotes = v;
+          domRegion = Number(r);
+        }
+      }
+      const tribe = players[domRegion].tribe;
+      const cap = MOUNTAIN_CAP[tribe] ?? 2;
+      if (mtns.length <= cap) continue;
+      // Keep `cap` mountains (shuffled), demote the rest.
+      mtns.sort(() => rng.next() - 0.5);
+      for (let m = cap; m < mtns.length; m++) tiles[mtns[m]].terrain = fallbackTerrain(tribe);
+    }
   }
 
   // Resources.
