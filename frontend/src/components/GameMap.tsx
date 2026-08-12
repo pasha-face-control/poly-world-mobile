@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 import Svg, { Ellipse, Line, Polygon } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, shadow } from "@/src/theme";
 import { BOAT_DEFS, BUILDING_BY_ID, RESOURCE_ICON, TERRAIN_COLOR, TRIBE_BY_ID, UNIT_DEFS } from "@/src/game/data";
+import { canHunt } from "@/src/game/engine";
 import { GameState } from "@/src/game/types";
 
 // Isometric (2.5D) metrics.
@@ -181,6 +182,16 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
   const animOffY = useSharedValue(0);
   const animPos = useRef({ x: 0, y: 0 });
   const [animUnit, setAnimUnit] = useState<{ id: string; color: string; icon: string; boat: string | null } | null>(null);
+
+  // Gentle pulse for the "huntable" glow around wild animals inside your borders.
+  const glowPulse = useSharedValue(0);
+  useEffect(() => {
+    glowPulse.value = withRepeat(withTiming(1, { duration: 1100 }), -1, true);
+  }, [glowPulse]);
+  const huntGlowStyle = useAnimatedStyle(() => ({
+    opacity: 0.4 + glowPulse.value * 0.45,
+    transform: [{ scale: 0.85 + glowPulse.value * 0.3 }],
+  }));
 
   const w = state.width;
   const h = state.height;
@@ -444,6 +455,9 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
 
             return (
               <React.Fragment key={`tok${t.id}`}>
+                {t.resource === "animal" && !city && !unit && !t.building && canHunt(state, state.currentPlayer, t.id).ok && (
+                  <Animated.View pointerEvents="none" style={[styles.huntGlow, { left: cx - 22, top: baseY - 20 }, huntGlowStyle]} />
+                )}
                 {t.terrain === "forest" && !city && !unit && !t.building && (
                   <MaterialCommunityIcons name="pine-tree" size={26} color="#CBD6AE" style={{ position: "absolute", left: cx - 13, top: baseY - 24 }} />
                 )}
@@ -540,6 +554,7 @@ const styles = StyleSheet.create({
   doneDot: { position: "absolute", width: 10, height: 10, borderRadius: 5, backgroundColor: C.borderStrong, borderWidth: 1, borderColor: "#fff" },
   selRing: { position: "absolute", width: 12, height: 12, borderRadius: 6, borderWidth: 3, backgroundColor: "transparent" },
   claimRing: { position: "absolute", width: 24, height: 24, borderRadius: 12, borderWidth: 2, backgroundColor: "rgba(248,246,240,0.9)", alignItems: "center", justifyContent: "center", ...shadow(3) },
+  huntGlow: { position: "absolute", width: 44, height: 44, borderRadius: 22, borderWidth: 3, borderColor: "#F2C14E", backgroundColor: "rgba(242,193,78,0.18)", shadowColor: "#F2C14E", shadowOpacity: 0.9, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } },
   rotateControls: { position: "absolute", left: 12, bottom: 120, flexDirection: "row", gap: 8 },
   rotateBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(248,246,240,0.9)", alignItems: "center", justifyContent: "center", ...shadow(4) },
 });
