@@ -437,7 +437,9 @@ export function canHunt(state: GameState, player: number, tileId: number): { ok:
   const tile = state.tiles[tileId];
   if (tile.resource !== "animal") return { ok: false, reason: "No animal here" };
   if (player === 0 && !tile.explored) return { ok: false, reason: "Not discovered" };
-  if (!state.cities.some((c) => c.owner === player)) return { ok: false, reason: "You have no city" };
+  if (!playerHasTech(state, player, "hunting")) return { ok: false, reason: "Requires Hunting" };
+  const city = cityControllingTile(state, tileId);
+  if (!city || city.owner !== player) return { ok: false, reason: "Outside your borders" };
   return { ok: true };
 }
 
