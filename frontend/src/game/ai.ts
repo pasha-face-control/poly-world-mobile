@@ -208,6 +208,8 @@ export function runAiTurn(state: GameState, player: number) {
       .filter((c) => c.owner !== player)
       .map((c) => ({ c, price: cityBuyPrice(c) }))
       .filter(({ c, price }) => price <= 50 && myStars - price >= 15 && canBuyCity(state, player, c.id).ok)
+      // Bots only peacefully buy *undefended* cities (players may buy defended ones).
+      .filter(({ c }) => { const u = unitAt(state, c.tileId); return !u || u.owner === player; })
       .filter(({ c }) => [...terr].some((tid) => chebyshev(state.tiles[tid], state.tiles[c.tileId]) <= 4))
       .sort((a, b) => a.price - b.price)[0];
     if (candidate) buyCity(state, player, candidate.c.id);

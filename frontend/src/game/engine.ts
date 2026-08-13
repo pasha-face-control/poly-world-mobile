@@ -620,8 +620,8 @@ export function canBuyCity(state: GameState, player: number, cityId: string): { 
   const price = cityBuyPrice(city);
   if (city.owner === player) return { ok: false, reason: "Already yours", price };
   if (player === 0 && !state.tiles[city.tileId].explored) return { ok: false, reason: "Not discovered", price };
-  const occ = unitAt(state, city.tileId);
-  if (occ && occ.owner !== player) return { ok: false, reason: "City is defended", price };
+  // A city can be bought even while a garrisoned unit sits inside — buying is peaceful,
+  // the occupying unit is left untouched (it is NOT attacked or removed).
   if (state.players[player].stars < price) return { ok: false, reason: "Not enough stars", price };
   return { ok: true, price };
 }
