@@ -80,6 +80,7 @@ export interface GameState {
   createdAt: string;
   pendingLevelUps: string[]; // human city ids awaiting a level-up reward choice
   pendingSales?: Record<number, { goods: Partial<Record<GoodType, number>>; stars: number }>; // per-player merchant sales awaiting a notification
+  pendingOffers?: { cityId: string; buyer: number; seller: number; price: number; level: number }[]; // city-purchase offers awaiting the human seller's accept/decline
   peacefulWin?: boolean; // human took the whole map by buying cities — everyone gets a "capital win", no one loses
   difficulty: Difficulty;
 }

@@ -6,9 +6,10 @@ import {
   applyLevelReward,
   attackUnit,
   build,
-  buyCity,
   buyFromMerchant,
   buyVillage,
+  requestBuyCity,
+  resolveCityOffer,
   checkVictory,
   clone,
   computeVisibility,
@@ -65,6 +66,7 @@ interface GameContextValue {
   doClearSale: () => boolean;
   doBuyVillage: (tileId: number) => boolean;
   doBuyCity: (cityId: string) => boolean;
+  doResolveOffer: (cityId: string, accept: boolean) => boolean;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -192,7 +194,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doBuyFromMerchant = useCallback((merchantId: string, slotIndex: number, amount: number) => apply((s) => buyFromMerchant(s, s.currentPlayer, merchantId, slotIndex, amount)), [apply]);
   const doClearSale = useCallback(() => apply((s) => { if (s.pendingSales) delete s.pendingSales[s.currentPlayer]; return true; }), [apply]);
   const doBuyVillage = useCallback((tileId: number) => apply((s) => buyVillage(s, s.currentPlayer, tileId)), [apply]);
-  const doBuyCity = useCallback((cityId: string) => apply((s) => buyCity(s, s.currentPlayer, cityId)), [apply]);
+  const doBuyCity = useCallback((cityId: string) => apply((s) => requestBuyCity(s, s.currentPlayer, cityId).ok), [apply]);
+  const doResolveOffer = useCallback((cityId: string, accept: boolean) => apply((s) => resolveCityOffer(s, cityId, accept)), [apply]);
 
   const endTurn = useCallback(() => {
     if (!state || state.status !== "playing") return;
@@ -247,6 +250,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doClearSale,
         doBuyVillage,
         doBuyCity,
+        doResolveOffer,
       }}
     >
       {children}

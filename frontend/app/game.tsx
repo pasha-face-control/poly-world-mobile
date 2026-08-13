@@ -21,6 +21,7 @@ import HuntChoiceModal from "@/src/components/HuntChoiceModal";
 import HuntingMiniGame from "@/src/components/HuntingMiniGame";
 import SaleModal from "@/src/components/SaleModal";
 import CaptureModal, { CaptureTarget } from "@/src/components/CaptureModal";
+import OfferModal from "@/src/components/OfferModal";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
 import { storage } from "@/src/utils/storage";
@@ -32,7 +33,7 @@ import { C, R, SP, shadow } from "@/src/theme";
 export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doClearSale, doBuyVillage, doBuyCity, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
@@ -427,6 +428,23 @@ export default function GameScreen() {
         }}
         onClose={() => setCaptureTarget(null)}
       />
+
+      {(() => {
+        const offer = state.pendingOffers?.find((o) => o.seller === state.currentPlayer);
+        return (
+          <OfferModal
+            offer={offer ? { cityId: offer.cityId, buyerName: state.players[offer.buyer]?.name ?? "A rival", price: offer.price, level: offer.level } : null}
+            onAccept={() => {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              if (offer) doResolveOffer(offer.cityId, true);
+            }}
+            onDecline={() => {
+              Haptics.selectionAsync();
+              if (offer) doResolveOffer(offer.cityId, false);
+            }}
+          />
+        );
+      })()}
 
       <HuntChoiceModal
         visible={huntTileId != null && !huntPlaying}

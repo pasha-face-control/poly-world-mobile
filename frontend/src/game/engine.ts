@@ -630,11 +630,55 @@ export function buyCity(state: GameState, player: number, cityId: string): boole
   const check = canBuyCity(state, player, cityId);
   if (!check.ok) return false;
   const city = state.cities.find((c) => c.id === cityId)!;
+  const seller = city.owner;
   state.players[player].stars -= check.price;
+  state.players[seller].stars += check.price; // the previous owner is paid for the sale
   city.owner = player;
   city.hasWall = false;
   log(state, `${state.players[player].name} bought a city for ${check.price} stars`);
-  if (player === 0) computeVisibility(state, 0);
+  if (player === 0 || seller === 0) computeVisibility(state, 0);
+  return true;
+}
+
+// Attempt to buy a city. If the seller is another HUMAN player, this instead escrows the
+// buyer's stars and queues an OFFER for that human to accept or decline on their turn.
+// Bot-owned cities are sold instantly (bots implicitly accept and are paid).
+export function requestBuyCity(state: GameState, buyer: number, cityId: string): { ok: boolean; pending: boolean; reason?: string } {
+  const check = canBuyCity(state, buyer, cityId);
+  if (!check.ok) return { ok: false, pending: false, reason: check.reason };
+  const city = state.cities.find((c) => c.id === cityId)!;
+  const seller = city.owner;
+  if (state.players[seller].isHuman && seller !== buyer) {
+    if (!state.pendingOffers) state.pendingOffers = [];
+    if (state.pendingOffers.some((o) => o.cityId === cityId && o.buyer === buyer)) return { ok: false, pending: false, reason: "Offer already sent" };
+    state.players[buyer].stars -= check.price; // escrow until the seller responds
+    state.pendingOffers.push({ cityId, buyer, seller, price: check.price, level: city.level });
+    log(state, `${state.players[buyer].name} offered ${check.price} stars to buy ${state.players[seller].name}'s city`);
+    return { ok: true, pending: true };
+  }
+  return { ok: buyCity(state, buyer, cityId), pending: false };
+}
+
+// The human seller accepts or declines a pending city-purchase offer.
+export function resolveCityOffer(state: GameState, cityId: string, accept: boolean): boolean {
+  if (!state.pendingOffers) return false;
+  const i = state.pendingOffers.findIndex((o) => o.cityId === cityId);
+  if (i < 0) return false;
+  const offer = state.pendingOffers[i];
+  state.pendingOffers.splice(i, 1);
+  const city = state.cities.find((c) => c.id === cityId);
+  // Refund the buyer if declined, or if the city is gone / no longer the seller's (e.g. captured meanwhile).
+  if (!accept || !city || city.owner !== offer.seller) {
+    state.players[offer.buyer].stars += offer.price;
+    if (accept) log(state, `The deal for the city could not be completed — ${offer.price} stars refunded`);
+    else log(state, `${state.players[offer.seller].name} declined the offer — ${offer.price} stars refunded`);
+    return true;
+  }
+  state.players[offer.seller].stars += offer.price; // seller receives payment
+  city.owner = offer.buyer;
+  city.hasWall = false;
+  log(state, `${state.players[offer.seller].name} sold a city to ${state.players[offer.buyer].name} for ${offer.price} stars`);
+  if (offer.buyer === 0 || offer.seller === 0) computeVisibility(state, 0);
   return true;
 }
 
