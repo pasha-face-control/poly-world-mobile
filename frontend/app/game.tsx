@@ -95,6 +95,14 @@ export default function GameScreen() {
     return reachableTiles(state, selectedUnit);
   }, [state, selectedUnit]);
 
+  // Tiles reachable only thanks to the road speed bonus (highlighted brighter).
+  const roadExtra = useMemo(() => {
+    if (!state || !selectedUnit || selectedUnit.owner !== state.currentPlayer || selectedUnit.moved) return [];
+    if (selectedUnit.boat || !state.tiles[selectedUnit.tileId].road) return [];
+    const base = reachableTiles(state, selectedUnit, true);
+    return reachable.filter((t) => !base.includes(t));
+  }, [state, selectedUnit, reachable]);
+
   const attackable = useMemo(() => {
     if (!state || !selectedUnit || selectedUnit.owner !== state.currentPlayer) return [];
     return attackableTiles(state, selectedUnit);
@@ -280,6 +288,7 @@ export default function GameScreen() {
         selectedUnitId={selectedUnitId}
         selectedTileId={selectedUnit?.tileId ?? null}
         reachable={reachable}
+        roadExtra={roadExtra}
         attackable={attackable}
         centerTileId={capitalTile}
         focusTileId={focusTileId}

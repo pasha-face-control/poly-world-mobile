@@ -22,6 +22,7 @@ interface Props {
   selectedUnitId: string | null;
   selectedTileId: number | null;
   reachable: number[];
+  roadExtra?: number[];
   attackable: number[];
   centerTileId: number | null;
   focusTileId: number | null;
@@ -166,7 +167,7 @@ function drawDock(arr: React.ReactNode[], bx: number, by: number, k: string | nu
   arr.push(<Polygon key={`dpost${k}`} points={pts([[bx + 7, by - 2], [bx + 9, by - 2], [bx + 9, by - 14], [bx + 7, by - 14]])} fill="#5C4326" />);
 }
 
-export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, attackable, centerTileId, focusTileId, focusKey, territory, territoryColor, moveAnim, onTileTap, onTileDoubleTap }: Props) {
+export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, roadExtra = [], attackable, centerTileId, focusTileId, focusKey, territory, territoryColor, moveAnim, onTileTap, onTileDoubleTap }: Props) {
   const [rotation, setRotation] = useState(0); // 0..3 camera angle
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
@@ -338,6 +339,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
   const animTokenStyle = useAnimatedStyle(() => ({ transform: [{ translateX: animOffX.value }, { translateY: animOffY.value }] }));
 
   const reachableSet = useMemo(() => new Set(reachable), [reachable]);
+  const roadExtraSet = useMemo(() => new Set(roadExtra), [roadExtra]);
   const attackableSet = useMemo(() => new Set(attackable), [attackable]);
   const terFill = useMemo(() => hexToRgba(territoryColor, 0.32), [territoryColor]);
 
@@ -398,7 +400,18 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
       const boundary = !inTer(t.x, t.y - 1) || !inTer(t.x, t.y + 1) || !inTer(t.x - 1, t.y) || !inTer(t.x + 1, t.y);
       terrainShapes.push(<Polygon key={`ter${k}`} points={pts(surface)} fill={terFill} stroke={boundary ? territoryColor : "transparent"} strokeWidth={3} />);
     }
-    if (reachableSet.has(k)) terrainShapes.push(<Polygon key={`rc${k}`} points={pts(surface)} fill="rgba(229,169,58,0.62)" stroke="#FFD24A" strokeWidth={4} />);
+    if (reachableSet.has(k)) {
+      const road = roadExtraSet.has(k);
+      terrainShapes.push(
+        <Polygon
+          key={`rc${k}`}
+          points={pts(surface)}
+          fill={road ? "rgba(255,236,150,0.9)" : "rgba(229,169,58,0.62)"}
+          stroke={road ? "#FFFFFF" : "#FFD24A"}
+          strokeWidth={road ? 5 : 4}
+        />
+      );
+    }
     if (attackableSet.has(k)) terrainShapes.push(<Polygon key={`at${k}`} points={pts(surface)} fill="rgba(188,71,73,0.6)" stroke="#FF5A5C" strokeWidth={4} />);
     if (selectedTileId === k) terrainShapes.push(<Polygon key={`sel${k}`} points={pts(surface)} fill="transparent" stroke="#FFFFFF" strokeWidth={3} />);
 

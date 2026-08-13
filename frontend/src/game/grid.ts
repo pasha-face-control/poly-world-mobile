@@ -46,11 +46,11 @@ function canEnter(state: GameState, unit: Unit, tile: Tile): boolean {
 
 // Reachable movement tiles for a unit (excludes its own tile & occupied tiles).
 // Roads let a unit chain along connected road tiles for free.
-export function reachableTiles(state: GameState, unit: Unit): number[] {
+export function reachableTiles(state: GameState, unit: Unit, ignoreRoadBonus = false): number[] {
   let move = unitStats(unit).move;
   const start = unit.tileId;
   // Standing on a road doubles a land unit's movement range this turn.
-  if (!unit.boat && state.tiles[start].road) move *= 2;
+  if (!ignoreRoadBonus && !unit.boat && state.tiles[start].road) move *= 2;
   const cost: Record<number, number> = { [start]: 0 };
   const queue: number[] = [start];
   const result: number[] = [];
