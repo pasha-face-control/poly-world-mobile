@@ -165,10 +165,10 @@ export const TECHS: TechDef[] = [
   T("pike", "Pike", 4, "armor_production", "chess-rook", "Unlock the Pikeman unit."),
   T("chivalry", "Chivalry", 5, "pike", "shield-cross", "Unlock the Knight unit."),
   T("devotion", "Devotion", 2, "forest_exploration", "hexagram", "Build Temples on grass (+population)."),
-  T("forest_care", "Forest Care", 3, "devotion", "sprout", "Plant new forest."),
+  T("forest_care", "Forest Care", 3, "devotion", "sprout", "Plant new forest; forest gives units ×1.5 defense."),
 
   // Organisation branch
-  T("roads", "Roads", 2, "organisation", "road-variant", "Build roads for faster movement.", 2),
+  T("roads", "Roads", 2, "organisation", "road-variant", "Build roads: a unit on a road moves twice as far.", 2),
   T("construction", "Construction", 3, "roads", "home-city", "Build Windmills; burn forest to farmland.", 5),
   T("trading", "Trading", 4, "construction", "cart", "Unlock the Merchant unit.", 4),
   T("trading_overseas", "Trading Overseas", 5, "trading", "ferry", "Unlock Merchant Ship & Trade Port.", 15),

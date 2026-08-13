@@ -8,9 +8,18 @@ export interface CombatResult {
   attackerDied: boolean;
 }
 
-export function defenseBonus(state: GameState, tile: Tile, city?: City): number {
-  if (city) return city.hasWall ? 4 : 1.5;
-  if (tile.terrain === "forest" || tile.terrain === "mountain") return 1.5;
+// Defensive multiplier applied to a defender's DEF, based on terrain and (for cities)
+// the defender's unit class. Knights are the dedicated defensive unit.
+export function defenseBonus(state: GameState, tile: Tile, defender: Unit, city?: City): number {
+  const isDefensive = defender.type === "chivalry"; // Knight
+  if (city) {
+    if (isDefensive) return city.hasWall ? 4 : 2;
+    return city.hasWall ? 2 : 1;
+  }
+  if (tile.terrain === "forest") {
+    return state.players[defender.owner].techs.includes("forest_care") ? 1.5 : 1;
+  }
+  if (tile.terrain === "mountain") return 1.25;
   return 1;
 }
 
@@ -19,7 +28,8 @@ export function resolveCombat(state: GameState, attacker: Unit, defender: Unit):
   const dDef = unitStats(defender);
   const tile = state.tiles[defender.tileId];
   const city = tile.cityId ? state.cities.find((c) => c.id === tile.cityId) : undefined;
-  const bonus = defenseBonus(state, tile, city && city.owner === defender.owner ? city : undefined);
+  const ownCity = city && city.owner === defender.owner ? city : undefined;
+  const bonus = defenseBonus(state, tile, defender, ownCity);
 
   const atkForce = aDef.atk * (attacker.hp / attacker.maxHp);
   const defForce = dDef.def * (defender.hp / defender.maxHp) * bonus;

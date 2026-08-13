@@ -47,8 +47,10 @@ function canEnter(state: GameState, unit: Unit, tile: Tile): boolean {
 // Reachable movement tiles for a unit (excludes its own tile & occupied tiles).
 // Roads let a unit chain along connected road tiles for free.
 export function reachableTiles(state: GameState, unit: Unit): number[] {
-  const move = unitStats(unit).move;
+  let move = unitStats(unit).move;
   const start = unit.tileId;
+  // Standing on a road doubles a land unit's movement range this turn.
+  if (!unit.boat && state.tiles[start].road) move *= 2;
   const cost: Record<number, number> = { [start]: 0 };
   const queue: number[] = [start];
   const result: number[] = [];
@@ -56,20 +58,16 @@ export function reachableTiles(state: GameState, unit: Unit): number[] {
     queue.sort((a, b) => cost[a] - cost[b]);
     const cur = queue.shift()!;
     if (cost[cur] >= move) continue;
-    const curTile = state.tiles[cur];
     for (const n of neighbors(state, cur)) {
       const tile = state.tiles[n];
       if (!canEnter(state, unit, tile)) continue;
       if (unitAt(state, n)) continue; // blocked by any unit
-      // Road-to-road steps are free for land units.
-      const onRoad = !unit.boat && curTile.road && tile.road;
-      const stepCost = onRoad ? 0 : 1;
-      const nd = cost[cur] + stepCost;
+      const nd = cost[cur] + 1;
       if (nd > move) continue;
       if (cost[n] === undefined || nd < cost[n]) {
         cost[n] = nd;
         if (!result.includes(n)) result.push(n);
-        // Entering rough terrain ends movement unless travelling on a road.
+        // Entering rough terrain ends movement unless a road carries the unit through.
         const rough = tile.terrain === "forest" || tile.terrain === "mountain";
         if (!rough || tile.road) queue.push(n);
       }
