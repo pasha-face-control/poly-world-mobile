@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -48,6 +48,13 @@ export default function GameScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const tutorialChecked = useRef(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(msg);
+    toastTimer.current = setTimeout(() => setToast(null), 2200);
+  }, []);
   const [focusTileId, setFocusTileId] = useState<number | null>(null);
   const [focusKey, setFocusKey] = useState(0);
   const prevPlayer = useRef<number | null>(null);
@@ -303,6 +310,12 @@ export default function GameScreen() {
 
       <TopHUD state={state} topInset={insets.top} />
 
+      {toast && (
+        <View pointerEvents="none" style={[styles.toast, { top: insets.top + 92 }]} testID="toast">
+          <Text style={styles.toastText}>{toast}</Text>
+        </View>
+      )}
+
       {selectedUnit && !selectedCity && !merchantOpen && (
         <UnitPanel
           state={state}
@@ -422,8 +435,12 @@ export default function GameScreen() {
         onBuy={() => {
           if (!captureTarget) return;
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          if (captureTarget.kind === "city" && captureTarget.cityId) doBuyCity(captureTarget.cityId);
-          else if (captureTarget.kind === "village") doBuyVillage(captureTarget.tileId);
+          if (captureTarget.kind === "city" && captureTarget.cityId) {
+            const city = state.cities.find((c) => c.id === captureTarget.cityId);
+            const pending = !!city && state.players[city.owner]?.isHuman && city.owner !== state.currentPlayer;
+            doBuyCity(captureTarget.cityId);
+            if (pending) showToast("Offer sent — awaiting the owner's reply");
+          } else if (captureTarget.kind === "village") doBuyVillage(captureTarget.tileId);
           setCaptureTarget(null);
         }}
         onClose={() => setCaptureTarget(null)}
@@ -513,6 +530,8 @@ export default function GameScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#1d3b38" },
+  toast: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(28,28,28,0.9)", paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, ...shadow(6) },
+  toastText: { color: "#fff", fontWeight: "800", fontSize: 13 },
   centerOverlay: { flex: 1, backgroundColor: "rgba(28,28,28,0.6)", alignItems: "center", justifyContent: "center", padding: SP.xl },
   dialog: { width: "100%", maxWidth: 360, backgroundColor: C.surface, borderRadius: R.lg, padding: SP.xl, gap: SP.md, alignItems: "stretch", ...shadow(10) },
   dialogTitle: { fontSize: 28, fontWeight: "900", color: C.onSurface, textAlign: "center" },
