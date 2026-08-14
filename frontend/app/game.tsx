@@ -438,8 +438,14 @@ export default function GameScreen() {
           if (captureTarget.kind === "city" && captureTarget.cityId) {
             const city = state.cities.find((c) => c.id === captureTarget.cityId);
             const pending = !!city && state.players[city.owner]?.isHuman && city.owner !== state.currentPlayer;
+            let defectors = 0;
+            if (city) {
+              const terr = [city.tileId, ...neighbors(state, city.tileId)];
+              defectors = state.units.filter((u) => u.owner === city.owner && terr.includes(u.tileId)).length;
+            }
             doBuyCity(captureTarget.cityId);
             if (pending) showToast("Offer sent — awaiting the owner's reply");
+            else if (defectors > 0) showToast(`${defectors} unit${defectors > 1 ? "s" : ""} joined your side!`);
           } else if (captureTarget.kind === "village") doBuyVillage(captureTarget.tileId);
           setCaptureTarget(null);
         }}
