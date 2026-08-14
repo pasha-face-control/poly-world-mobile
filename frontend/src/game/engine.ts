@@ -626,6 +626,15 @@ export function canBuyCity(state: GameState, player: number, cityId: string): { 
   return { ok: true, price };
 }
 
+// When a city changes hands peacefully, the previous owner's units sitting in that city's
+// territory defect to the new owner (they are not attacked — they simply switch sides).
+function defectCityUnits(state: GameState, city: City, fromOwner: number, toOwner: number) {
+  for (const tid of cityTerritory(state, city)) {
+    const u = unitAt(state, tid);
+    if (u && u.owner === fromOwner) u.owner = toOwner;
+  }
+}
+
 export function buyCity(state: GameState, player: number, cityId: string): boolean {
   const check = canBuyCity(state, player, cityId);
   if (!check.ok) return false;
@@ -635,6 +644,7 @@ export function buyCity(state: GameState, player: number, cityId: string): boole
   state.players[seller].stars += check.price; // the previous owner is paid for the sale
   city.owner = player;
   city.hasWall = false;
+  defectCityUnits(state, city, seller, player);
   log(state, `${state.players[player].name} bought a city for ${check.price} stars`);
   if (player === 0 || seller === 0) computeVisibility(state, 0);
   return true;
@@ -677,6 +687,7 @@ export function resolveCityOffer(state: GameState, cityId: string, accept: boole
   state.players[offer.seller].stars += offer.price; // seller receives payment
   city.owner = offer.buyer;
   city.hasWall = false;
+  defectCityUnits(state, city, offer.seller, offer.buyer);
   log(state, `${state.players[offer.seller].name} sold a city to ${state.players[offer.buyer].name} for ${offer.price} stars`);
   if (offer.buyer === 0 || offer.seller === 0) computeVisibility(state, 0);
   return true;
