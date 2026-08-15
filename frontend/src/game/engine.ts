@@ -41,6 +41,42 @@ export function computeVisibility(state: GameState, player = 0) {
   }
 }
 
+// Per-player exploration for closed games: records what `player` can see into tile.seenBy.
+export function revealFor(state: GameState, player: number) {
+  const mark = (tileId: number, radius: number) => {
+    const src = state.tiles[tileId];
+    for (const t of state.tiles) {
+      if (chebyshev(src, t) <= radius) {
+        if (!t.seenBy) t.seenBy = [];
+        if (!t.seenBy.includes(player)) t.seenBy.push(player);
+      }
+    }
+  };
+  for (const u of state.units) {
+    if (u.owner !== player) continue;
+    mark(u.tileId, state.tiles[u.tileId].terrain === "mountain" ? 2 : 1);
+  }
+  for (const c of state.cities) {
+    if (c.owner !== player) continue;
+    mark(c.tileId, 1);
+  }
+}
+
+// Sets the visible `explored` flags to reflect a single player's known map (closed games).
+export function applyFogForPlayer(state: GameState, player: number) {
+  for (const t of state.tiles) t.explored = !!t.seenBy?.includes(player);
+}
+
+// Refresh fog after an action: closed games track per-player; otherwise reveal for the human (0).
+function refreshFog(state: GameState, actor: number) {
+  if (state.closed) {
+    revealFor(state, actor);
+    applyFogForPlayer(state, state.currentPlayer);
+  } else if (actor === 0) {
+    computeVisibility(state, 0);
+  }
+}
+
 // ---------- City growth ----------
 export interface RewardDef { id: string; name: string; icon: string; desc: string }
 
@@ -136,7 +172,7 @@ export function build(state: GameState, player: number, tileId: number, building
     const owner = owningCityForTile(state, player, tileId);
     if (owner) addPopulation(state, owner, popGain);
   }
-  if (player === 0) computeVisibility(state, 0);
+  refreshFog(state, player);
   log(state, `${state.players[player].name} built a ${def.name}`);
   return true;
 }
@@ -182,7 +218,7 @@ export function doInfra(state: GameState, player: number, tileId: number, infraI
     tile.resource = "crop";
     tile.building = null;
   }
-  if (player === 0) computeVisibility(state, 0);
+  refreshFog(state, player);
   log(state, `${state.players[player].name} built a ${def.name}`);
   return true;
 }
@@ -385,8 +421,11 @@ export function startPlayerTurn(state: GameState, player: number) {
     }
   }
   completeVillageClaims(state, player);
-  if (player === 0) {
-    resolveTrades(state); // market tick each round on the human's turn
+  if (player === 0) resolveTrades(state); // market tick once per round
+  if (state.closed) {
+    revealFor(state, player);
+    applyFogForPlayer(state, player);
+  } else if (player === 0) {
     computeVisibility(state, 0);
   }
 }
@@ -449,7 +488,7 @@ function grantHuntReward(state: GameState, player: number, tileId: number) {
   state.players[player].goods.meat += 1;
   const city = nearestPlayerCity(state, player, tileId);
   if (city) addPopulation(state, city, 1);
-  if (player === 0) computeVisibility(state, 0);
+  refreshFog(state, player);
 }
 
 export function hireHunter(state: GameState, player: number, tileId: number): boolean {
@@ -504,7 +543,7 @@ export function trainUnit(state: GameState, player: number, cityId: string, type
     u.attacked = true; // trained combat units act next turn
   }
   state.units.push(u);
-  if (player === 0) computeVisibility(state, 0);
+  refreshFog(state, player);
   log(state, `${state.players[player].name} trained ${def.name}`);
   return true;
 }
@@ -532,7 +571,7 @@ export function research(state: GameState, player: number, techId: string): bool
   if (state.players[player].stars < cost) return false;
   state.players[player].stars -= cost;
   state.players[player].techs.push(techId);
-  if (player === 0) computeVisibility(state, 0);
+  refreshFog(state, player);
   log(state, `${state.players[player].name} researched ${t.name}`);
   return true;
 }
@@ -610,7 +649,7 @@ export function buyVillage(state: GameState, player: number, tileId: number): bo
   tile.claimTurn = undefined;
   state.cities.push(city);
   log(state, `${state.players[player].name} bought a village for ${check.price} stars`);
-  if (player === 0) computeVisibility(state, 0);
+  refreshFog(state, player);
   return true;
 }
 
@@ -646,7 +685,7 @@ export function buyCity(state: GameState, player: number, cityId: string): boole
   city.hasWall = false;
   defectCityUnits(state, city, seller, player);
   log(state, `${state.players[player].name} bought a city for ${check.price} stars`);
-  if (player === 0 || seller === 0) computeVisibility(state, 0);
+  refreshFog(state, player);
   return true;
 }
 
@@ -689,7 +728,7 @@ export function resolveCityOffer(state: GameState, cityId: string, accept: boole
   city.hasWall = false;
   defectCityUnits(state, city, offer.seller, offer.buyer);
   log(state, `${state.players[offer.seller].name} sold a city to ${state.players[offer.buyer].name} for ${offer.price} stars`);
-  if (offer.buyer === 0 || offer.seller === 0) computeVisibility(state, 0);
+  refreshFog(state, offer.buyer);
   return true;
 }
 
@@ -718,7 +757,7 @@ export function moveUnit(state: GameState, unitId: string, targetTileId: number)
     }
   }
   captureTile(state, unit.owner, targetTileId);
-  if (unit.owner === 0) computeVisibility(state, 0);
+  refreshFog(state, unit.owner);
   return true;
 }
 
@@ -751,7 +790,7 @@ export function attackUnit(state: GameState, attackerId: string, targetTileId: n
   if (result.attackerDied) {
     state.units = state.units.filter((u) => u.id !== attacker.id);
   }
-  if (attacker.owner === 0 || defender.owner === 0) computeVisibility(state, 0);
+  refreshFog(state, attacker.owner); if (!state.closed && defender.owner === 0) computeVisibility(state, 0);
   return true;
 }
 

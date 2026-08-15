@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Modal, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -50,6 +51,7 @@ export default function GameScreen() {
   const tutorialChecked = useRef(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [gateFor, setGateFor] = useState<number | null>(null);
   const showToast = useCallback((msg: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(msg);
@@ -95,8 +97,9 @@ export default function GameScreen() {
   const selectedUnit = useMemo(() => state?.units.find((u) => u.id === selectedUnitId) ?? null, [state, selectedUnitId]);
   const selectedCity = useMemo(() => state?.cities.find((c) => c.id === selectedCityId) ?? null, [state, selectedCityId]);
 
-  const interactive = !!state && state.status === "playing" && state.players[state.currentPlayer].isHuman && !busy;
-  const fog = !!state && state.players.some((p) => !p.isHuman); // fog only in vs-AI
+  const gateShowing = !!state && !!state.closed && state.status === "playing" && gateFor !== state.currentPlayer;
+  const interactive = !!state && state.status === "playing" && state.players[state.currentPlayer].isHuman && !busy && !gateShowing;
+  const fog = !!state && (state.closed || state.players.some((p) => !p.isHuman)); // fog in vs-AI or closed games
 
   const reachable = useMemo(() => {
     if (!state || !selectedUnit || selectedUnit.owner !== state.currentPlayer || selectedUnit.moved) return [];
@@ -469,6 +472,16 @@ export default function GameScreen() {
         );
       })()}
 
+      {gateShowing && state && (
+        <View style={styles.gate} testID="start-turn-screen">
+          <Text style={styles.gateLabel} testID="start-turn-label">{state.players[state.currentPlayer].name}</Text>
+          <Pressable style={styles.gateBtn} testID="start-turn-btn" onPress={() => setGateFor(state.currentPlayer)}>
+            <MaterialCommunityIcons name="play" size={24} color="#fff" />
+            <Text style={styles.gateBtnText}>Start</Text>
+          </Pressable>
+        </View>
+      )}
+
       <HuntChoiceModal
         visible={huntTileId != null && !huntPlaying}
         stars={state.players[state.currentPlayer]?.stars ?? 0}
@@ -538,6 +551,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#1d3b38" },
   toast: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(28,28,28,0.9)", paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, ...shadow(6) },
   toastText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+  gate: { ...StyleSheet.absoluteFillObject, backgroundColor: "#1d3b38", alignItems: "center", justifyContent: "center", gap: 28, zIndex: 200 },
+  gateLabel: { fontSize: 40, fontWeight: "900", color: "#F8F6F0", letterSpacing: 1 },
+  gateBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#4F772D", paddingHorizontal: 44, paddingVertical: 16, borderRadius: 999 },
+  gateBtnText: { color: "#fff", fontWeight: "900", fontSize: 20 },
   centerOverlay: { flex: 1, backgroundColor: "rgba(28,28,28,0.6)", alignItems: "center", justifyContent: "center", padding: SP.xl },
   dialog: { width: "100%", maxWidth: 360, backgroundColor: C.surface, borderRadius: R.lg, padding: SP.xl, gap: SP.md, alignItems: "stretch", ...shadow(10) },
   dialogTitle: { fontSize: 28, fontWeight: "900", color: C.onSurface, textAlign: "center" },

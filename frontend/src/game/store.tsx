@@ -13,6 +13,8 @@ import {
   checkVictory,
   clone,
   computeVisibility,
+  revealFor,
+  applyFogForPlayer,
   doInfra,
   embark,
   harvest,
@@ -122,7 +124,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const startNewGame = useCallback(
     (config: NewGameConfig) => {
       const s = generateGame(config);
-      if (config.passAndPlay) {
+      s.closed = !!config.closed;
+      if (s.closed) {
+        // Closed game: each player only ever sees their own explored territory.
+        for (const p of s.players) revealFor(s, p.index);
+        applyFogForPlayer(s, 0);
+      } else if (config.passAndPlay) {
         s.tiles.forEach((t) => (t.explored = true));
       } else {
         computeVisibility(s, 0);

@@ -15,7 +15,8 @@ export interface Tile {
   resource: ResourceType;
   cityId: string | null;
   isVillage: boolean; // neutral, uncaptured
-  explored: boolean; // human fog of war
+  explored: boolean; // human fog of war (reflects the CURRENT player in closed games)
+  seenBy?: number[]; // per-player exploration (closed games)
   building: string | null; // building def id
   road: boolean; // road infrastructure
   port: boolean; // dock built on a water tile
@@ -82,6 +83,7 @@ export interface GameState {
   pendingSales?: Record<number, { goods: Partial<Record<GoodType, number>>; stars: number }>; // per-player merchant sales awaiting a notification
   pendingOffers?: { cityId: string; buyer: number; seller: number; price: number; level: number }[]; // city-purchase offers awaiting the human seller's accept/decline
   peacefulWin?: boolean; // human took the whole map by buying cities — everyone gets a "capital win", no one loses
+  closed?: boolean; // closed game: per-player fog + a "start turn" gate before each turn (pass & play)
   difficulty: Difficulty;
 }
 

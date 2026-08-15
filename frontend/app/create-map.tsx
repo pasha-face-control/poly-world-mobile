@@ -16,9 +16,10 @@ export default function CreateMap() {
   const [mapSize, setMapSize] = useState(24);
   const [mapType, setMapType] = useState<MapType>("continents");
   const [players, setPlayers] = useState(2);
+  const [closed, setClosed] = useState(false);
 
   const next = () => {
-    router.push({ pathname: "/choose-tribe", params: { players: String(players), mapSize: String(mapSize), mapType, index: "0", chosen: "" } });
+    router.push({ pathname: "/choose-tribe", params: { players: String(players), mapSize: String(mapSize), mapType, closed: closed ? "1" : "", index: "0", chosen: "" } });
   };
 
   return (
@@ -63,6 +64,20 @@ export default function CreateMap() {
             );
           })}
         </ScrollView>
+
+        <Text style={styles.label}>Game Kind</Text>
+        <View style={styles.pillRow}>
+          <Pressable testID="gamekind-open" onPress={() => setClosed(false)} style={[styles.kind, !closed && styles.pillActive]}>
+            <MaterialCommunityIcons name="earth" size={20} color={!closed ? "#fff" : C.brand} />
+            <Text style={[styles.pillText, !closed && styles.pillTextActive]}>Open Game</Text>
+            <Text style={[styles.pillSub, !closed && styles.pillTextActive]}>Shared map view</Text>
+          </Pressable>
+          <Pressable testID="gamekind-closed" onPress={() => setClosed(true)} style={[styles.kind, closed && styles.pillActive]}>
+            <MaterialCommunityIcons name="eye-off" size={20} color={closed ? "#fff" : C.brand} />
+            <Text style={[styles.pillText, closed && styles.pillTextActive]}>Closed Game</Text>
+            <Text style={[styles.pillSub, closed && styles.pillTextActive]}>Private fog per player</Text>
+          </Pressable>
+        </View>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SP.md }]}>
@@ -84,6 +99,7 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 16, fontWeight: "900", color: C.onSurface },
   pillSub: { fontSize: 11, fontWeight: "700", color: C.onSurfaceSecondary },
   pillTextActive: { color: "#fff" },
+  kind: { flex: 1, backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingVertical: 14, alignItems: "center", gap: 3 },
   typeRow: { gap: SP.sm, paddingVertical: 4, paddingRight: 8 },
   typeCard: { width: 96, backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingVertical: 14, alignItems: "center", gap: 6, flexShrink: 0 },
   typeCardActive: { backgroundColor: C.brand },

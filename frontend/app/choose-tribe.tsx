@@ -14,13 +14,14 @@ export default function ChooseTribe() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { startNewGame } = useGame();
-  const params = useLocalSearchParams<{ players: string; mapSize: string; mapType: string; index: string; chosen: string }>();
+  const params = useLocalSearchParams<{ players: string; mapSize: string; mapType: string; index: string; chosen: string; closed: string }>();
 
   const players = parseInt(params.players ?? "2", 10);
   const mapSize = parseInt(params.mapSize ?? "24", 10);
   const mapType = (params.mapType ?? "continents") as MapType;
   const index = parseInt(params.index ?? "0", 10);
   const chosen = (params.chosen ?? "").split(",").filter(Boolean) as TribeId[];
+  const closed = params.closed === "1";
 
   const [tribe, setTribe] = useState<TribeId | null>(null);
   const isLast = index >= players - 1;
@@ -29,10 +30,10 @@ export default function ChooseTribe() {
     if (!tribe) return;
     const tribes = [...chosen, tribe];
     if (isLast) {
-      startNewGame({ tribe: tribes[0], opponents: players - 1, mapSize, mapType, passAndPlay: true, difficulty: "normal", tribes });
+      startNewGame({ tribe: tribes[0], opponents: players - 1, mapSize, mapType, passAndPlay: true, difficulty: "normal", tribes, closed });
       router.replace("/game");
     } else {
-      router.push({ pathname: "/choose-tribe", params: { players: String(players), mapSize: String(mapSize), mapType, index: String(index + 1), chosen: tribes.join(",") } });
+      router.push({ pathname: "/choose-tribe", params: { players: String(players), mapSize: String(mapSize), mapType, closed: closed ? "1" : "", index: String(index + 1), chosen: tribes.join(",") } });
     }
   };
 
