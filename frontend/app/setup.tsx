@@ -19,11 +19,10 @@ export default function Setup() {
   const [opponents, setOpponents] = useState(1);
   const [mapSize, setMapSize] = useState(24);
   const [mapType, setMapType] = useState<MapType>("continents");
-  const [passAndPlay, setPassAndPlay] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
 
   const start = () => {
-    startNewGame({ tribe, opponents, mapSize, mapType, passAndPlay, difficulty });
+    startNewGame({ tribe, opponents, mapSize, mapType, passAndPlay: false, difficulty });
     router.replace("/game");
   };
 
@@ -109,18 +108,6 @@ export default function Setup() {
             );
           })}
         </ScrollView>
-
-        <Text style={styles.label}>Mode</Text>
-        <Pressable testID="mode-toggle" onPress={() => setPassAndPlay((v) => !v)} style={styles.modeRow}>
-          <MaterialCommunityIcons name={passAndPlay ? "account-multiple" : "robot"} size={24} color={C.brand} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.modeTitle}>{passAndPlay ? "Pass & Play" : "vs AI"}</Text>
-            <Text style={styles.modeSub}>{passAndPlay ? "All players are human, one device" : "Battle the computer tribes"}</Text>
-          </View>
-          <View style={[styles.switch, passAndPlay && styles.switchOn]}>
-            <View style={[styles.knob, passAndPlay && styles.knobOn]} />
-          </View>
-        </Pressable>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SP.md }]}>

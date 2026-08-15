@@ -92,4 +92,5 @@ export interface NewGameConfig {
   mapType: MapType;
   passAndPlay: boolean;
   difficulty: Difficulty;
+  tribes?: TribeId[]; // explicit per-player tribes (pass & play); length = number of players
 }

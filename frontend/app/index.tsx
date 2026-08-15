@@ -24,7 +24,7 @@ export default function MainMenu() {
 
   const onNew = () => {
     exitToMenu();
-    router.push("/setup");
+    router.push("/mode");
   };
 
   return (
