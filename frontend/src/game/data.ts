@@ -204,7 +204,6 @@ export interface ResourceDef {
 export const RESOURCE_DEFS: Record<string, ResourceDef> = {
   fruit: { type: "fruit", name: "Fruit", icon: "food-apple", cost: 2, pop: 1, tech: "organisation", terrain: "grass" },
   animal: { type: "animal", name: "Game", icon: "paw", cost: 2, pop: 1, tech: "hunting", terrain: "forest" },
-  fish: { type: "fish", name: "Fish", icon: "fish", cost: 2, pop: 1, tech: "fishing", terrain: "water" },
   ore: { type: "ore", name: "Ore", icon: "diamond-stone", cost: 5, pop: 2, tech: "mining", terrain: "mountain" },
   crop: { type: "crop", name: "Crop", icon: "barley", cost: 5, pop: 2, tech: "farming", terrain: "grass" },
 };

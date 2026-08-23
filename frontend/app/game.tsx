@@ -20,13 +20,15 @@ import VictoryCard from "@/src/components/VictoryCard";
 import TutorialOverlay from "@/src/components/TutorialOverlay";
 import HuntChoiceModal from "@/src/components/HuntChoiceModal";
 import HuntingMiniGame from "@/src/components/HuntingMiniGame";
+import FishChoiceModal from "@/src/components/FishChoiceModal";
+import FishingMiniGame from "@/src/components/FishingMiniGame";
 import SaleModal from "@/src/components/SaleModal";
 import CaptureModal, { CaptureTarget } from "@/src/components/CaptureModal";
 import OfferModal from "@/src/components/OfferModal";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
 import { storage } from "@/src/utils/storage";
-import { attackableTiles, canBuyCity, canBuyVillage, canHunt, neighbors, reachableTiles, tileHasActions } from "@/src/game/engine";
+import { attackableTiles, canBuyCity, canBuyVillage, canFish, canHunt, neighbors, reachableTiles, tileHasActions } from "@/src/game/engine";
 import { TRIBE_BY_ID } from "@/src/game/data";
 import { UnitType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
@@ -34,7 +36,7 @@ import { C, R, SP, shadow } from "@/src/theme";
 export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
@@ -43,6 +45,8 @@ export default function GameScreen() {
   const [buyMerchantId, setBuyMerchantId] = useState<string | null>(null);
   const [huntTileId, setHuntTileId] = useState<number | null>(null);
   const [huntPlaying, setHuntPlaying] = useState(false);
+  const [fishTileId, setFishTileId] = useState<number | null>(null);
+  const [fishPlaying, setFishPlaying] = useState(false);
   const [captureTarget, setCaptureTarget] = useState<(CaptureTarget & { tileId: number; cityId?: string }) | null>(null);
   const [moveAnim, setMoveAnim] = useState<{ unitId: string; fromTileId: number; toTileId: number; key: number } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
@@ -90,6 +94,8 @@ export default function GameScreen() {
       setBuyMerchantId(null);
       setHuntTileId(null);
       setHuntPlaying(false);
+      setFishTileId(null);
+      setFishPlaying(false);
       setCaptureTarget(null);
     }
   }, [state?.currentPlayer, state]);
@@ -208,6 +214,17 @@ export default function GameScreen() {
     if (tile.resource === "animal" && canHunt(state, cp, tileId).ok) {
       Haptics.selectionAsync();
       setHuntTileId(tileId);
+      setSelectedUnitId(null);
+      setSelectedCityId(null);
+      setSelectedBuildTileId(null);
+      setMerchantOpen(false);
+      return;
+    }
+
+    // Nothing selected — a fish tile opens the fishing choice.
+    if (tile.resource === "fish" && canFish(state, cp, tileId).ok) {
+      Haptics.selectionAsync();
+      setFishTileId(tileId);
       setSelectedUnitId(null);
       setSelectedCityId(null);
       setSelectedBuildTileId(null);
@@ -507,6 +524,35 @@ export default function GameScreen() {
             }
             setHuntPlaying(false);
             setHuntTileId(null);
+          }}
+        />
+      )}
+
+      <FishChoiceModal
+        visible={fishTileId != null && !fishPlaying}
+        stars={state.players[state.currentPlayer]?.stars ?? 0}
+        onHire={() => {
+          if (fishTileId == null) return;
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          doHireFisherman(fishTileId);
+          setFishTileId(null);
+        }}
+        onFish={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          setFishPlaying(true);
+        }}
+        onClose={() => setFishTileId(null)}
+      />
+
+      {fishPlaying && (
+        <FishingMiniGame
+          onFinish={(result) => {
+            if (result === "catch" && fishTileId != null) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              doFishSuccess(fishTileId);
+            }
+            setFishPlaying(false);
+            setFishTileId(null);
           }}
         />
       )}

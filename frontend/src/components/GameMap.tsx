@@ -6,7 +6,7 @@ import Svg, { Ellipse, Line, Polygon } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, shadow } from "@/src/theme";
 import { BOAT_DEFS, BUILDING_BY_ID, RESOURCE_ICON, TERRAIN_COLOR, TRIBE_BY_ID, UNIT_DEFS } from "@/src/game/data";
-import { canHunt } from "@/src/game/engine";
+import { canFish, canHunt } from "@/src/game/engine";
 import { GameState } from "@/src/game/types";
 
 // Isometric (2.5D) metrics.
@@ -469,6 +469,9 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
             return (
               <React.Fragment key={`tok${t.id}`}>
                 {t.resource === "animal" && !city && !unit && !t.building && canHunt(state, state.currentPlayer, t.id).ok && (
+                  <Animated.View pointerEvents="none" style={[styles.huntGlow, { left: cx - 22, top: baseY - 20 }, huntGlowStyle]} />
+                )}
+                {t.resource === "fish" && !city && !unit && !t.building && canFish(state, state.currentPlayer, t.id).ok && (
                   <Animated.View pointerEvents="none" style={[styles.huntGlow, { left: cx - 22, top: baseY - 20 }, huntGlowStyle]} />
                 )}
                 {t.terrain === "forest" && !city && !unit && !t.building && (

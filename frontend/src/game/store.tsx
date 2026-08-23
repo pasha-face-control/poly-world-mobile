@@ -20,6 +20,8 @@ import {
   harvest,
   hireHunter,
   huntSuccess,
+  hireFisherman,
+  fishSuccess,
   loadMerchant,
   moveUnit,
   research,
@@ -64,6 +66,8 @@ interface GameContextValue {
   doApplyReward: (cityId: string, rewardId: string) => boolean;
   doHireHunter: (tileId: number) => boolean;
   doHuntSuccess: (tileId: number) => boolean;
+  doHireFisherman: (tileId: number) => boolean;
+  doFishSuccess: (tileId: number) => boolean;
   doBuyFromMerchant: (merchantId: string, slotIndex: number, amount: number) => boolean;
   doClearSale: () => boolean;
   doBuyVillage: (tileId: number) => boolean;
@@ -198,6 +202,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doApplyReward = useCallback((cityId: string, rewardId: string) => apply((s) => applyLevelReward(s, cityId, rewardId)), [apply]);
   const doHireHunter = useCallback((tileId: number) => apply((s) => hireHunter(s, s.currentPlayer, tileId)), [apply]);
   const doHuntSuccess = useCallback((tileId: number) => apply((s) => huntSuccess(s, s.currentPlayer, tileId)), [apply]);
+  const doHireFisherman = useCallback((tileId: number) => apply((s) => hireFisherman(s, s.currentPlayer, tileId)), [apply]);
+  const doFishSuccess = useCallback((tileId: number) => apply((s) => fishSuccess(s, s.currentPlayer, tileId)), [apply]);
   const doBuyFromMerchant = useCallback((merchantId: string, slotIndex: number, amount: number) => apply((s) => buyFromMerchant(s, s.currentPlayer, merchantId, slotIndex, amount)), [apply]);
   const doClearSale = useCallback(() => apply((s) => { if (s.pendingSales) delete s.pendingSales[s.currentPlayer]; return true; }), [apply]);
   const doBuyVillage = useCallback((tileId: number) => apply((s) => buyVillage(s, s.currentPlayer, tileId)), [apply]);
@@ -253,6 +259,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doApplyReward,
         doHireHunter,
         doHuntSuccess,
+        doHireFisherman,
+        doFishSuccess,
         doBuyFromMerchant,
         doClearSale,
         doBuyVillage,

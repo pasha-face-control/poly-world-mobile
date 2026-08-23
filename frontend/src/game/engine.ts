@@ -507,6 +507,40 @@ export function huntSuccess(state: GameState, player: number, tileId: number): b
   return true;
 }
 
+export function canFish(state: GameState, player: number, tileId: number): { ok: boolean; reason?: string } {
+  const tile = state.tiles[tileId];
+  if (tile.resource !== "fish") return { ok: false, reason: "No fish here" };
+  if (player === 0 && !tile.explored) return { ok: false, reason: "Not discovered" };
+  if (!playerHasTech(state, player, "fishing")) return { ok: false, reason: "Requires Fishing" };
+  const city = cityControllingTile(state, tileId);
+  if (!city || city.owner !== player) return { ok: false, reason: "Outside your borders" };
+  return { ok: true };
+}
+
+function grantFishReward(state: GameState, player: number, tileId: number) {
+  const tile = state.tiles[tileId];
+  tile.resource = null; // fish consumed
+  const city = nearestPlayerCity(state, player, tileId);
+  if (city) addPopulation(state, city, 1);
+  refreshFog(state, player);
+}
+
+export function hireFisherman(state: GameState, player: number, tileId: number): boolean {
+  if (!canFish(state, player, tileId).ok) return false;
+  if (state.players[player].stars < 2) return false;
+  state.players[player].stars -= 2;
+  grantFishReward(state, player, tileId);
+  log(state, `${state.players[player].name} hired a fisherman (+1 pop)`);
+  return true;
+}
+
+export function fishSuccess(state: GameState, player: number, tileId: number): boolean {
+  if (!canFish(state, player, tileId).ok) return false;
+  grantFishReward(state, player, tileId);
+  log(state, `${state.players[player].name} caught a fish (+1 pop)`);
+  return true;
+}
+
 export function canTrain(state: GameState, player: number, cityId: string, type: UnitType): { ok: boolean; reason?: string } {
   const city = state.cities.find((c) => c.id === cityId);
   if (!city || city.owner !== player) return { ok: false, reason: "Invalid city" };

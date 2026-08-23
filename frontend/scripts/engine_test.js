@@ -253,5 +253,43 @@ if (anyWater) {
   } else { console.log("SKIP farm (no land adj)"); }
 }
 
+// ---- Fishing ----
+{
+  let g4, cap4, terr4, wid;
+  for (let seed = 1; seed < 400; seed++) {
+    g4 = generateGame({ tribe: "snow", opponents: 1, mapSize: 11, mapType: "archipelago", passAndPlay: false, seed });
+    cap4 = g4.cities.find((c) => c.owner === 0);
+    terr4 = [cap4.tileId, ...engine.neighbors(g4, cap4.tileId)];
+    wid = terr4.find((id) => g4.tiles[id].terrain === "water" && !g4.tiles[id].cityId);
+    if (wid != null) break;
+  }
+  g4.players[0].techs = ["fishing"];
+  g4.players[0].stars = 50;
+  if (wid != null) {
+    g4.tiles[wid].resource = "fish";
+    g4.tiles[wid].explored = true;
+    ok("canFish inside borders with tech", engine.canFish(g4, 0, wid).ok);
+    const p0 = cap4.population, st0 = g4.players[0].stars;
+    ok("hireFisherman succeeds (-2 stars)", engine.hireFisherman(g4, 0, wid) && g4.players[0].stars === st0 - 2);
+    ok("hireFisherman grants +1 pop", cap4.population === p0 + 1);
+    ok("fish consumed after hiring", g4.tiles[wid].resource === null);
+    ok("canFish false after fish consumed", !engine.canFish(g4, 0, wid).ok);
+    const wid2 = terr4.find((id) => id !== wid && g4.tiles[id].terrain === "water" && !g4.tiles[id].cityId);
+    if (wid2 != null) {
+      g4.tiles[wid2].resource = "fish";
+      g4.tiles[wid2].explored = true;
+      const p1 = cap4.population;
+      ok("fishSuccess grants +1 pop (free)", engine.fishSuccess(g4, 0, wid2) && cap4.population === p1 + 1);
+    } else { console.log("SKIP fishSuccess (no 2nd water tile)"); }
+  } else { console.log("SKIP fishing (no water adj to capital)"); }
+  const g5 = g4;
+  g5.players[0].techs = [];
+  if (wid != null) {
+    g5.tiles[wid].resource = "fish";
+    g5.tiles[wid].explored = true;
+    ok("canFish false without Fishing tech", !engine.canFish(g5, 0, wid).ok);
+  } else { console.log("SKIP fishing-tech-gate (no water adj)"); }
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
