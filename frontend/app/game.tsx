@@ -147,8 +147,9 @@ export default function GameScreen() {
     const unit = state.units.find((u) => u.tileId === tileId);
     const city = tile.cityId ? state.cities.find((c) => c.id === tile.cityId) : undefined;
 
-    // Tapping another player's merchant opens its shop so you can buy goods.
-    if (unit && unit.type === "merchant" && unit.owner !== cp) {
+    // Tapping another player's merchant opens its shop so you can buy goods —
+    // unless it is garrisoned inside an enemy city, in which case buying the city takes priority.
+    if (unit && unit.type === "merchant" && unit.owner !== cp && !(city && city.owner !== cp)) {
       Haptics.selectionAsync();
       setBuyMerchantId(unit.id);
       setSelectedUnitId(null);
