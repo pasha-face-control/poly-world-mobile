@@ -1,4 +1,4 @@
-import { Stack, usePathname } from "expo-router";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useEffect } from "react";
@@ -21,7 +21,6 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [loaded, error] = useIconFonts();
-  const pathname = usePathname();
 
   useEffect(() => {
     if (loaded || error) {
@@ -29,15 +28,10 @@ export default function RootLayout() {
     }
   }, [loaded, error]);
 
-  // The in-game screen follows the device orientation (portrait or landscape);
-  // every other screen (menus, setup, stats) stays locked to portrait.
+  // The entire app follows the device orientation (portrait or landscape).
   useEffect(() => {
-    if (pathname === "/game") {
-      ScreenOrientation.unlockAsync().catch(() => {});
-    } else {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
-    }
-  }, [pathname]);
+    ScreenOrientation.unlockAsync().catch(() => {});
+  }, []);
 
   // If the CDN is unreachable we fall through on error rather than wedging
   // the app — icons will tofu, but the app still boots.
