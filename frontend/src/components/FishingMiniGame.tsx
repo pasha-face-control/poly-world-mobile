@@ -154,7 +154,8 @@ export default function FishingMiniGame({ onFinish }: Props) {
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
     return () => {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+      // Return to the in-game screen, which follows the device orientation.
+      ScreenOrientation.unlockAsync().catch(() => {});
     };
   }, []);
 
