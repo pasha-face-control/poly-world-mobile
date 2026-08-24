@@ -51,6 +51,8 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
     stateT: 0,
     nextDecide: 1.5,
     pos: new THREE.Vector3(0, 0, START_Z),
+    prevPos: new THREE.Vector3(0, 0, START_Z),
+    yawFacing: 0, // smoothed heading — head (local +Z) leads the run
     vx: 0,
     strafe: 0,
     deadT: 0,
@@ -156,12 +158,24 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
 
         if (grp) {
           grp.position.set(st.pos.x, 0, st.pos.z);
-          // face the player
-          grp.rotation.y = Math.atan2(-st.pos.x, -st.pos.z) + Math.PI;
+          // Face the direction of travel so the head always leads the run:
+          // charging → head toward the player, retreating → head away from the player.
+          const dx = st.pos.x - st.prevPos.x;
+          const dz = st.pos.z - st.prevPos.z;
+          const targetYaw =
+            dx * dx + dz * dz > 1e-6
+              ? Math.atan2(dx, dz) // head (local +Z) points along velocity
+              : Math.atan2(-st.pos.x, -st.pos.z); // stationary (goring) → face the player
+          let diff = targetYaw - st.yawFacing;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          st.yawFacing += diff * Math.min(1, delta * 12);
+          grp.rotation.y = st.yawFacing;
           // little bob while moving
           const bob = st.state === "gore" ? 0 : Math.sin(st.stateT * 10) * 0.05;
           grp.position.y = bob;
           grp.rotation.z = 0;
+          st.prevPos.copy(st.pos);
         }
 
         // hit flash
