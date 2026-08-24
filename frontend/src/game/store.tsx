@@ -41,8 +41,9 @@ export interface Stats {
   wins: number;
   losses: number;
   draws: number;
+  pwPoints: number;
 }
-const DEFAULT_STATS: Stats = { played: 0, wins: 0, losses: 0, draws: 0 };
+const DEFAULT_STATS: Stats = { played: 0, wins: 0, losses: 0, draws: 0, pwPoints: 0 };
 
 interface GameContextValue {
   state: GameState | null;
@@ -103,12 +104,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const recordResult = useCallback(
-    async (outcome: GameState["status"]) => {
+    async (outcome: GameState["status"], capitalWin: boolean) => {
+      // PW points: Victory +8, Capital Win +4, Draw +1, Defeat -8.
+      const pwDelta =
+        outcome === "won" ? (capitalWin ? 4 : 8) : outcome === "draw" ? 1 : outcome === "lost" ? -8 : 0;
       const next: Stats = {
         played: stats.played + 1,
         wins: stats.wins + (outcome === "won" ? 1 : 0),
         losses: stats.losses + (outcome === "lost" ? 1 : 0),
         draws: stats.draws + (outcome === "draw" ? 1 : 0),
+        pwPoints: stats.pwPoints + pwDelta,
       };
       setStats(next);
       await storage.setItem(STATS_KEY, JSON.stringify(next));
@@ -121,7 +126,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setState(s);
       persist(s);
       if (s.status !== "playing" && prevStatus === "playing") {
-        recordResult(s.status);
+        recordResult(s.status, !!s.peacefulWin);
       }
     },
     [persist, recordResult],

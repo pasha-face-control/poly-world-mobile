@@ -42,6 +42,7 @@ export default function StatsScreen() {
           <StatCard icon="skull" value={stats.losses} label="Defeats" color={C.error} />
           <StatCard icon="handshake-outline" value={stats.draws} label="Draws" color={C.onSurfaceSecondary} />
           <StatCard icon="percent" value={`${winRate}%`} label="Win Rate" color={C.brand} />
+          <StatCard icon="star-four-points" value={stats.pwPoints} label="PW Points" color={C.success} />
         </View>
         <View style={[styles.banner, shadow(2)]}>
           <MaterialCommunityIcons name="hexagon-multiple" size={28} color={C.brand} />
