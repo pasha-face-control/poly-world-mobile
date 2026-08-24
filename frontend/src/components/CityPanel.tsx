@@ -2,8 +2,8 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, SP, shadow } from "@/src/theme";
-import { GOODS, RESOURCE_DEFS, UNIT_DEFS, levelThreshold } from "@/src/game/data";
-import { canHarvest, canTrain, neighbors } from "@/src/game/engine";
+import { GOODS, UNIT_DEFS, levelThreshold } from "@/src/game/data";
+import { canTrain } from "@/src/game/engine";
 import { City, GameState, UnitType } from "@/src/game/types";
 
 interface Props {
@@ -11,19 +11,13 @@ interface Props {
   city: City;
   bottomInset: number;
   onTrain: (type: UnitType) => void;
-  onHarvest: (tileId: number) => void;
   onClose: () => void;
 }
 
 const TRAINABLE: UnitType[] = ["warrior", "archer", "beefeater", "catapult", "rider", "armored_rider", "chivalry", "pikemen", "swordsmen", "merchant"];
 
-export default function CityPanel({ state, city, bottomInset, onTrain, onHarvest, onClose }: Props) {
+export default function CityPanel({ state, city, bottomInset, onTrain, onClose }: Props) {
   const player = state.players[state.currentPlayer];
-  const territory = [city.tileId, ...neighbors(state, city.tileId)];
-  const harvestTiles = territory.filter((id) => {
-    const r = state.tiles[id].resource;
-    return r && RESOURCE_DEFS[r];
-  });
 
   return (
     <View style={[styles.wrap, { paddingBottom: bottomInset + 96 }]} pointerEvents="box-none">
@@ -88,42 +82,6 @@ export default function CityPanel({ state, city, bottomInset, onTrain, onHarvest
             );
           })}
         </ScrollView>
-
-        {harvestTiles.length > 0 && (
-          <>
-            <Text style={styles.section}>Harvest (grow city)</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-              {harvestTiles.map((id) => {
-                const res = state.tiles[id].resource!;
-                const def = RESOURCE_DEFS[res];
-                const check = canHarvest(state, player.index, id);
-                const locked = !player.techs.includes(def.tech);
-                return (
-                  <Pressable
-                    key={id}
-                    testID={`harvest-${id}`}
-                    disabled={!check.ok}
-                    onPress={() => onHarvest(id)}
-                    style={[styles.chip, !check.ok && styles.chipDisabled]}
-                  >
-                    <MaterialCommunityIcons name={def.icon as any} size={22} color={locked ? C.borderStrong : C.success} />
-                    <Text style={styles.chipName}>{def.name} +{def.pop}</Text>
-                    <View style={styles.chipCost}>
-                      {locked ? (
-                        <MaterialCommunityIcons name="lock" size={13} color={C.borderStrong} />
-                      ) : (
-                        <>
-                          <MaterialCommunityIcons name="star-four-points" size={12} color={C.warning} />
-                          <Text style={styles.chipCostText}>{def.cost}</Text>
-                        </>
-                      )}
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </>
-        )}
       </View>
     </View>
   );

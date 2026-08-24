@@ -36,7 +36,7 @@ import { C, R, SP, shadow } from "@/src/theme";
 export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { state, busy, endTurn, doMove, doAttack, doHarvest, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
@@ -402,10 +402,6 @@ export default function GameScreen() {
           onTrain={(t: UnitType) => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             doTrain(selectedCity.id, t);
-          }}
-          onHarvest={(id) => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            doHarvest(id);
           }}
           onClose={() => setSelectedCityId(null)}
         />
