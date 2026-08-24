@@ -13,7 +13,7 @@ import {
 import { resolveCombat } from "./combat";
 import { newCity, newUnit } from "./factory";
 import { attackableTiles, chebyshev, neighbors, playerHasTech, reachableTiles, unitAt } from "./grid";
-import { City, GameState, GoodType, NavalTier, ResourceType, UnitType } from "./types";
+import { City, GameState, GoodType, NavalTier, ResourceType, Unit, UnitType } from "./types";
 
 export const clone = (s: GameState): GameState => JSON.parse(JSON.stringify(s));
 
@@ -811,6 +811,33 @@ export function attackUnit(state: GameState, attackerId: string, targetTileId: n
   if (!attackableTiles(state, attacker).includes(targetTileId)) return false;
   const defender = unitAt(state, targetTileId);
   if (!defender) return false;
+
+  // ---- Knight (chivalry) special: one-shot any unit at 10 HP or less and persist ----
+  // It kills adjacent enemies one-by-one — moving into each fallen unit's tile — until it
+  // meets a gap (no adjacent enemy) or an enemy with more than 10 HP.
+  if (attacker.type === "chivalry" && defender.owner !== attacker.owner && defender.hp <= 10 && state.tiles[targetTileId].terrain !== "water") {
+    let kills = 0;
+    let target: Unit | undefined = defender;
+    while (target && target.owner !== attacker.owner && target.hp <= 10) {
+      const tId = target.tileId;
+      const tgtId = target.id;
+      state.units = state.units.filter((u) => u.id !== tgtId);
+      attacker.tileId = tId;
+      captureTile(state, attacker.owner, tId);
+      kills++;
+      // Next victim must be directly adjacent to where the Knight now stands (a 1-cell gap stops it).
+      const adj = neighbors(state, attacker.tileId);
+      target = state.units.find(
+        (u) => u.owner !== attacker.owner && u.type !== "merchant" && u.hp <= 10 && adj.includes(u.tileId) && state.tiles[u.tileId].terrain !== "water",
+      );
+    }
+    attacker.attacked = true;
+    attacker.moved = true;
+    log(state, `${state.players[attacker.owner].name}'s Knight cut down ${kills} unit${kills > 1 ? "s" : ""}`);
+    refreshFog(state, attacker.owner);
+    if (!state.closed) computeVisibility(state, 0);
+    return true;
+  }
 
   const result = resolveCombat(state, attacker, defender);
   attacker.attacked = true;

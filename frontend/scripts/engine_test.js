@@ -343,5 +343,61 @@ if (anyWater) {
   ok("not stalemated without a city", !engine.isHumanStalemated(g4));
 }
 
+// ---- Knight (chivalry) chain kill ----
+{
+  const mk = () => {
+    const g = generateGame({ tribe: "snow", opponents: 1, mapSize: 11, mapType: "continents", passAndPlay: false, seed: 6 });
+    g.units = [];
+    return g;
+  };
+  const T = (x, y) => y * 11 + x;
+  const put = (g, x, y, owner, type, hp) => {
+    const id = T(x, y);
+    g.tiles[id].terrain = "grass";
+    g.tiles[id].cityId = null;
+    g.tiles[id].isVillage = false;
+    const u = { id: `${owner}-${type}-${id}`, type, owner, tileId: id, hp, maxHp: type === "pikemen" ? 15 : 10, moved: false, attacked: false, boat: null, cargo: [] };
+    g.units.push(u);
+    return u;
+  };
+
+  // 1 + 2) chains through a line of 3 adjacent 10-HP enemies, 3) ending on the last tile
+  let g = mk();
+  let k = put(g, 5, 5, 0, "chivalry", 10);
+  put(g, 6, 5, 1, "warrior", 10);
+  put(g, 7, 5, 1, "warrior", 10);
+  put(g, 8, 5, 1, "warrior", 10);
+  ok("knight chain attack returns true", engine.attackUnit(g, k.id, T(6, 5)));
+  ok("knight killed the whole line of 3", g.units.filter((u) => u.owner === 1).length === 0);
+  ok("knight moved onto the last killed tile", k.tileId === T(8, 5));
+
+  // a 1-cell gap stops the chain
+  g = mk();
+  k = put(g, 5, 5, 0, "chivalry", 10);
+  put(g, 6, 5, 1, "warrior", 10);
+  put(g, 8, 5, 1, "warrior", 10); // gap at (7,5)
+  engine.attackUnit(g, k.id, T(6, 5));
+  ok("chain stops at a gap (only 1 kill)", g.units.filter((u) => u.owner === 1).length === 1);
+  ok("knight stopped on the first killed tile", k.tileId === T(6, 5));
+
+  // an enemy above 10 HP stops the chain
+  g = mk();
+  k = put(g, 5, 5, 0, "chivalry", 10);
+  put(g, 6, 5, 1, "warrior", 10);
+  const pk1 = put(g, 7, 5, 1, "pikemen", 15);
+  engine.attackUnit(g, k.id, T(6, 5));
+  ok("chain stops before a >10 HP unit", g.units.some((u) => u.id === pk1.id && u.hp === 15));
+  ok("knight killed only the 10 HP unit", g.units.filter((u) => u.owner === 1).length === 1 && k.tileId === T(6, 5));
+
+  // a >10 HP first target => normal attack (no one-shot, no teleport)
+  g = mk();
+  k = put(g, 5, 5, 0, "chivalry", 10);
+  const pk2 = put(g, 6, 5, 1, "pikemen", 15);
+  engine.attackUnit(g, k.id, T(6, 5));
+  ok("first >10 HP target survives normal combat", g.units.some((u) => u.id === pk2.id));
+  ok("knight did not teleport onto a >10 HP target", k.tileId === T(5, 5));
+  ok("knight dealt normal damage to the >10 HP target", pk2.hp < 15);
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
