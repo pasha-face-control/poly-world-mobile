@@ -16,7 +16,6 @@ const MAX_HP = 12;
 const MAX_ARROWS = 12;
 const BULL_HP = 12;
 const START_Z = -13;
-const GORE_Z = -2.0;
 
 // Shared mutable control object between the RN overlay and the 3D scene.
 interface Ctrl {
@@ -24,6 +23,8 @@ interface Ctrl {
   pitch: number;
   shootRequested: boolean;
   shootCooldown: number;
+  moveX: number; // strafe input (-1..1)
+  moveZ: number; // forward input (-1..1)
 }
 
 interface HudApi {
@@ -81,6 +82,19 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
     camera.rotation.order = "YXZ";
     camera.rotation.y = ctrl.current.yaw;
     camera.rotation.x = ctrl.current.pitch;
+
+    // --- Player movement from the joystick ---
+    if (!st.over) {
+      const speed = 4.4;
+      const yaw = ctrl.current.yaw;
+      const fwdX = -Math.sin(yaw), fwdZ = -Math.cos(yaw);
+      const rightX = Math.cos(yaw), rightZ = -Math.sin(yaw);
+      const mvx = fwdX * ctrl.current.moveZ + rightX * ctrl.current.moveX;
+      const mvz = fwdZ * ctrl.current.moveZ + rightZ * ctrl.current.moveX;
+      camera.position.x = Math.max(-8, Math.min(8, camera.position.x + mvx * speed * delta));
+      camera.position.z = Math.max(-5, Math.min(10, camera.position.z + mvz * speed * delta));
+      camera.position.y = 1.65;
+    }
     camera.updateMatrixWorld();
 
     if (ctrl.current.shootCooldown > 0) ctrl.current.shootCooldown -= delta;
@@ -98,13 +112,15 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
         }
         if (st.deadT > 0.9) finish("kill");
       } else {
+        // The bull tracks the player's real position so moving lets you dodge.
+        const px = camera.position.x;
+        const pz = camera.position.z;
         switch (st.state) {
           case "wander": {
             st.pos.x += Math.sin(st.stateT * 1.3) * 0.8 * delta;
             st.pos.z += Math.sin(st.stateT * 0.7) * 0.3 * delta;
-            st.pos.z = Math.max(START_Z - 1, Math.min(-9, st.pos.z));
             if (st.stateT > st.nextDecide) {
-              st.state = Math.random() < 0.75 ? "charge" : "wander";
+              st.state = Math.random() < 0.8 ? "charge" : "wander";
               st.stateT = 0;
               st.nextDecide = 1.2 + Math.random() * 1.6;
               st.strafe = (Math.random() - 0.5) * 2;
@@ -112,11 +128,15 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
             break;
           }
           case "charge": {
-            st.pos.z += 6.5 * delta; // rush the player
-            // dodge / strafe so shots require aim
-            st.pos.x += Math.sin(st.stateT * 6) * st.strafe * 2.2 * delta;
-            st.pos.x = Math.max(-7, Math.min(7, st.pos.x));
-            if (st.pos.z >= GORE_Z) {
+            const toX = px - st.pos.x, toZ = pz - st.pos.z;
+            const len = Math.hypot(toX, toZ) || 1;
+            const nx = toX / len, nz = toZ / len;
+            // perpendicular strafe so shots still require aim
+            const perpX = -nz, perpZ = nx;
+            const strafeAmt = Math.sin(st.stateT * 6) * st.strafe * 2.2;
+            st.pos.x += (nx * 6.5 + perpX * strafeAmt) * delta;
+            st.pos.z += (nz * 6.5 + perpZ * strafeAmt) * delta;
+            if (len <= 2.2) {
               st.state = "gore";
               st.stateT = 0;
             }
@@ -124,12 +144,15 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
           }
           case "gore": {
             if (st.stateT < 0.05) {
-              // land the hit once
-              st.playerHp = Math.max(0, st.playerHp - 4);
-              hud.setHp(st.playerHp);
-              hud.flash();
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              if (st.playerHp <= 0) finish("fail");
+              // land the hit only if the player didn't dodge out of range
+              const len = Math.hypot(px - st.pos.x, pz - st.pos.z);
+              if (len <= 3.0) {
+                st.playerHp = Math.max(0, st.playerHp - 4);
+                hud.setHp(st.playerHp);
+                hud.flash();
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                if (st.playerHp <= 0) finish("fail");
+              }
             }
             if (st.stateT > 0.4) {
               st.state = "retreat";
@@ -138,9 +161,11 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
             break;
           }
           case "retreat": {
-            st.pos.z -= 7 * delta;
-            if (st.pos.z <= START_Z) {
-              st.pos.z = START_Z;
+            const awayX = st.pos.x - px, awayZ = st.pos.z - pz;
+            const len = Math.hypot(awayX, awayZ) || 1;
+            st.pos.x += (awayX / len) * 7 * delta;
+            st.pos.z += (awayZ / len) * 7 * delta;
+            if (len >= 12) {
               st.state = "wander";
               st.stateT = 0;
               st.nextDecide = 1.0 + Math.random() * 1.2;
@@ -149,12 +174,17 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
           }
           case "hit": {
             if (st.stateT > 0.18) {
-              st.state = st.pos.z > -6 ? "charge" : "wander";
+              const len = Math.hypot(px - st.pos.x, pz - st.pos.z);
+              st.state = len < 6 ? "charge" : "wander";
               st.stateT = 0;
             }
             break;
           }
         }
+
+        // keep the bull inside the field
+        st.pos.x = Math.max(-14, Math.min(14, st.pos.x));
+        st.pos.z = Math.max(START_Z - 3, Math.min(11, st.pos.z));
 
         if (grp) {
           grp.position.set(st.pos.x, 0, st.pos.z);
@@ -396,11 +426,12 @@ function Scenery() {
 
 // ---------------- Main component (RN overlay + Canvas) ----------------
 export default function HuntingMiniGame({ onFinish }: Props) {
-  const ctrl = useRef<Ctrl>({ yaw: 0, pitch: 0, shootRequested: false, shootCooldown: 0 });
+  const ctrl = useRef<Ctrl>({ yaw: 0, pitch: 0, shootRequested: false, shootCooldown: 0, moveX: 0, moveZ: 0 });
   const [hp, setHp] = useState(MAX_HP);
   const [arrows, setArrows] = useState(MAX_ARROWS);
   const [result, setResult] = useState<Result | null>(null);
   const [flashKey, setFlashKey] = useState(0);
+  const [thumb, setThumb] = useState({ x: 0, y: 0 });
   const flashOn = useRef(false);
 
   useEffect(() => {
@@ -443,6 +474,38 @@ export default function HuntingMiniGame({ onFinish }: Props) {
     []
   );
 
+  const JOY_R = 46;
+  const joy = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderMove: (_e, gesture) => {
+          let dx = gesture.dx;
+          let dy = gesture.dy;
+          const mag = Math.hypot(dx, dy);
+          if (mag > JOY_R) {
+            dx = (dx / mag) * JOY_R;
+            dy = (dy / mag) * JOY_R;
+          }
+          setThumb({ x: dx, y: dy });
+          ctrl.current.moveX = dx / JOY_R;
+          ctrl.current.moveZ = -dy / JOY_R; // dragging up = move forward
+        },
+        onPanResponderRelease: () => {
+          setThumb({ x: 0, y: 0 });
+          ctrl.current.moveX = 0;
+          ctrl.current.moveZ = 0;
+        },
+        onPanResponderTerminate: () => {
+          setThumb({ x: 0, y: 0 });
+          ctrl.current.moveX = 0;
+          ctrl.current.moveZ = 0;
+        },
+      }),
+    []
+  );
+
   const shoot = () => {
     if (result) return;
     ctrl.current.shootRequested = true;
@@ -460,6 +523,16 @@ export default function HuntingMiniGame({ onFinish }: Props) {
 
       {/* touch aim layer */}
       <View style={StyleSheet.absoluteFill} {...pan.panHandlers} pointerEvents={result ? "none" : "auto"} />
+
+      {/* movement joystick (left) */}
+      {!result && (
+        <View style={styles.joyBase} {...joy.panHandlers}>
+          <View style={styles.joyRing} pointerEvents="none" />
+          <View pointerEvents="none" style={[styles.joyThumb, { transform: [{ translateX: thumb.x }, { translateY: thumb.y }] }]}>
+            <MaterialCommunityIcons name="arrow-all" size={22} color="rgba(255,255,255,0.9)" />
+          </View>
+        </View>
+      )}
 
       {/* damage flash */}
       {flashOn.current && <View pointerEvents="none" style={styles.dmgFlash} key={flashKey} />}
@@ -497,7 +570,7 @@ export default function HuntingMiniGame({ onFinish }: Props) {
       )}
 
       <View pointerEvents="none" style={styles.hint}>
-        <Text style={styles.hintText}>Drag to aim · aim for the head for a one-shot kill</Text>
+        <Text style={styles.hintText}>Left stick to move · drag right to aim · head shot = one-shot kill</Text>
       </View>
 
       {/* Result overlay */}
@@ -539,6 +612,9 @@ const styles = StyleSheet.create({
   hudNum: { color: "#fff", fontWeight: "900", fontSize: 14, minWidth: 18, textAlign: "center" },
   shootBtn: { position: "absolute", right: 26, bottom: 26, width: 92, height: 92, borderRadius: 46, backgroundColor: "rgba(188,71,73,0.92)", alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "rgba(255,255,255,0.7)" },
   shootLabel: { color: "#fff", fontWeight: "900", fontSize: 12, marginTop: 2, letterSpacing: 1 },
+  joyBase: { position: "absolute", left: 28, bottom: 28, width: 128, height: 128, borderRadius: 64, alignItems: "center", justifyContent: "center" },
+  joyRing: { ...StyleSheet.absoluteFillObject, borderRadius: 64, backgroundColor: "rgba(20,20,20,0.32)", borderWidth: 2, borderColor: "rgba(255,255,255,0.35)" },
+  joyThumb: { width: 56, height: 56, borderRadius: 28, backgroundColor: "rgba(255,255,255,0.28)", borderWidth: 2, borderColor: "rgba(255,255,255,0.6)", alignItems: "center", justifyContent: "center" },
   hint: { position: "absolute", bottom: 20, left: 24 },
   hintText: { color: "rgba(255,255,255,0.9)", fontSize: 12, fontWeight: "700" },
   resultOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(20,20,20,0.6)", alignItems: "center", justifyContent: "center", padding: 24 },
