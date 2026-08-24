@@ -40,6 +40,7 @@ export default function StatsScreen() {
           <StatCard icon="gamepad-variant" value={stats.played} label="Games Played" color={C.info} />
           <StatCard icon="trophy" value={stats.wins} label="Victories" color={C.warning} />
           <StatCard icon="skull" value={stats.losses} label="Defeats" color={C.error} />
+          <StatCard icon="handshake-outline" value={stats.draws} label="Draws" color={C.onSurfaceSecondary} />
           <StatCard icon="percent" value={`${winRate}%`} label="Win Rate" color={C.brand} />
         </View>
         <View style={[styles.banner, shadow(2)]}>

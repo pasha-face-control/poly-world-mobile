@@ -40,8 +40,9 @@ export interface Stats {
   played: number;
   wins: number;
   losses: number;
+  draws: number;
 }
-const DEFAULT_STATS: Stats = { played: 0, wins: 0, losses: 0 };
+const DEFAULT_STATS: Stats = { played: 0, wins: 0, losses: 0, draws: 0 };
 
 interface GameContextValue {
   state: GameState | null;
@@ -90,7 +91,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const s = await storage.getItem<string>(STATS_KEY, "");
       if (s) {
         try {
-          setStats(JSON.parse(s));
+          setStats({ ...DEFAULT_STATS, ...JSON.parse(s) });
         } catch {}
       }
     })();
@@ -102,11 +103,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const recordResult = useCallback(
-    async (won: boolean) => {
+    async (outcome: GameState["status"]) => {
       const next: Stats = {
         played: stats.played + 1,
-        wins: stats.wins + (won ? 1 : 0),
-        losses: stats.losses + (won ? 0 : 1),
+        wins: stats.wins + (outcome === "won" ? 1 : 0),
+        losses: stats.losses + (outcome === "lost" ? 1 : 0),
+        draws: stats.draws + (outcome === "draw" ? 1 : 0),
       };
       setStats(next);
       await storage.setItem(STATS_KEY, JSON.stringify(next));
@@ -119,7 +121,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setState(s);
       persist(s);
       if (s.status !== "playing" && prevStatus === "playing") {
-        recordResult(s.status === "won");
+        recordResult(s.status);
       }
     },
     [persist, recordResult],
