@@ -16,6 +16,8 @@ const MAX_HP = 12;
 const MAX_ARROWS = 12;
 const BULL_HP = 12;
 const START_Z = -13;
+const PLAYER_START_Z = 16; // spawn the hunter far from the bull for a wander through the forest
+const AGGRO_RANGE = 18; // the bull only engages once the hunter roams within this distance
 
 // Shared mutable control object between the RN overlay and the 3D scene.
 interface Ctrl {
@@ -64,8 +66,8 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
 
   useEffect(() => {
     scene.background = new THREE.Color("#8Fc6d8");
-    scene.fog = new THREE.Fog("#8Fc6d8", 22, 55);
-    camera.position.set(0, 1.65, 0);
+    scene.fog = new THREE.Fog("#8Fc6d8", 28, 70);
+    camera.position.set(0, 1.65, PLAYER_START_Z);
   }, [scene, camera]);
 
   const finish = (r: Result) => {
@@ -91,8 +93,8 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
       const rightX = Math.cos(yaw), rightZ = -Math.sin(yaw);
       const mvx = fwdX * ctrl.current.moveZ + rightX * ctrl.current.moveX;
       const mvz = fwdZ * ctrl.current.moveZ + rightZ * ctrl.current.moveX;
-      camera.position.x = Math.max(-8, Math.min(8, camera.position.x + mvx * speed * delta));
-      camera.position.z = Math.max(-5, Math.min(10, camera.position.z + mvz * speed * delta));
+      camera.position.x = Math.max(-12, Math.min(12, camera.position.x + mvx * speed * delta));
+      camera.position.z = Math.max(-16, Math.min(22, camera.position.z + mvz * speed * delta));
       camera.position.y = 1.65;
     }
     camera.updateMatrixWorld();
@@ -117,12 +119,15 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
         const pz = camera.position.z;
         switch (st.state) {
           case "wander": {
+            // roam gently around the home area
             st.pos.x += Math.sin(st.stateT * 1.3) * 0.8 * delta;
             st.pos.z += Math.sin(st.stateT * 0.7) * 0.3 * delta;
+            st.pos.z = Math.max(START_Z - 3, Math.min(-8, st.pos.z));
+            const dist = Math.hypot(px - st.pos.x, pz - st.pos.z);
             if (st.stateT > st.nextDecide) {
-              st.state = Math.random() < 0.8 ? "charge" : "wander";
+              st.state = dist < AGGRO_RANGE && Math.random() < 0.85 ? "charge" : "wander";
               st.stateT = 0;
-              st.nextDecide = 1.2 + Math.random() * 1.6;
+              st.nextDecide = 1.0 + Math.random() * 1.6;
               st.strafe = (Math.random() - 0.5) * 2;
             }
             break;
@@ -175,7 +180,7 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
           case "hit": {
             if (st.stateT > 0.18) {
               const len = Math.hypot(px - st.pos.x, pz - st.pos.z);
-              st.state = len < 6 ? "charge" : "wander";
+              st.state = len < AGGRO_RANGE ? "charge" : "wander";
               st.stateT = 0;
             }
             break;
@@ -184,7 +189,7 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
 
         // keep the bull inside the field
         st.pos.x = Math.max(-14, Math.min(14, st.pos.x));
-        st.pos.z = Math.max(START_Z - 3, Math.min(11, st.pos.z));
+        st.pos.z = Math.max(START_Z - 4, Math.min(20, st.pos.z));
 
         if (grp) {
           grp.position.set(st.pos.x, 0, st.pos.z);
@@ -306,8 +311,8 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
         <meshStandardMaterial color="#6f8f4e" />
       </mesh>
       {/* darker grass patch band */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, -14]}>
-        <planeGeometry args={[40, 24]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, -6]}>
+        <planeGeometry args={[70, 70]} />
         <meshStandardMaterial color="#7ba055" />
       </mesh>
 
@@ -386,16 +391,18 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
   );
 }
 
-// A few low-poly trees & rocks for depth.
+// A dense low-poly forest with rocks for depth and cover to wander through.
 function Scenery() {
   const items = useMemo(() => {
     const arr: { x: number; z: number; s: number; tree: boolean }[] = [];
     const rng = (n: number) => ((Math.sin(n * 999.7) * 43758.5) % 1 + 1) % 1;
-    for (let i = 0; i < 16; i++) {
-      const x = (rng(i + 1) - 0.5) * 60;
-      const z = -8 - rng(i + 50) * 40;
-      if (Math.abs(x) < 3.5 && z > -18) continue;
-      arr.push({ x, z, s: 0.7 + rng(i + 9) * 0.9, tree: rng(i + 3) > 0.35 });
+    for (let i = 0; i < 54; i++) {
+      const x = (rng(i + 1) - 0.5) * 80;
+      const z = 22 - rng(i + 50) * 70; // spread across the whole path: z in [-48, 22]
+      // keep clearings around the hunter's spawn and the bull's home so nothing overlaps them
+      if (Math.abs(x) < 3 && Math.abs(z - PLAYER_START_Z) < 4) continue;
+      if (Math.abs(x) < 3 && Math.abs(z - START_Z) < 4) continue;
+      arr.push({ x, z, s: 1.2 + rng(i + 9) * 1.5, tree: rng(i + 3) > 0.22 });
     }
     return arr;
   }, []);
@@ -404,18 +411,25 @@ function Scenery() {
       {items.map((it, i) =>
         it.tree ? (
           <group key={i} position={[it.x, 0, it.z]} scale={it.s}>
-            <mesh position={[0, 0.7, 0]}>
-              <cylinderGeometry args={[0.15, 0.2, 1.4, 6]} />
+            {/* trunk */}
+            <mesh position={[0, 1.5, 0]}>
+              <cylinderGeometry args={[0.28, 0.4, 3.0, 7]} />
               <meshStandardMaterial color="#5b4a34" flatShading />
             </mesh>
-            <mesh position={[0, 1.9, 0]}>
-              <coneGeometry args={[0.9, 1.8, 7]} />
+            {/* lower foliage */}
+            <mesh position={[0, 3.6, 0]}>
+              <coneGeometry args={[1.9, 3.0, 8]} />
               <meshStandardMaterial color="#3f6b3a" flatShading />
+            </mesh>
+            {/* upper foliage */}
+            <mesh position={[0, 5.4, 0]}>
+              <coneGeometry args={[1.35, 2.4, 8]} />
+              <meshStandardMaterial color="#4a7a42" flatShading />
             </mesh>
           </group>
         ) : (
-          <mesh key={i} position={[it.x, 0.3, it.z]} scale={it.s}>
-            <dodecahedronGeometry args={[0.5]} />
+          <mesh key={i} position={[it.x, 0.4, it.z]} scale={it.s}>
+            <dodecahedronGeometry args={[0.6]} />
             <meshStandardMaterial color="#8a8a80" flatShading />
           </mesh>
         )
@@ -515,7 +529,7 @@ export default function HuntingMiniGame({ onFinish }: Props) {
     <View style={styles.root} testID="hunting-minigame">
       <Canvas
         style={StyleSheet.absoluteFill}
-        camera={{ fov: 72, near: 0.1, far: 200, position: [0, 1.65, 0] }}
+        camera={{ fov: 72, near: 0.1, far: 200, position: [0, 1.65, PLAYER_START_Z] }}
         gl={{ antialias: true }}
       >
         <Scene ctrl={ctrl} hud={hud} />
@@ -570,7 +584,7 @@ export default function HuntingMiniGame({ onFinish }: Props) {
       )}
 
       <View pointerEvents="none" style={styles.hint}>
-        <Text style={styles.hintText}>Left stick to move · drag right to aim · head shot = one-shot kill</Text>
+        <Text style={styles.hintText}>Left stick to move through the forest · drag right to aim · find the bull</Text>
       </View>
 
       {/* Result overlay */}
