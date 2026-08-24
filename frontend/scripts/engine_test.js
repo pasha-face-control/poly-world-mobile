@@ -291,5 +291,57 @@ if (anyWater) {
   } else { console.log("SKIP fishing-tech-gate (no water adj)"); }
 }
 
+// ---- Stalemate / Draw ----
+{
+  const mkTrapped = () => {
+    const g = generateGame({ tribe: "snow", opponents: 1, mapSize: 11, mapType: "continents", passAndPlay: false, seed: 4 });
+    g.units = [];
+    const T = 5 * g.width + 5; // interior tile with 8 neighbours
+    g.tiles[T].terrain = "grass";
+    g.tiles[T].resource = null;
+    g.tiles[T].building = null;
+    g.units.push({ id: "hm1", type: "merchant", owner: 0, tileId: T, hp: 10, maxHp: 10, moved: false, attacked: false, boat: null, cargo: [] });
+    const nb = engine.neighbors(g, T);
+    nb.forEach((n, i) => {
+      g.tiles[n].terrain = "grass";
+      g.units.push({ id: "e" + i, type: "warrior", owner: 1, tileId: n, hp: 10, maxHp: 10, moved: false, attacked: false, boat: null });
+    });
+    g.status = "playing";
+    g.stalemateTurns = 0;
+    return { g, T };
+  };
+
+  const { g } = mkTrapped();
+  ok("human is stalemated (boxed-in merchant, no military)", engine.isHumanStalemated(g));
+  engine.startPlayerTurn(g, 0);
+  ok("stalemate count 1, still playing", g.stalemateTurns === 1 && g.status === "playing");
+  engine.startPlayerTurn(g, 0);
+  engine.startPlayerTurn(g, 0);
+  ok("survives 3 turns of stalemate", g.stalemateTurns === 3 && g.status === "playing");
+  engine.startPlayerTurn(g, 0);
+  ok("draw after 3 turns", g.status === "draw");
+
+  // Change something during the countdown -> countdown resets, game continues.
+  const { g: g2, T: T2 } = mkTrapped();
+  engine.startPlayerTurn(g2, 0);
+  engine.startPlayerTurn(g2, 0);
+  ok("count 2 before change", g2.stalemateTurns === 2);
+  // free a neighbouring cell (an enemy moves away)
+  const freed = engine.neighbors(g2, T2)[0];
+  g2.units = g2.units.filter((u) => u.tileId !== freed);
+  engine.startPlayerTurn(g2, 0);
+  ok("countdown resets when a cell frees up", g2.stalemateTurns === 0 && g2.status === "playing");
+
+  // A military unit means never a stalemate.
+  const { g: g3 } = mkTrapped();
+  g3.units.push({ id: "hw", type: "warrior", owner: 0, tileId: g3.cities.find((c) => c.owner === 0).tileId, hp: 10, maxHp: 10, moved: false, attacked: false, boat: null });
+  ok("not stalemated with a military unit", !engine.isHumanStalemated(g3));
+
+  // No city => not a stalemate (that path is a normal loss/elimination).
+  const { g: g4 } = mkTrapped();
+  g4.cities = g4.cities.filter((c) => c.owner !== 0);
+  ok("not stalemated without a city", !engine.isHumanStalemated(g4));
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

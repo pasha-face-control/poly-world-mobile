@@ -76,13 +76,14 @@ export interface GameState {
   currentPlayer: number;
   turn: number;
   seed: number;
-  status: "playing" | "won" | "lost";
+  status: "playing" | "won" | "lost" | "draw";
   log: string[];
   createdAt: string;
   pendingLevelUps: string[]; // human city ids awaiting a level-up reward choice
   pendingSales?: Record<number, { goods: Partial<Record<GoodType, number>>; stars: number }>; // per-player merchant sales awaiting a notification
   pendingOffers?: { cityId: string; buyer: number; seller: number; price: number; level: number }[]; // city-purchase offers awaiting the human seller's accept/decline
   peacefulWin?: boolean; // human took the whole map by buying cities — everyone gets a "capital win", no one loses
+  stalemateTurns?: number; // consecutive human turns spent boxed-in with no military & trapped civilians — draw after 3
   closed?: boolean; // closed game: per-player fog + a "start turn" gate before each turn (pass & play)
   difficulty: Difficulty;
 }

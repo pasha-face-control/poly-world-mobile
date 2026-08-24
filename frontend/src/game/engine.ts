@@ -428,6 +428,16 @@ export function startPlayerTurn(state: GameState, player: number) {
   } else if (player === 0) {
     computeVisibility(state, 0);
   }
+  // Track a boxed-in human toward a draw. Any change (a freed cell, a new
+  // military unit, or a civilian that can move) resets the countdown.
+  if (player === 0 && state.status === "playing") {
+    if (isHumanStalemated(state)) {
+      state.stalemateTurns = (state.stalemateTurns ?? 0) + 1;
+      if (state.stalemateTurns >= 4) state.status = "draw";
+    } else {
+      state.stalemateTurns = 0;
+    }
+  }
 }
 
 // ---------- Player actions ----------
@@ -829,6 +839,28 @@ export function attackUnit(state: GameState, attackerId: string, targetTileId: n
 }
 
 // ---------- Turn flow ----------
+// A no-win deadlock for the human: they still hold a city but have no military
+// units to fight back, and every one of their civilian (merchant) units is boxed
+// in on all sides so it has nowhere to move. Held for 3 turns => the game is a draw.
+export function isHumanStalemated(state: GameState): boolean {
+  const hasCity = state.cities.some((c) => c.owner === 0);
+  if (!hasCity) return false;
+  const units = state.units.filter((u) => u.owner === 0);
+  const military = units.filter((u) => u.type !== "merchant");
+  if (military.length > 0) return false; // can still fight back
+  const civilians = units.filter((u) => u.type === "merchant");
+  if (civilians.length === 0) return false; // scenario requires trapped civilians
+  // Stalemate only if EVERY civilian unit is completely blocked in.
+  const anyCanMove = civilians.some((u) => reachableTiles(state, u, true).length > 0);
+  return !anyCanMove;
+}
+
+// Turns the human has left before a stalemate becomes a draw (0 = none pending).
+export function stalemateTurnsLeft(state: GameState): number {
+  const n = state.stalemateTurns ?? 0;
+  return n > 0 ? Math.max(0, 4 - n) : 0;
+}
+
 export function checkVictory(state: GameState) {
   for (const p of state.players) {
     const hasCity = state.cities.some((c) => c.owner === p.index);

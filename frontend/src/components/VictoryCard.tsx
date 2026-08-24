@@ -30,6 +30,7 @@ export default function VictoryCard({ state }: { state: GameState }) {
   const shotRef = useRef<ViewShot>(null);
   const [status, setStatus] = useState<"idle" | "sharing" | "unavailable">("idle");
   const won = state.status === "won";
+  const isDraw = state.status === "draw";
   const peaceful = won && !!state.peacefulWin;
   const tribe = TRIBE_BY_ID[state.players[0].tribe];
   const cities = state.cities.filter((c) => c.owner === 0).length;
@@ -58,11 +59,12 @@ export default function VictoryCard({ state }: { state: GameState }) {
   return (
     <View style={{ alignItems: "stretch", gap: SP.md }}>
       <ViewShot ref={shotRef} options={{ format: "png", quality: 0.95 }}>
-        <View style={[styles.card, { backgroundColor: won ? "#2E4A22" : "#3A2222" }]}>
+        <View style={[styles.card, { backgroundColor: isDraw ? "#33342A" : won ? "#2E4A22" : "#3A2222" }]}>
           <View style={styles.badge}>
-            <MaterialCommunityIcons name={peaceful ? "handshake" : won ? "trophy-variant" : "skull-crossbones"} size={44} color={won ? C.warning : "#E88"} />
+            <MaterialCommunityIcons name={isDraw ? "handshake-outline" : peaceful ? "handshake" : won ? "trophy-variant" : "skull-crossbones"} size={44} color={isDraw ? "#D8CFA6" : won ? C.warning : "#E88"} />
           </View>
-          <Text style={styles.outcome}>{peaceful ? "CAPITAL WIN" : won ? "VICTORY" : "DEFEAT"}</Text>
+          <Text style={styles.outcome}>{isDraw ? "DRAW" : peaceful ? "CAPITAL WIN" : won ? "VICTORY" : "DEFEAT"}</Text>
+          {isDraw && <Text style={styles.peaceNote}>Stalemate — your forces were boxed in with no way to fight back for 3 turns. The war ends undecided.</Text>}
           {peaceful && <Text style={styles.peaceNote}>You united the map by trade — a capital win for all. No one was defeated.</Text>}
           <View style={styles.tribeRow}>
             <View style={[styles.dot, { backgroundColor: tribe.color }]} />

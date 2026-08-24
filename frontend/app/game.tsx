@@ -28,7 +28,7 @@ import OfferModal from "@/src/components/OfferModal";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
 import { storage } from "@/src/utils/storage";
-import { attackableTiles, canBuyCity, canBuyVillage, canFish, canHunt, neighbors, reachableTiles, tileHasActions } from "@/src/game/engine";
+import { attackableTiles, canBuyCity, canBuyVillage, canFish, canHunt, neighbors, reachableTiles, stalemateTurnsLeft, tileHasActions } from "@/src/game/engine";
 import { TRIBE_BY_ID } from "@/src/game/data";
 import { UnitType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
@@ -331,6 +331,15 @@ export default function GameScreen() {
 
       <TopHUD state={state} topInset={insets.top} />
 
+      {state.status === "playing" && stalemateTurnsLeft(state) > 0 && (
+        <View pointerEvents="none" style={[styles.stalemateBanner, { top: insets.top + 52 }]} testID="stalemate-banner">
+          <MaterialCommunityIcons name="alert-octagon" size={16} color="#3A2A0E" />
+          <Text style={styles.stalemateText}>
+            Boxed in — no way to fight back. Draw in {stalemateTurnsLeft(state)} turn{stalemateTurnsLeft(state) > 1 ? "s" : ""}
+          </Text>
+        </View>
+      )}
+
       {toast && (
         <View pointerEvents="none" style={[styles.toast, { top: insets.top + 92 }]} testID="toast">
           <Text style={styles.toastText}>{toast}</Text>
@@ -598,6 +607,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#1d3b38" },
   toast: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(28,28,28,0.9)", paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, ...shadow(6) },
   toastText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+  stalemateBanner: { position: "absolute", alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#E7C24B", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, ...shadow(5) },
+  stalemateText: { color: "#3A2A0E", fontWeight: "900", fontSize: 12 },
   gate: { ...StyleSheet.absoluteFillObject, backgroundColor: "#1d3b38", alignItems: "center", justifyContent: "center", gap: 28, zIndex: 200 },
   gateLabel: { fontSize: 40, fontWeight: "900", color: "#F8F6F0", letterSpacing: 1 },
   gateBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#4F772D", paddingHorizontal: 44, paddingVertical: 16, borderRadius: 999 },
