@@ -4,8 +4,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import Slider from "@react-native-community/slider";
 import * as Haptics from "expo-haptics";
-import { haptic, playSfx, setHapticsOn, setSoundOn } from "@/src/utils/fx";
+import { haptic, playSfx, setHapticsOn, setSoundOn, setVolume } from "@/src/utils/fx";
 import { useFxSettings } from "@/src/utils/useFxSettings";
 
 import GameMap from "@/src/components/GameMap";
@@ -38,7 +39,7 @@ import { C, R, SP, shadow } from "@/src/theme";
 export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { soundOn, hapticsOn } = useFxSettings();
+  const { soundOn, hapticsOn, volume } = useFxSettings();
   const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
@@ -593,6 +594,26 @@ export default function GameScreen() {
               </View>
             </Pressable>
 
+            {soundOn && (
+              <View style={styles.volumeRow} testID="volume-row">
+                <MaterialCommunityIcons name="volume-medium" size={20} color={C.onSurfaceSecondary} />
+                <Slider
+                  testID="volume-slider"
+                  style={styles.slider}
+                  minimumValue={0}
+                  maximumValue={1}
+                  value={volume}
+                  step={0.05}
+                  minimumTrackTintColor={C.brand}
+                  maximumTrackTintColor={C.borderStrong}
+                  thumbTintColor={C.brand}
+                  onValueChange={(v) => setVolume(v)}
+                  onSlidingComplete={(v) => setVolume(v, true)}
+                />
+                <Text style={styles.volPct}>{Math.round(volume * 100)}%</Text>
+              </View>
+            )}
+
             <Pressable testID="toggle-haptics" style={styles.toggleRow} onPress={() => setHapticsOn(!hapticsOn)}>
               <MaterialCommunityIcons name={hapticsOn ? "vibrate" : "vibrate-off"} size={22} color={C.onSurface} />
               <Text style={styles.toggleLabel}>Vibration</Text>
@@ -647,6 +668,9 @@ const styles = StyleSheet.create({
   saveNote: { fontSize: 12, color: C.onSurfaceSecondary, textAlign: "center" },
   toggleRow: { flexDirection: "row", alignItems: "center", gap: SP.md, backgroundColor: C.surfaceSecondary, paddingVertical: 14, paddingHorizontal: SP.lg, borderRadius: R.md },
   toggleLabel: { flex: 1, fontSize: 16, fontWeight: "800", color: C.onSurface },
+  volumeRow: { flexDirection: "row", alignItems: "center", gap: SP.sm, paddingHorizontal: SP.sm, marginTop: -SP.xs },
+  slider: { flex: 1, height: 36 },
+  volPct: { width: 42, textAlign: "right", fontSize: 13, fontWeight: "800", color: C.onSurfaceSecondary },
   switch: { width: 48, height: 28, borderRadius: 999, backgroundColor: C.borderStrong, padding: 3, justifyContent: "center" },
   switchOn: { backgroundColor: C.brand },
   knob: { width: 22, height: 22, borderRadius: 999, backgroundColor: "#fff", ...shadow(2) },
