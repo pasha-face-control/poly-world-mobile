@@ -8,6 +8,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { GameProvider } from "@/src/game/store";
+import { initFx } from "@/src/utils/fx";
 
 // Disable logbox errors etc so that users can see the app
 // and agent works as expected.
@@ -31,6 +32,11 @@ export default function RootLayout() {
   // The entire app follows the device orientation (portrait or landscape).
   useEffect(() => {
     ScreenOrientation.unlockAsync().catch(() => {});
+  }, []);
+
+  // Load sound/vibration prefs and prime the SFX players.
+  useEffect(() => {
+    initFx();
   }, []);
 
   // If the CDN is unreachable we fall through on error rather than wedging

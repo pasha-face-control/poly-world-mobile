@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as Haptics from "expo-haptics";
+import { haptic } from "@/src/utils/fx";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Canvas, useFrame, useThree } from "@react-three/fiber/native";
 import * as THREE from "three";
@@ -157,7 +158,7 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
                 st.playerHp = Math.max(0, st.playerHp - 4);
                 hud.setHp(st.playerHp);
                 hud.flash();
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                haptic.notify(Haptics.NotificationFeedbackType.Error);
                 if (st.playerHp <= 0) finish("fail");
               }
             }
@@ -232,7 +233,7 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
       ctrl.current.shootCooldown = 0.45;
       st.arrows -= 1;
       hud.setArrows(st.arrows);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      haptic.impact(Haptics.ImpactFeedbackStyle.Medium);
 
       // launch arrow visual
       const dir = new THREE.Vector3();
@@ -272,7 +273,7 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
         else dmg = 1; // legs: 12 hits
         st.bullHp = Math.max(0, st.bullHp - dmg);
         st.hitFlashT = 0.18;
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        haptic.impact(Haptics.ImpactFeedbackStyle.Heavy);
         if (st.bullHp <= 0) {
           st.state = "dead";
           st.stateT = 0;

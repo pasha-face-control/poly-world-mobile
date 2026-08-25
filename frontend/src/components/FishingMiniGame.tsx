@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as Haptics from "expo-haptics";
+import { haptic } from "@/src/utils/fx";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Canvas, useFrame, useThree } from "@react-three/fiber/native";
 import * as THREE from "three";
@@ -52,7 +53,7 @@ function Scene({ ctrl, onPhase, onWorms, onResult }: { ctrl: React.MutableRefObj
       onPhase("waiting");
       st.t = 0;
       st.biteAt = 1.6 + Math.random() * 3.4; // fish bites after 1.6-5s
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      haptic.impact(Haptics.ImpactFeedbackStyle.Light);
     }
 
     if (c.phase === "waiting") {
@@ -61,7 +62,7 @@ function Scene({ ctrl, onPhase, onWorms, onResult }: { ctrl: React.MutableRefObj
         c.phase = "bite";
         onPhase("bite");
         st.biteElapsed = 0;
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        haptic.notify(Haptics.NotificationFeedbackType.Warning);
       }
     } else if (c.phase === "bite") {
       st.biteElapsed += d;
@@ -71,7 +72,7 @@ function Scene({ ctrl, onPhase, onWorms, onResult }: { ctrl: React.MutableRefObj
         c.phase = "done";
         onPhase("done");
         st.over = true;
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        haptic.notify(Haptics.NotificationFeedbackType.Success);
         onResult("catch");
       } else if (st.biteElapsed >= BITE_WINDOW) {
         // fish got away — worm already spent
