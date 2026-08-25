@@ -61,7 +61,7 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
     deadT: 0,
     hitFlashT: 0,
     // arrow projectile
-    arrow: { active: false, pos: new THREE.Vector3(), dir: new THREE.Vector3(), life: 0 },
+    arrow: { active: false, pos: new THREE.Vector3(), dir: new THREE.Vector3(), life: 0, maxLife: 0.35 },
   });
 
   useEffect(() => {
@@ -85,7 +85,7 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
     camera.rotation.y = ctrl.current.yaw;
     camera.rotation.x = ctrl.current.pitch;
 
-    // --- Player movement from the joystick ---
+    // --- Player movement from the joystick (blocked by tree trunks; slides along the axis that's still clear) ---
     if (!st.over) {
       const speed = 4.4;
       const yaw = ctrl.current.yaw;
@@ -93,8 +93,10 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
       const rightX = Math.cos(yaw), rightZ = -Math.sin(yaw);
       const mvx = fwdX * ctrl.current.moveZ + rightX * ctrl.current.moveX;
       const mvz = fwdZ * ctrl.current.moveZ + rightZ * ctrl.current.moveX;
-      camera.position.x = Math.max(-12, Math.min(12, camera.position.x + mvx * speed * delta));
-      camera.position.z = Math.max(-16, Math.min(22, camera.position.z + mvz * speed * delta));
+      const nextX = Math.max(-12, Math.min(12, camera.position.x + mvx * speed * delta));
+      const nextZ = Math.max(-16, Math.min(22, camera.position.z + mvz * speed * delta));
+      if (!treeBlocksPoint(nextX, camera.position.z, PLAYER_RADIUS)) camera.position.x = nextX;
+      if (!treeBlocksPoint(camera.position.x, nextZ, PLAYER_RADIUS)) camera.position.z = nextZ;
       camera.position.y = 1.65;
     }
     camera.updateMatrixWorld();
@@ -244,9 +246,23 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
       raycaster.setFromCamera(new THREE.Vector2(0, 0), camera as THREE.Camera);
       const grp = bullGroup.current;
       let part: string | null = null;
+      let bullDist = Infinity;
       if (grp) {
         const hits = raycaster.intersectObject(grp, true);
-        if (hits.length > 0) part = (hits[0].object.userData?.part as string) || "body";
+        if (hits.length > 0) {
+          bullDist = hits[0].distance;
+          part = (hits[0].object.userData?.part as string) || "body";
+        }
+      }
+
+      // a tree trunk/canopy in the way blocks the shot — no more sniping through solid wood.
+      // The visual arrow now stops right at the trunk instead of flying through it.
+      const treeDist = findTreeBlockDistance(camera.position, dir, Math.min(bullDist, 21));
+      if (treeDist !== null && treeDist < bullDist) {
+        part = null;
+        st.arrow.maxLife = treeDist / 60 + 0.02;
+      } else {
+        st.arrow.maxLife = 0.35;
       }
 
       if (part && st.state !== "dead") {
@@ -280,7 +296,7 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
       arrowRef.current.visible = true;
       arrowRef.current.position.copy(st.arrow.pos);
       arrowRef.current.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), st.arrow.dir);
-      if (st.arrow.life > 0.35) {
+      if (st.arrow.life > st.arrow.maxLife) {
         st.arrow.active = false;
         arrowRef.current.visible = false;
         if (st.arrows <= 0 && st.bullHp > 0 && st.state !== "dead") finish("fail");
@@ -392,20 +408,88 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
 }
 
 // A dense low-poly forest with rocks for depth and cover to wander through.
+// Generated once at module load so the hunter, arrows, and the render below all
+// agree on exactly where every trunk is — needed for solid collision.
+interface SceneryItem {
+  x: number;
+  z: number;
+  s: number;
+  tree: boolean;
+}
+
+function buildScenery(): SceneryItem[] {
+  const arr: SceneryItem[] = [];
+  const rng = (n: number) => ((Math.sin(n * 999.7) * 43758.5) % 1 + 1) % 1;
+  for (let i = 0; i < 54; i++) {
+    const x = (rng(i + 1) - 0.5) * 80;
+    const z = 22 - rng(i + 50) * 70; // spread across the whole path: z in [-48, 22]
+    // keep clearings around the hunter's spawn and the bull's home so nothing overlaps them
+    if (Math.abs(x) < 3 && Math.abs(z - PLAYER_START_Z) < 4) continue;
+    if (Math.abs(x) < 3 && Math.abs(z - START_Z) < 4) continue;
+    arr.push({ x, z, s: 1.2 + rng(i + 9) * 1.5, tree: rng(i + 3) > 0.22 });
+  }
+  return arr;
+}
+
+const SCENERY_ITEMS = buildScenery();
+
+// Solid collision volumes for every tree trunk/canopy, scaled to each tree's random size.
+// Rocks stay decorative (low & scattered) so they don't need collision.
+interface TreeObstacle {
+  x: number;
+  z: number;
+  trunkR: number;
+  trunkTop: number;
+  canopyR: number;
+  canopyTop: number;
+}
+
+const TREE_OBSTACLES: TreeObstacle[] = SCENERY_ITEMS.filter((it) => it.tree).map((it) => ({
+  x: it.x,
+  z: it.z,
+  trunkR: 0.42 * it.s,
+  trunkTop: 3.0 * it.s,
+  canopyR: 1.55 * it.s,
+  canopyTop: 6.6 * it.s,
+}));
+
+const PLAYER_RADIUS = 0.32;
+
+// Simple XZ circle test against every trunk — stops the hunter from walking through trees.
+function treeBlocksPoint(x: number, z: number, extraRadius = 0): boolean {
+  for (let i = 0; i < TREE_OBSTACLES.length; i++) {
+    const ob = TREE_OBSTACLES[i];
+    const r = ob.trunkR + extraRadius;
+    const dx = x - ob.x, dz = z - ob.z;
+    if (dx * dx + dz * dz < r * r) return true;
+  }
+  return false;
+}
+
+// Finds the nearest tree trunk/canopy a ray would pass through before `maxDist`,
+// so arrows (and the shot's hit-test) can't pass straight through solid wood.
+function findTreeBlockDistance(origin: THREE.Vector3, dir: THREE.Vector3, maxDist: number): number | null {
+  const a = dir.x * dir.x + dir.z * dir.z;
+  if (a < 1e-6) return null;
+  let best: number | null = null;
+  for (let i = 0; i < TREE_OBSTACLES.length; i++) {
+    const ob = TREE_OBSTACLES[i];
+    const dx = ob.x - origin.x, dz = ob.z - origin.z;
+    const t = (dx * dir.x + dz * dir.z) / a;
+    if (t < 0 || t > maxDist) continue;
+    const closeX = origin.x + t * dir.x, closeZ = origin.z + t * dir.z;
+    const distXZ = Math.hypot(closeX - ob.x, closeZ - ob.z);
+    const y = origin.y + t * dir.y;
+    let radius = 0;
+    if (y >= -0.2 && y <= ob.trunkTop) radius = ob.trunkR;
+    else if (y > ob.trunkTop && y <= ob.canopyTop) radius = ob.canopyR;
+    if (radius > 0 && distXZ <= radius && (best === null || t < best)) best = t;
+  }
+  return best;
+}
+
 function Scenery() {
-  const items = useMemo(() => {
-    const arr: { x: number; z: number; s: number; tree: boolean }[] = [];
-    const rng = (n: number) => ((Math.sin(n * 999.7) * 43758.5) % 1 + 1) % 1;
-    for (let i = 0; i < 54; i++) {
-      const x = (rng(i + 1) - 0.5) * 80;
-      const z = 22 - rng(i + 50) * 70; // spread across the whole path: z in [-48, 22]
-      // keep clearings around the hunter's spawn and the bull's home so nothing overlaps them
-      if (Math.abs(x) < 3 && Math.abs(z - PLAYER_START_Z) < 4) continue;
-      if (Math.abs(x) < 3 && Math.abs(z - START_Z) < 4) continue;
-      arr.push({ x, z, s: 1.2 + rng(i + 9) * 1.5, tree: rng(i + 3) > 0.22 });
-    }
-    return arr;
-  }, []);
+  const items = SCENERY_ITEMS;
   return (
     <>
       {items.map((it, i) =>
