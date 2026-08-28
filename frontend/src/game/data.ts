@@ -54,11 +54,11 @@ export const BUILDING_BY_ID: Record<string, BuildingDef> = Object.fromEntries(BU
 export const BUILDING_POP: Record<string, number> = { lumber_hut: 1, wheat_farm: 2, bull_farm: 2, horse_farm: 2, coal_mine: 2 };
 
 export const UNIT_DEFS: Record<UnitType, UnitDef> = {
-  warrior: { type: "warrior", name: "Warrior", icon: "sword", cost: 2, hp: 10, atk: 1, def: 1, move: 1, range: 1, requires: null },
+  warrior: { type: "warrior", name: "Warrior", icon: "sword", cost: 2, hp: 10, atk: 1, def: 1, move: 1, range: 1, requires: null, goods: { meat: 1 } },
   archer: { type: "archer", name: "Archer", icon: "bow-arrow", cost: 3, hp: 10, atk: 1, def: 1, move: 1, range: 2, requires: "hunting", goods: { meat: 1 } },
   beefeater: { type: "beefeater", name: "Beefeater", icon: "food-drumstick", cost: 5, hp: 12, atk: 1.5, def: 2, move: 1, range: 1, requires: "beef_eating", goods: { meat: 8 } },
-  catapult: { type: "catapult", name: "Catapult", icon: "bomb", cost: 8, hp: 10, atk: 2, def: 0, move: 1, range: 4, requires: "mathematics", goods: { wood: 8 } },
-  rider: { type: "rider", name: "Rider", icon: "horse-variant", cost: 5, hp: 10, atk: 1, def: 0.5, move: 2, range: 1, requires: "riding" },
+  catapult: { type: "catapult", name: "Catapult", icon: "bomb", cost: 8, hp: 10, atk: 2, def: 0, move: 1, range: 4, requires: "mathematics", goods: { wood: 16 } },
+  rider: { type: "rider", name: "Rider", icon: "horse-variant", cost: 3, hp: 10, atk: 1, def: 0.5, move: 2, range: 1, requires: "riding", goods: { horse: 1, wheat: 1 } },
   armored_rider: { type: "armored_rider", name: "Armored Rider", icon: "horse", cost: 3, hp: 10, atk: 1, def: 1.5, move: 2, range: 1, requires: "armor_production", goods: { wheat: 2, iron: 2, horse: 1 } },
   chivalry: { type: "chivalry", name: "Knight", icon: "shield-cross", cost: 8, hp: 10, atk: 2, def: 2, move: 3, range: 2, requires: "chivalry", goods: { wheat: 5, iron: 4, horse: 1 } },
   pikemen: { type: "pikemen", name: "Pikeman", icon: "chess-rook", cost: 5, hp: 15, atk: 1.5, def: 1.5, move: 1, range: 1, requires: "pike", goods: { meat: 2, iron: 2 } },
