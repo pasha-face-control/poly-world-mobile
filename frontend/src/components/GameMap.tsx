@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
+import { LayoutChangeEvent, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 import Svg, { Ellipse, Line, Polygon } from "react-native-svg";
@@ -8,6 +8,14 @@ import { C, shadow } from "@/src/theme";
 import { BOAT_DEFS, BUILDING_BY_ID, RESOURCE_ICON, TERRAIN_COLOR, TRIBE_BY_ID, UNIT_DEFS } from "@/src/game/data";
 import { canFish, canHunt } from "@/src/game/engine";
 import { GameState } from "@/src/game/types";
+
+// Pre-rendered low-poly 3D rider sprites, one per tribe color.
+const RIDER_SPRITES: Record<string, number> = {
+  nature: require("../../assets/images/rider/rider_nature.png"),
+  desert: require("../../assets/images/rider/rider_desert.png"),
+  volcanic: require("../../assets/images/rider/rider_volcanic.png"),
+  snow: require("../../assets/images/rider/rider_snow.png"),
+};
 
 // Isometric (2.5D) metrics.
 export const TILE = 76;
@@ -36,6 +44,9 @@ interface Props {
 
 function playerColor(state: GameState, owner: number): string {
   return TRIBE_BY_ID[state.players[owner].tribe].color;
+}
+function riderSprite(state: GameState, owner: number): number {
+  return RIDER_SPRITES[state.players[owner].tribe] ?? RIDER_SPRITES.nature;
 }
 function hexToRgba(hex: string, a: number): string {
   const h = hex.replace("#", "");
@@ -182,7 +193,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
   const animOffX = useSharedValue(0);
   const animOffY = useSharedValue(0);
   const animPos = useRef({ x: 0, y: 0 });
-  const [animUnit, setAnimUnit] = useState<{ id: string; color: string; icon: string; boat: string | null } | null>(null);
+  const [animUnit, setAnimUnit] = useState<{ id: string; color: string; icon: string; boat: string | null; sprite: number | null } | null>(null);
 
   // Gentle pulse for the "huntable" glow around wild animals inside your borders.
   const glowPulse = useSharedValue(0);
@@ -258,7 +269,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     animPos.current = { x: txp, y: typ };
     animOffX.value = fx - txp;
     animOffY.value = fy - typ;
-    setAnimUnit({ id: unit.id, color: playerColor(state, unit.owner), icon: unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon, boat: unit.boat });
+    setAnimUnit({ id: unit.id, color: playerColor(state, unit.owner), icon: unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon, boat: unit.boat, sprite: unit.type === "rider" && !unit.boat ? riderSprite(state, unit.owner) : null });
     animOffX.value = withTiming(0, { duration: 300 });
     animOffY.value = withTiming(0, { duration: 300 }, (fin) => {
       if (fin) runOnJS(setAnimUnit)(null);
@@ -444,7 +455,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     else if (t.isVillage) drawCity(terrainShapes, cx, surfY, t.claimBy != null ? playerColor(state, t.claimBy) : C.borderStrong, false, k);
     if (unit && !city && unit.id !== animUnit?.id) {
       if (unit.boat) drawBoat(terrainShapes, cx, surfY, playerColor(state, unit.owner), unit.boat, k);
-      else drawUnit(terrainShapes, cx, surfY, playerColor(state, unit.owner), k);
+      else if (unit.type !== "rider") drawUnit(terrainShapes, cx, surfY, playerColor(state, unit.owner), k);
     } else if (!city && t.resource === "animal" && !t.building) drawBull(terrainShapes, cx - 4, surfY, k);
   }
 
@@ -509,11 +520,19 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                 )}
                 {unit && !city && unit.id !== animUnit?.id && (
                   <>
+                    {unit.type === "rider" && !unit.boat && (
+                      <Image
+                        source={riderSprite(state, unit.owner)}
+                        pointerEvents="none"
+                        style={{ position: "absolute", left: cx - 24, top: baseY - 44, width: 48, height: 52 }}
+                        resizeMode="contain"
+                      />
+                    )}
                     <MaterialCommunityIcons
                       name={(unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon) as any}
                       size={17}
                       color="#FFFFFF"
-                      style={{ position: "absolute", left: cx - 8.5, top: baseY - 24 }}
+                      style={{ position: "absolute", left: cx - 8.5, top: (unit.type === "rider" && !unit.boat ? baseY - 60 : baseY - 24) }}
                     />
                     <View style={[styles.hpBarBg, { left: cx - 14, top: baseY + 5 }]}>
                       <View style={[styles.hpBar, { width: `${Math.max(0, (unit.hp / unit.maxHp) * 100)}%` }]} />
@@ -531,15 +550,19 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
               pointerEvents="none"
               style={[{ position: "absolute", left: animPos.current.x - 30, top: animPos.current.y - 48, width: 60, height: 64 }, animTokenStyle]}
             >
-              <Svg width={60} height={64}>
-                {(() => {
-                  const arr: React.ReactNode[] = [];
-                  if (animUnit.boat) drawBoat(arr, 30, 48, animUnit.color, animUnit.boat, "anim");
-                  else drawUnit(arr, 30, 48, animUnit.color, "anim");
-                  return arr;
-                })()}
-              </Svg>
-              <MaterialCommunityIcons name={animUnit.icon as any} size={17} color="#FFFFFF" style={{ position: "absolute", left: 21.5, top: 24 }} />
+              {animUnit.sprite ? (
+                <Image source={animUnit.sprite} pointerEvents="none" style={{ position: "absolute", left: 6, top: 4, width: 48, height: 52 }} resizeMode="contain" />
+              ) : (
+                <Svg width={60} height={64}>
+                  {(() => {
+                    const arr: React.ReactNode[] = [];
+                    if (animUnit.boat) drawBoat(arr, 30, 48, animUnit.color, animUnit.boat, "anim");
+                    else drawUnit(arr, 30, 48, animUnit.color, "anim");
+                    return arr;
+                  })()}
+                </Svg>
+              )}
+              <MaterialCommunityIcons name={animUnit.icon as any} size={17} color="#FFFFFF" style={{ position: "absolute", left: 21.5, top: animUnit.sprite ? -12 : 24 }} />
             </Animated.View>
           )}
         </Animated.View>
