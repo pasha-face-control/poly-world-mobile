@@ -9,12 +9,20 @@ import { BOAT_DEFS, BUILDING_BY_ID, RESOURCE_ICON, TERRAIN_COLOR, TRIBE_BY_ID, U
 import { canFish, canHunt } from "@/src/game/engine";
 import { GameState } from "@/src/game/types";
 
-// Pre-rendered low-poly 3D rider sprites, one per tribe color.
-const RIDER_SPRITES: Record<string, number> = {
-  nature: require("../../assets/images/rider/rider_nature.png"),
-  desert: require("../../assets/images/rider/rider_desert.png"),
-  volcanic: require("../../assets/images/rider/rider_volcanic.png"),
-  snow: require("../../assets/images/rider/rider_snow.png"),
+// Pre-rendered low-poly 3D unit sprites, one per tribe colour.
+const MODEL_SPRITES: Record<string, Record<string, number>> = {
+  rider: {
+    nature: require("../../assets/images/rider/rider_nature.png"),
+    desert: require("../../assets/images/rider/rider_desert.png"),
+    volcanic: require("../../assets/images/rider/rider_volcanic.png"),
+    snow: require("../../assets/images/rider/rider_snow.png"),
+  },
+  chivalry: {
+    nature: require("../../assets/images/knight/knight_nature.png"),
+    desert: require("../../assets/images/knight/knight_desert.png"),
+    volcanic: require("../../assets/images/knight/knight_volcanic.png"),
+    snow: require("../../assets/images/knight/knight_snow.png"),
+  },
 };
 
 // Isometric (2.5D) metrics.
@@ -45,8 +53,10 @@ interface Props {
 function playerColor(state: GameState, owner: number): string {
   return TRIBE_BY_ID[state.players[owner].tribe].color;
 }
-function riderSprite(state: GameState, owner: number): number {
-  return RIDER_SPRITES[state.players[owner].tribe] ?? RIDER_SPRITES.nature;
+function modelSprite(state: GameState, owner: number, type: string): number | null {
+  const set = MODEL_SPRITES[type];
+  if (!set) return null;
+  return set[state.players[owner].tribe] ?? set.nature;
 }
 function hexToRgba(hex: string, a: number): string {
   const h = hex.replace("#", "");
@@ -269,7 +279,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     animPos.current = { x: txp, y: typ };
     animOffX.value = fx - txp;
     animOffY.value = fy - typ;
-    setAnimUnit({ id: unit.id, color: playerColor(state, unit.owner), icon: unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon, boat: unit.boat, sprite: unit.type === "rider" && !unit.boat ? riderSprite(state, unit.owner) : null });
+    setAnimUnit({ id: unit.id, color: playerColor(state, unit.owner), icon: unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon, boat: unit.boat, sprite: !unit.boat ? modelSprite(state, unit.owner, unit.type) : null });
     animOffX.value = withTiming(0, { duration: 300 });
     animOffY.value = withTiming(0, { duration: 300 }, (fin) => {
       if (fin) runOnJS(setAnimUnit)(null);
@@ -455,7 +465,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     else if (t.isVillage) drawCity(terrainShapes, cx, surfY, t.claimBy != null ? playerColor(state, t.claimBy) : C.borderStrong, false, k);
     if (unit && !city && unit.id !== animUnit?.id) {
       if (unit.boat) drawBoat(terrainShapes, cx, surfY, playerColor(state, unit.owner), unit.boat, k);
-      else if (unit.type !== "rider") drawUnit(terrainShapes, cx, surfY, playerColor(state, unit.owner), k);
+      else if (!MODEL_SPRITES[unit.type]) drawUnit(terrainShapes, cx, surfY, playerColor(state, unit.owner), k);
     } else if (!city && t.resource === "animal" && !t.building) drawBull(terrainShapes, cx - 4, surfY, k);
   }
 
@@ -520,9 +530,9 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                 )}
                 {unit && !city && unit.id !== animUnit?.id && (
                   <>
-                    {unit.type === "rider" && !unit.boat && (
+                    {!unit.boat && MODEL_SPRITES[unit.type] && (
                       <Image
-                        source={riderSprite(state, unit.owner)}
+                        source={modelSprite(state, unit.owner, unit.type)!}
                         pointerEvents="none"
                         style={{ position: "absolute", left: cx - 24, top: baseY - 44, width: 48, height: 52 }}
                         resizeMode="contain"
@@ -532,7 +542,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                       name={(unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon) as any}
                       size={17}
                       color="#FFFFFF"
-                      style={{ position: "absolute", left: cx - 8.5, top: (unit.type === "rider" && !unit.boat ? baseY - 60 : baseY - 24) }}
+                      style={{ position: "absolute", left: cx - 8.5, top: (!unit.boat && MODEL_SPRITES[unit.type] ? baseY - 60 : baseY - 24) }}
                     />
                     <View style={[styles.hpBarBg, { left: cx - 14, top: baseY + 5 }]}>
                       <View style={[styles.hpBar, { width: `${Math.max(0, (unit.hp / unit.maxHp) * 100)}%` }]} />
