@@ -23,6 +23,36 @@ const MODEL_SPRITES: Record<string, Record<string, number>> = {
     volcanic: require("../../assets/images/knight/knight_volcanic.png"),
     snow: require("../../assets/images/knight/knight_snow.png"),
   },
+  pikemen: {
+    nature: require("../../assets/images/pikemen/pikemen_nature.png"),
+    desert: require("../../assets/images/pikemen/pikemen_desert.png"),
+    volcanic: require("../../assets/images/pikemen/pikemen_volcanic.png"),
+    snow: require("../../assets/images/pikemen/pikemen_snow.png"),
+  },
+  merchant: {
+    nature: require("../../assets/images/merchant/merchant_nature.png"),
+    desert: require("../../assets/images/merchant/merchant_desert.png"),
+    volcanic: require("../../assets/images/merchant/merchant_volcanic.png"),
+    snow: require("../../assets/images/merchant/merchant_snow.png"),
+  },
+  catapult: {
+    nature: require("../../assets/images/catapult/catapult_nature.png"),
+    desert: require("../../assets/images/catapult/catapult_desert.png"),
+    volcanic: require("../../assets/images/catapult/catapult_volcanic.png"),
+    snow: require("../../assets/images/catapult/catapult_snow.png"),
+  },
+  armored_rider: {
+    nature: require("../../assets/images/armored_rider/armored_rider_nature.png"),
+    desert: require("../../assets/images/armored_rider/armored_rider_desert.png"),
+    volcanic: require("../../assets/images/armored_rider/armored_rider_volcanic.png"),
+    snow: require("../../assets/images/armored_rider/armored_rider_snow.png"),
+  },
+  beefeater: {
+    nature: require("../../assets/images/beefeater/beefeater_nature.png"),
+    desert: require("../../assets/images/beefeater/beefeater_desert.png"),
+    volcanic: require("../../assets/images/beefeater/beefeater_volcanic.png"),
+    snow: require("../../assets/images/beefeater/beefeater_snow.png"),
+  },
 };
 
 // Isometric (2.5D) metrics.
