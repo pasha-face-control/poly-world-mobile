@@ -15,11 +15,8 @@ TRIBES = {"nature": "#4F772D", "desert": "#E5A93A", "volcanic": "#BC4749", "snow
 
 # model file (in /tmp/model) -> unit type (asset folder + sprite prefix)
 MODELS = {
-    "pikeman": "pikemen",
-    "merchant": "merchant",
-    "catapult": "catapult",
-    "armored_rider": "armored_rider",
-    "beefeater": "beefeater",
+    "warrior": "warrior",
+    "archer": "archer",
 }
 
 COMP = {5120:("b",1),5121:("B",1),5122:("h",2),5123:("H",2),5125:("I",4),5126:("f",4)}

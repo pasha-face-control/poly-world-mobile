@@ -11,6 +11,18 @@ import { GameState } from "@/src/game/types";
 
 // Pre-rendered low-poly 3D unit sprites, one per tribe colour.
 const MODEL_SPRITES: Record<string, Record<string, number>> = {
+  warrior: {
+    nature: require("../../assets/images/warrior/warrior_nature.png"),
+    desert: require("../../assets/images/warrior/warrior_desert.png"),
+    volcanic: require("../../assets/images/warrior/warrior_volcanic.png"),
+    snow: require("../../assets/images/warrior/warrior_snow.png"),
+  },
+  archer: {
+    nature: require("../../assets/images/archer/archer_nature.png"),
+    desert: require("../../assets/images/archer/archer_desert.png"),
+    volcanic: require("../../assets/images/archer/archer_volcanic.png"),
+    snow: require("../../assets/images/archer/archer_snow.png"),
+  },
   rider: {
     nature: require("../../assets/images/rider/rider_nature.png"),
     desert: require("../../assets/images/rider/rider_desert.png"),
