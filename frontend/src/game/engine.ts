@@ -812,6 +812,9 @@ export function attackUnit(state: GameState, attackerId: string, targetTileId: n
   const defender = unitAt(state, targetTileId);
   if (!defender) return false;
 
+  // Any unit attacked by another player provokes its owner (peaceful bots then fight back).
+  if (defender.owner !== attacker.owner) state.players[defender.owner].provoked = true;
+
   // ---- Knight (chivalry) special: one-shot any unit at 10 HP or less and persist ----
   // It kills adjacent enemies one-by-one — moving into each fallen unit's tile — until it
   // meets a gap (no adjacent enemy) or an enemy with more than 10 HP.

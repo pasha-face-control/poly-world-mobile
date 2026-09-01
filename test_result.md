@@ -157,12 +157,14 @@
 
 ## test_plan:
 ##   current_focus:
-##     - "Unit movement + glide animation"
-##     - "City level-up reward choice modal"
-##     - "Build panel infrastructure (Road/Port/Clear Forest) + Merchant unit chip"
+##     - "Peaceful difficulty: bots must NOT attack the player until the player attacks them first (provoked flag)"
 ##   stuck_tasks: []
 ##   test_all: false
 ##   test_priority: "high_first"
+
+## agent_communication:
+##     -agent: "main"
+##     -message: "ITERATION 7 — BUG FIX (Peaceful difficulty AI). Reported: in Peaceful mode bots attacked the player even though the player never attacked them. Root cause: peaceful DIFF had aggressive:false (won't hunt) BUT attackChance:1 and ai.ts still called tryAttack() every turn, so any player unit that came into a peaceful bot's range got hit. Fix: added Player.provoked flag (src/game/types.ts); engine.attackUnit now sets state.players[defender.owner].provoked=true whenever a unit is attacked by a different owner (src/game/engine.ts); ai.ts now gates fighting with mayFight = cfg.aggressive || players[player].provoked, so PEACEFUL bots never strike first and only retaliate AFTER the player attacks one of their units (src/game/ai.ts). NOTE: this is a 100% client-side TS engine (NO backend, NO API). The authoritative verification is the headless harness: run `cd /app/frontend && node scripts/engine_test.js` — it must print 'RESULT: 77 passed, 0 failed' and include PASS lines: 'peaceful bot does NOT strike first', 'attacking a peaceful bot provokes it', 'provoked peaceful bot fights back'. ALSO do a light FRONTEND smoke: New Game with Difficulty=Peaceful (testID difficulty-peaceful), start (testID start-game), skip tutorial, press End Turn ~3 times and confirm turn advances T1->T2->T3 with no blank/red crash. Viewport 390x844; 100% client-side; do NOT test backend. Unrelated visual change also shipped (Knight sprite rendered smaller) — no need to test."
 
 ## agent_communication:
 ##     -agent: "main"

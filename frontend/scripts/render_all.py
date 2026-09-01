@@ -79,8 +79,8 @@ def load(name):
 def is_blank(c):
     return bool(np.all(np.abs(c-0.8)<0.03))
 
-# Per-type extra scale (mounted units rendered 2x smaller than the shared scale).
-SCALE = {"rider": 0.5, "armored_rider": 0.5, "chivalry": 0.5}
+# Per-type extra scale (mounted units rendered smaller than the shared scale).
+SCALE = {"rider": 0.5, "armored_rider": 0.5, "chivalry": 0.25}
 
 LIGHT=np.array([0.4,0.5,0.8]); LIGHT/=np.linalg.norm(LIGHT)
 

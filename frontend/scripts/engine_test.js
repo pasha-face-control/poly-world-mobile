@@ -196,10 +196,11 @@ if (anyWater) {
   ok("trading_overseas costs 15", dataMod.TECH_BY_ID.trading_overseas.cost === 15);
 }
 
-// ---- Difficulty: peaceful bots defend when attacked-adjacent ----
+// ---- Difficulty: peaceful bots never strike first; only retaliate once provoked ----
 {
   const ai = require("../src/game/ai.ts");
   const grid = require("../src/game/grid.ts");
+  const engine = require("../src/game/engine.ts");
   const { newUnit: mk2 } = require("../src/game/factory.ts");
   const g2 = generateGame({ tribe: "nature", opponents: 1, mapSize: 11, mapType: "pangea", difficulty: "peaceful", passAndPlay: false, seed: 7 });
   ok("difficulty stored on state", g2.difficulty === "peaceful");
@@ -218,9 +219,26 @@ if (anyWater) {
     bot.moved = false; bot.attacked = false;
     g2.units.push(human, bot);
     const hpBefore = human.hp;
+    // Unprovoked: the peaceful bot must NOT attack the adjacent human unit.
     ai.runAiTurn(g2, 1);
-    const stillThere = g2.units.find((u) => u.id === human.id);
-    ok("peaceful bot defends adjacent enemy", !stillThere || stillThere.hp < hpBefore);
+    const afterPassive = g2.units.find((u) => u.id === human.id);
+    ok("peaceful bot does NOT strike first", afterPassive && afterPassive.hp === hpBefore && !g2.players[1].provoked);
+    // Now the human attacks the bot -> bot becomes provoked and retaliates next turn.
+    const botUnit = g2.units.find((u) => u.id === bot.id);
+    botUnit.moved = false; botUnit.attacked = false;
+    engine.attackUnit(g2, human.id, botUnit.tileId);
+    ok("attacking a peaceful bot provokes it", g2.players[1].provoked === true);
+    const botAlive = g2.units.find((u) => u.id === bot.id);
+    if (botAlive) {
+      botAlive.moved = false; botAlive.attacked = false;
+      const humanAlive = g2.units.find((u) => u.id === human.id);
+      if (humanAlive) {
+        const hp2 = humanAlive.hp;
+        ai.runAiTurn(g2, 1);
+        const afterProvoked = g2.units.find((u) => u.id === human.id);
+        ok("provoked peaceful bot fights back", !afterProvoked || afterProvoked.hp < hp2);
+      } else { console.log("SKIP provoked retaliation (human died to counter)"); }
+    } else { console.log("SKIP provoked retaliation (bot died)"); }
   } else { console.log("SKIP peaceful defense (no adjacent grass)"); }
 }
 

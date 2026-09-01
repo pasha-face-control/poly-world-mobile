@@ -1,0 +1,24 @@
+{
+  "summary": "Peaceful bot bug fix verified. Engine harness (node scripts/engine_test.js) reports 'RESULT: 77 passed, 0 failed' with the three required PASS lines: 'peaceful bot does NOT strike first', 'attacking a peaceful bot provokes it', 'provoked peaceful bot fights back'. Frontend smoke on mobile viewport (390x844): New Game -> Single Player -> difficulty-peaceful -> start-game -> Skip tutorial worked. game-screen renders correctly; End Turn advanced turn indicator T1 -> T2 -> T3 -> T4 across 3 taps. No red screen / crash / blank state detected. Only benign React Native Web deprecation warnings ('shadow*' style props, props.pointerEvents) observed in console.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "RN Web deprecation", "issue": "Console warnings: 'shadow*' style props deprecated (use boxShadow); props.pointerEvents deprecated (use style.pointerEvents). Non-blocking but should be cleaned up."}
+    ]
+  },
+  "test_report_links": ["/app/frontend/scripts/engine_test.js"],
+  "action_items": [
+    "Optional: migrate 'shadow*' style props to 'boxShadow' and inline pointerEvents to style.pointerEvents to remove RN Web deprecation warnings."
+  ],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (no backend)", "frontend": "100%"},
+  "seed_data_creation": "None. localStorage keys hextribes_save_v1 / hextribes_tutorial_seen_v1 cleared before test to ensure clean start.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Engine tests live at /app/frontend/scripts/engine_test.js and cover all game logic including peaceful AI rule. Frontend flow: New Game (testID menu-new-game) -> tap 'Single Player' text -> difficulty-peaceful -> start-game -> Skip tutorial text -> game-screen with End Turn testID='end-turn'. Clear localStorage keys hextribes_save_v1 / hextribes_tutorial_seen_v1 for a clean run.",
+  "rca_of_issue": "Fix (per E1): added Player.provoked flag; engine.attackUnit sets provoked=true on the defender's owner; ai.ts only engages combat when cfg.aggressive || provoked, so peaceful (aggressive=false) bots stay passive until the human attacks them, matching the required rule. Verified deterministically by engine_test.js."
+}

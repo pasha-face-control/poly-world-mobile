@@ -232,7 +232,9 @@ export function runAiTurn(state: GameState, player: number) {
   for (const u of myUnits) {
     if (u.type === "merchant") continue;
     if (!state.units.find((x) => x.id === u.id)) continue; // may have died
-    const canFight = Math.random() < cfg.attackChance;
+    // Peaceful bots never strike first — they only fight back after being attacked.
+    const mayFight = cfg.aggressive || !!state.players[player].provoked;
+    const canFight = mayFight && Math.random() < cfg.attackChance;
     if (canFight && tryAttack(state, u)) continue;
 
     const objectives = objectiveTiles(state, player, cfg.aggressive);
