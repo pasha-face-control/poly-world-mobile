@@ -79,6 +79,9 @@ def load(name):
 def is_blank(c):
     return bool(np.all(np.abs(c-0.8)<0.03))
 
+# Per-type extra scale (mounted units rendered 2x smaller than the shared scale).
+SCALE = {"rider": 0.5, "armored_rider": 0.5, "chivalry": 0.5}
+
 LIGHT=np.array([0.4,0.5,0.8]); LIGHT/=np.linalg.norm(LIGHT)
 
 # --- pass 1: load all, find global scale ---
@@ -115,21 +118,31 @@ def draw(name, key, tint):
     fig.savefig(p,transparent=True); plt.close(fig)
     return p
 
-paths={}
-for name in MODELS:
-    for key,hx in TRIBES.items():
-        paths[(name,key)]=draw(name,key,hex_rgb(hx))
-
-# --- pass 3: shared union crop across ALL images ---
+# shared union crop across all (full-scale, grounded) renders
 ux0=uy0=1e9; ux1=uy1=-1
-for p in paths.values():
-    bb=Image.open(p).convert("RGBA").getbbox()
+for name in MODELS:
+    bb=Image.open(draw(name,"_c",hex_rgb(TRIBES["nature"]))).convert("RGBA").getbbox()
     if bb:
         ux0=min(ux0,bb[0]); uy0=min(uy0,bb[1]); ux1=max(ux1,bb[2]); uy1=max(uy1,bb[3])
-crop=(ux0,uy0,ux1,uy1)
-print("shared crop", crop, "size", (ux1-ux0, uy1-uy0))
-for (name,key),p in paths.items():
-    utype=MODELS[name]
+crop=(ux0,uy0,ux1,uy1); CW,CH=ux1-ux0,uy1-uy0
+print("shared crop", crop, "size", (CW, CH))
+
+def shrink_bottom_center(im, factor):
+    """Scale a sprite down by `factor` and re-anchor bottom-centre on the same canvas
+    so feet stay on the ground line and horizontal centre is preserved."""
+    w,h=im.size
+    nw,nh=max(1,int(w*factor)),max(1,int(h*factor))
+    small=im.resize((nw,nh), Image.LANCZOS)
+    canvas=Image.new("RGBA",(w,h),(0,0,0,0))
+    canvas.paste(small,((w-nw)//2, h-nh),small)
+    return canvas
+
+# final sprites, per tribe; mounted types shrunk in 2D and re-grounded
+for name in MODELS:
+    utype=MODELS[name]; f=SCALE.get(utype,1.0)
     out=os.path.join(ASSETS,utype); os.makedirs(out,exist_ok=True)
-    Image.open(p).convert("RGBA").crop(crop).save(os.path.join(out,f"{utype}_{key}.png"))
-print("done; sprite size =", (ux1-ux0, uy1-uy0))
+    for key,hx in TRIBES.items():
+        im=Image.open(draw(name,key,hex_rgb(hx))).convert("RGBA").crop(crop)
+        if f!=1.0: im=shrink_bottom_center(im,f)
+        im.save(os.path.join(out,f"{utype}_{key}.png"))
+print("done; sprite size =", (CW, CH))
