@@ -17,6 +17,12 @@ const MODEL_SPRITES: Record<string, Record<string, number>> = {
     volcanic: require("../../assets/images/warrior/warrior_volcanic.png"),
     snow: require("../../assets/images/warrior/warrior_snow.png"),
   },
+  swordsmen: {
+    nature: require("../../assets/images/swordsmen/swordsmen_nature.png"),
+    desert: require("../../assets/images/swordsmen/swordsmen_desert.png"),
+    volcanic: require("../../assets/images/swordsmen/swordsmen_volcanic.png"),
+    snow: require("../../assets/images/swordsmen/swordsmen_snow.png"),
+  },
   archer: {
     nature: require("../../assets/images/archer/archer_nature.png"),
     desert: require("../../assets/images/archer/archer_desert.png"),
