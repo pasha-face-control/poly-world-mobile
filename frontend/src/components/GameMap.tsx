@@ -582,7 +582,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                       <Image
                         source={modelSprite(state, unit.owner, unit.type)!}
                         pointerEvents="none"
-                        style={{ position: "absolute", left: cx - 24, top: baseY - 44, width: 48, height: 52 }}
+                        style={{ position: "absolute", left: cx - 40, top: baseY - 54, width: 80, height: 66 }}
                         resizeMode="contain"
                       />
                     )}
@@ -590,7 +590,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                       name={(unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon) as any}
                       size={17}
                       color="#FFFFFF"
-                      style={{ position: "absolute", left: cx - 8.5, top: (!unit.boat && MODEL_SPRITES[unit.type] ? baseY - 60 : baseY - 24) }}
+                      style={{ position: "absolute", left: cx - 8.5, top: (!unit.boat && MODEL_SPRITES[unit.type] ? baseY - 66 : baseY - 24) }}
                     />
                     <View style={[styles.hpBarBg, { left: cx - 14, top: baseY + 5 }]}>
                       <View style={[styles.hpBar, { width: `${Math.max(0, (unit.hp / unit.maxHp) * 100)}%` }]} />
@@ -609,7 +609,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
               style={[{ position: "absolute", left: animPos.current.x - 30, top: animPos.current.y - 48, width: 60, height: 64 }, animTokenStyle]}
             >
               {animUnit.sprite ? (
-                <Image source={animUnit.sprite} pointerEvents="none" style={{ position: "absolute", left: 6, top: 4, width: 48, height: 52 }} resizeMode="contain" />
+                <Image source={animUnit.sprite} pointerEvents="none" style={{ position: "absolute", left: -10, top: -6, width: 80, height: 66 }} resizeMode="contain" />
               ) : (
                 <Svg width={60} height={64}>
                   {(() => {
@@ -620,7 +620,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                   })()}
                 </Svg>
               )}
-              <MaterialCommunityIcons name={animUnit.icon as any} size={17} color="#FFFFFF" style={{ position: "absolute", left: 21.5, top: animUnit.sprite ? -12 : 24 }} />
+              <MaterialCommunityIcons name={animUnit.icon as any} size={17} color="#FFFFFF" style={{ position: "absolute", left: 21.5, top: animUnit.sprite ? -18 : 24 }} />
             </Animated.View>
           )}
         </Animated.View>
