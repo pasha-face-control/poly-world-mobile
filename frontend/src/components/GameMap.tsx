@@ -36,10 +36,10 @@ const MODEL_SPRITES: Record<string, Record<string, number>> = {
     snow: require("../../assets/images/rider/rider_snow.png"),
   },
   chivalry: {
-    nature: require("../../assets/images/knight/knight_nature.png"),
-    desert: require("../../assets/images/knight/knight_desert.png"),
-    volcanic: require("../../assets/images/knight/knight_volcanic.png"),
-    snow: require("../../assets/images/knight/knight_snow.png"),
+    nature: require("../../assets/images/chivalry/chivalry_nature.png"),
+    desert: require("../../assets/images/chivalry/chivalry_desert.png"),
+    volcanic: require("../../assets/images/chivalry/chivalry_volcanic.png"),
+    snow: require("../../assets/images/chivalry/chivalry_snow.png"),
   },
   pikemen: {
     nature: require("../../assets/images/pikemen/pikemen_nature.png"),
