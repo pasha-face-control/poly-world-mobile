@@ -159,6 +159,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const loaded = JSON.parse(raw) as GameState;
       if (!loaded.pendingLevelUps) loaded.pendingLevelUps = [];
       if (!loaded.difficulty) loaded.difficulty = "normal";
+      // Ensure every player has a complete goods record + flags (older saves
+      // may be missing keys, which would crash the HUD reading `goods.wood`).
+      for (const p of loaded.players || []) {
+        const g = (p.goods || {}) as Partial<Record<GoodType, number>>;
+        p.goods = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, ...g };
+        if (p.provoked === undefined) p.provoked = false;
+      }
       // Migrate old (record-based) merchant cargo to the new slot array.
       for (const u of loaded.units) {
         if (u.type === "merchant" && u.cargo && !Array.isArray(u.cargo)) {
