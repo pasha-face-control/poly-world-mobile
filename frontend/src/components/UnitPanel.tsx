@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
 import { C, R, SP, shadow } from "@/src/theme";
 import { BOAT_DEFS, UNIT_DEFS, unitStats } from "@/src/game/data";
 import { canEmbark, canUpgradeBoat, nextBoatTier } from "@/src/game/engine";

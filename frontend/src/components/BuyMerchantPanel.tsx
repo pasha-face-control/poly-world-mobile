@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ScrollView, Pressable, StyleSheet, Text, View } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
 import { C, R, SP, shadow } from "@/src/theme";
 import { GOODS, TRIBE_BY_ID } from "@/src/game/data";
 import { GameState, GoodType, Unit } from "@/src/game/types";

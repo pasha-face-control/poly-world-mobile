@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
 import { C, R, SP, shadow } from "@/src/theme";
 
 interface Step { icon: string; title: string; body: string }

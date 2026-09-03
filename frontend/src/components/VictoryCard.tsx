@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import ViewShot, { captureRef } from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
 import { C, R, SP, shadow } from "@/src/theme";
 import { TRIBE_BY_ID } from "@/src/game/data";
 import { GameState } from "@/src/game/types";

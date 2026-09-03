@@ -43,6 +43,8 @@ Build a game similar to The Battle of Polytopia. Client-side, local persistence.
 
 - **Peaceful difficulty is truly peaceful**: peaceful bots never strike first. `Player.provoked` (types.ts) is set on a defender's owner inside `engine.attackUnit` whenever a unit is attacked by a different owner; `ai.ts` only fights when `cfg.aggressive || provoked` (peaceful has `aggressive:false`), so a peaceful bot stays passive until the human attacks one of its units, then retaliates. Covered by `scripts/engine_test.js` (77/77): "peaceful bot does NOT strike first", "attacking a peaceful bot provokes it", "provoked peaceful bot fights back". Verified by testing_agent (iteration_7).
 
+- **Expo SDK upgraded 54 → 57** (expo 57.0.19, react-native 0.86.3; `expo-doctor` 20/20). Breaking changes handled: removed `newArchEnabled`/`edgeToEdgeEnabled` from `app.json`; migrated icons from `@expo/vector-icons` (`import { MaterialCommunityIcons }`) to `@react-native-vector-icons/material-design-icons` (default import, same local name, identical MDI glyph names) across all 26 screens/components; added its config plugin (auto). The old Expo-Go CDN font hack (`use-icon-fonts.ts` + splash gate in `_layout.tsx`) was removed — `@react-native-vector-icons/common` now auto-loads the bundled `MaterialDesignIcons.ttf` at runtime via ExpoFontLoader (works in Expo Go). Added missing peer dep `expo-asset`. Verified: icons render in menu + game, engine tests 77/77.
+
 ## Engine verification
 - `frontend/scripts/engine_test.js` — 20 headless assertions pass (merchant train/load/price/trade, road build, burn-forest, port build, embark, boat upgrades & stats, water blocking, road reachability). Run: `node scripts/engine_test.js`.
 

@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View, ViewStyle } from "react-native";
 import { C, R, shadow } from "@/src/theme";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
 
 interface Props {
   label: string;
