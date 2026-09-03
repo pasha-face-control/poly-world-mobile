@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { BlurView } from "expo-blur";
-import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, shadow } from "@/src/theme";
 import { GameState } from "@/src/game/types";
 import { TRIBE_BY_ID, GOODS } from "@/src/game/data";

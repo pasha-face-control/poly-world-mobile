@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
 import { DIFFICULTIES, MAP_SIZES, MAP_TYPES, TECH_BY_ID, TRIBES } from "@/src/game/data";

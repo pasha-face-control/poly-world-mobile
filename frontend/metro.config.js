@@ -22,24 +22,4 @@ config.cacheStores = [
 // Reduce the number of workers to decrease resource usage
 config.maxWorkers = 2;
 
-// Force a SINGLE instance of three.js. Metro's package-exports resolution
-// (turned ON by default since Expo SDK 55; it was OFF in SDK 54 where the
-// mini-games worked) resolves `three` via BOTH its ESM (three.module.js) and
-// CJS (three.cjs) entries on native -> two module instances ("Multiple
-// instances of Three.js") -> @react-three/fiber's WebGL renderer draws nothing
-// (blank Hunting/Fishing Canvas on device). Disabling package-exports restores
-// the SDK-54 behaviour (single `main` = three.cjs) and dedupes on all platforms.
-config.resolver.unstable_enablePackageExports = false;
-
-const threeEntry = require.resolve("three");
-const _origResolveRequest = config.resolver.resolveRequest;
-config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (moduleName === "three") {
-    return { type: "sourceFile", filePath: threeEntry };
-  }
-  return _origResolveRequest
-    ? _origResolveRequest(context, moduleName, platform)
-    : context.resolveRequest(context, moduleName, platform);
-};
-
 module.exports = config;

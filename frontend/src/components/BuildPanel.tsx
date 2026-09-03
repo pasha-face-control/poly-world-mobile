@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, SP, shadow } from "@/src/theme";
 import { BUILDINGS, BUILDING_POP, GOODS, INFRA } from "@/src/game/data";
 import { canBuild, canInfra } from "@/src/game/engine";

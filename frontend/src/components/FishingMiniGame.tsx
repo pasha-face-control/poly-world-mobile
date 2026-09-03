@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as Haptics from "expo-haptics";
 import { haptic } from "@/src/utils/fx";
-import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Canvas, useFrame, useThree } from "@react-three/fiber/native";
 import * as THREE from "three";
 
@@ -161,7 +161,7 @@ export default function FishingMiniGame({ onFinish }: Props) {
   }, []);
 
   return (
-    <View style={styles.root} collapsable={false} testID="fishing-minigame">
+    <View style={styles.root} testID="fishing-minigame">
       <Canvas style={StyleSheet.absoluteFill} camera={{ fov: 70, near: 0.1, far: 200, position: [0, 1.6, 0] }} gl={{ antialias: true }}>
         <Scene ctrl={ctrl} onPhase={setPhase} onWorms={setWorms} onResult={(r) => setResult((p) => p ?? r)} />
       </Canvas>

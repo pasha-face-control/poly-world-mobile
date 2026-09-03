@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Line } from "react-native-svg";
-import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, SP, shadow } from "@/src/theme";
 import { TECHS, TECH_BY_ID } from "@/src/game/data";
 import { techCost } from "@/src/game/engine";

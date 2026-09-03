@@ -1,6 +1,6 @@
 import React from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { GOODS } from "@/src/game/data";
 import { GoodType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
