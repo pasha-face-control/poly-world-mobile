@@ -64,6 +64,7 @@ export interface Player {
   techs: string[];
   eliminated: boolean;
   provoked?: boolean; // peaceful-mode bot has been attacked and may now fight back
+}
 
 export interface GameState {
   id: string;

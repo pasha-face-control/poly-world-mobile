@@ -40,6 +40,10 @@ class StatusCheckCreate(BaseModel):
 async def root():
     return {"message": "Hello World"}
 
+@api_router.get("/health")
+async def api_health():
+    return {"status": "ok"}
+
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
     status_dict = input.dict()
@@ -54,6 +58,12 @@ async def get_status_checks():
 
 # Include the router in the main app
 app.include_router(api_router)
+
+# Top-level health endpoint for platform liveness/readiness probes
+# (k8s may probe the backend directly on :8001, bypassing the /api ingress rule).
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 app.add_middleware(
     CORSMiddleware,
