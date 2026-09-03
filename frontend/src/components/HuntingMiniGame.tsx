@@ -611,7 +611,7 @@ export default function HuntingMiniGame({ onFinish }: Props) {
   };
 
   return (
-    <View style={styles.root} testID="hunting-minigame">
+    <View style={styles.root} collapsable={false} testID="hunting-minigame">
       <Canvas
         style={StyleSheet.absoluteFill}
         camera={{ fov: 72, near: 0.1, far: 200, position: [0, 1.65, PLAYER_START_Z] }}
