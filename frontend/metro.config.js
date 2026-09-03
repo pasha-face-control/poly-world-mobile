@@ -22,4 +22,20 @@ config.cacheStores = [
 // Reduce the number of workers to decrease resource usage
 config.maxWorkers = 2;
 
+// Force a SINGLE instance of three.js. Metro's package-exports resolution
+// (default since Expo SDK 55) can otherwise resolve `three` via two different
+// entry files (ESM `three.module.js` vs core), producing two module instances
+// ("Multiple instances of Three.js" warning) — which breaks @react-three/fiber's
+// WebGL renderer and leaves the Hunting/Fishing mini-game Canvas blank.
+const threeEntry = require.resolve("three");
+const _origResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === "three") {
+    return { type: "sourceFile", filePath: threeEntry };
+  }
+  return _origResolveRequest
+    ? _origResolveRequest(context, moduleName, platform)
+    : context.resolveRequest(context, moduleName, platform);
+};
+
 module.exports = config;

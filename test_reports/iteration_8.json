@@ -1,0 +1,29 @@
+{
+  "summary": "Post-Expo-SDK-57-upgrade fix verified. Both 3D mini-games render correctly after the Metro single-three-instance resolver fix. (1) /gltest — hunting-minigame renders the low-poly forest scene: light blue sky, green trees, green ground, red crosshair at center, circular joystick bottom-left, red SHOOT button bottom-right, HP (12) and arrow (12) HUD top-left. (2) /fishtest — fishing-minigame renders the fishing scene: sky, blue water band, sandy ground, brown fishing rod, 'Cast your line' pill at top, CAST button bottom-right, score pill (3) top-left. (3) SMOKE — New Game -> Single Player -> start-game -> Skip tutorial -> game-screen shows isometric map with intact HUD icons (stars +1, house Lesnoi, city count 1, flag T1, resource icons 6/12/10/6/8/2) and bottom bar (Tech/Next/Menu/End Turn) with no tofu/replacement chars. End Turn advanced T1 -> T2 -> T3 -> T4 across 3 taps with no red/blank/crash screen. Only benign warnings observed: 'shadow*' style deprecation, 'props.pointerEvents' deprecation, 'THREE.Clock' deprecation, and 'GPU stall due to ReadPixels' (only triggered by the test's diagnostic readPixels call).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "RN Web deprecation", "issue": "'shadow*' style props deprecated (use boxShadow); 'props.pointerEvents' deprecated (use style.pointerEvents). Non-blocking."},
+      {"component": "three.js", "issue": "THREE.Clock deprecation warning printed by @react-three/fiber — non-blocking; can be silenced by upgrading to a fiber version that uses THREE.Timer."}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: remove the temporary diagnostic routes /app/frontend/app/gltest.tsx and /app/frontend/app/fishtest.tsx before shipping (they mount HuntingMiniGame/FishingMiniGame directly for testability).",
+    "Optional cleanup: migrate 'shadow*' style props -> 'boxShadow' and inline pointerEvents -> style.pointerEvents to remove RN Web deprecation warnings.",
+    "Note for future testers: the End Turn button testID is 'action-end-turn' (from BottomBar.tsx), NOT 'end-turn'. Turn text pattern in HUD is 'T{n}'."
+  ],
+  "critical_code_review_comments": [
+    "metro.config.js fix (lines 25-39): forcing a single three.js instance via resolveRequest is the correct minimal fix for Metro package-exports resolving 'three' twice under SDK 57. Verified visually — 3D scenes now draw."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (no backend)", "frontend": "100% (3/3 flows passed)"},
+  "seed_data_creation": "None. localStorage keys hextribes_save_v1 / hextribes_tutorial_seen_v1 cleared before the smoke run to ensure a clean start.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "3D mini-game flows: use LANDSCAPE viewport 844x390 and open /gltest (hunting) or /fishtest (fishing); wait for the corresponding testID then sleep ~4s for the WebGL scene to draw before screenshot. General flow: PORTRAIT viewport 390x844, clear hextribes_save_v1 and hextribes_tutorial_seen_v1 in localStorage, tap testID menu-new-game -> tap text 'Single Player' -> tap testID start-game -> tap text 'Skip' if tutorial appears -> wait testID game-screen. End Turn button testID is 'action-end-turn' (BottomBar.tsx line 38). Turn indicator in HUD is a text 'T{n}' that can be parsed via /T\\s*(\\d+)/ from document.body.innerText.",
+  "rca_of_issue": "Root cause (fixed by E1 before this run): Expo SDK 54 -> 57 upgrade enabled Metro package-exports resolution, which resolved the 'three' package via two different entry files (ESM three.module.js and the core CJS entry) leading to two module instances of three.js. @react-three/fiber's WebGL renderer relies on singleton scene/material classes and silently produced an empty/transparent Canvas when it saw two three copies. Fix: in metro.config.js pin a single three entry via require.resolve('three') and force config.resolver.resolveRequest to always return that filePath for moduleName === 'three'. Result verified: both /gltest and /fishtest now draw their 3D scenes."
+}

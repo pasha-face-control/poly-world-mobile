@@ -157,10 +157,14 @@
 
 ## test_plan:
 ##   current_focus:
-##     - "Peaceful difficulty: bots must NOT attack the player until the player attacks them first (provoked flag)"
+##     - "Post SDK-57 upgrade: Hunting & Fishing 3D mini-games must render their WebGL scene (were blank after upgrade)"
 ##   stuck_tasks: []
 ##   test_all: false
 ##   test_priority: "high_first"
+
+## agent_communication:
+##     -agent: "main"
+##     -message: "ITERATION 8 — POST SDK-54->57 UPGRADE BUG FIX. Reported: Hunting & Fishing 3D mini-games broke after the Expo SDK upgrade (blank WebGL Canvas — the game map showed through instead of the 3D forest/pond). Root cause: Metro package-exports (default since SDK 55) resolved `three` via two different entry files -> 'Multiple instances of Three.js' -> @react-three/fiber's WebGLRenderer produced nothing. Fix: metro.config.js now force-resolves every bare `three` import to a single file (node_modules/three/build/three.cjs) via resolver.resolveRequest. Also part of the upgrade: migrated icons @expo/vector-icons -> @react-native-vector-icons/material-design-icons (same glyph names), removed newArchEnabled/edgeToEdgeEnabled from app.json, added expo-asset. expo-doctor = 20/20, engine harness `node scripts/engine_test.js` = 77/77. PLEASE FRONTEND-TEST (web, 100% client-side, NO backend): (1) open /gltest -> testID `hunting-minigame` -> confirm a 3D low-poly FOREST renders (sky, trees, ground, crosshair, joystick, SHOOT button) — NOT a blank/transparent screen; (2) open /fishtest -> testID `fishing-minigame` -> confirm a 3D water/beach scene with a fishing rod + 'Cast your line' + CAST button renders; (3) general smoke: root URL -> New Game (testID menu-new-game) -> Single Player -> start-game -> game-screen visible, icons render on HUD/buttons, press End Turn ~2x (T1->T2->T3) with no blank/red crash. NOTE: /gltest and /fishtest are TEMP diagnostic routes mounting the real mini-game components directly (the in-game trigger needs a unit next to an animal/fish which isn't reachable in a short session). Viewport: use landscape ~844x390 for the mini-game routes, 390x844 for the menu/game. Ignore benign warnings: 'THREE.Clock deprecated', 'shadow*'/'pointerEvents' web deprecations, and the React Native DevTools electron error."
 
 ## agent_communication:
 ##     -agent: "main"
