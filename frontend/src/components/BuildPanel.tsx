@@ -43,8 +43,9 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfr
           {options.map((b) => {
             const check = canBuild(state, player.index, tileId, b.id);
             const lockedTech = !player.techs.includes(b.tech);
+            const onlyStars = !check.ok && canBuild(state, player.index, tileId, b.id, { ignoreStars: true }).ok;
             return (
-              <Pressable key={b.id} testID={`build-${b.id}`} disabled={!check.ok} onPress={() => onBuild(b.id)} style={[styles.chip, !check.ok && styles.chipDisabled]}>
+              <Pressable key={b.id} testID={`build-${b.id}`} disabled={!check.ok} onPress={() => onBuild(b.id)} style={[styles.chip, !check.ok && !onlyStars && styles.chipDisabled, onlyStars && styles.chipUnaffordable]}>
                 <View style={[styles.chipIcon, { backgroundColor: b.color }]}>
                   <MaterialCommunityIcons name={b.icon as any} size={20} color="#fff" />
                 </View>
@@ -54,8 +55,8 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfr
                     <MaterialCommunityIcons name="lock" size={12} color={C.borderStrong} />
                   ) : (
                     <>
-                      <MaterialCommunityIcons name="star-four-points" size={11} color={C.warning} />
-                      <Text style={styles.chipCostText}>{b.cost}</Text>
+                      <MaterialCommunityIcons name="star-four-points" size={11} color={onlyStars ? C.error : C.warning} />
+                      <Text style={[styles.chipCostText, onlyStars && styles.costRed]}>{b.cost}</Text>
                     </>
                   )}
                 </View>
@@ -83,8 +84,9 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfr
           {infraOptions.map((i) => {
             const check = canInfra(state, player.index, tileId, i.id);
             const lockedTech = !player.techs.includes(i.tech);
+            const onlyStars = !check.ok && canInfra(state, player.index, tileId, i.id, { ignoreStars: true }).ok;
             return (
-              <Pressable key={i.id} testID={`infra-${i.id}`} disabled={!check.ok} onPress={() => onInfra(i.id)} style={[styles.chip, !check.ok && styles.chipDisabled]}>
+              <Pressable key={i.id} testID={`infra-${i.id}`} disabled={!check.ok} onPress={() => onInfra(i.id)} style={[styles.chip, !check.ok && !onlyStars && styles.chipDisabled, onlyStars && styles.chipUnaffordable]}>
                 <View style={[styles.chipIcon, { backgroundColor: i.color }]}>
                   <MaterialCommunityIcons name={i.icon as any} size={20} color="#fff" />
                 </View>
@@ -94,8 +96,8 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfr
                     <MaterialCommunityIcons name="lock" size={12} color={C.borderStrong} />
                   ) : (
                     <>
-                      <MaterialCommunityIcons name="star-four-points" size={11} color={C.warning} />
-                      <Text style={styles.chipCostText}>{i.cost}</Text>
+                      <MaterialCommunityIcons name="star-four-points" size={11} color={onlyStars ? C.error : C.warning} />
+                      <Text style={[styles.chipCostText, onlyStars && styles.costRed]}>{i.cost}</Text>
                     </>
                   )}
                 </View>
@@ -118,6 +120,8 @@ const styles = StyleSheet.create({
   row: { gap: SP.sm, paddingVertical: 4 },
   chip: { width: 96, backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingVertical: 10, paddingHorizontal: 4, alignItems: "center", gap: 4, flexShrink: 0 },
   chipDisabled: { opacity: 0.45 },
+  chipUnaffordable: { borderWidth: 1, borderColor: C.error },
+  costRed: { color: C.error },
   chipIcon: { width: 38, height: 38, borderRadius: R.sm, alignItems: "center", justifyContent: "center" },
   chipName: { fontSize: 11, fontWeight: "800", color: C.onSurface, textAlign: "center" },
   chipCost: { flexDirection: "row", alignItems: "center", gap: 3 },

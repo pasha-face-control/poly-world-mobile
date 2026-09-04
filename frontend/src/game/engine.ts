@@ -229,7 +229,7 @@ function cityControllingTile(state: GameState, tileId: number): City | undefined
 }
 
 // ---------- Buildings ----------
-export function canBuild(state: GameState, player: number, tileId: number, buildingId: string): { ok: boolean; reason?: string } {
+export function canBuild(state: GameState, player: number, tileId: number, buildingId: string, opts?: { ignoreStars?: boolean }): { ok: boolean; reason?: string } {
   const def = BUILDING_BY_ID[buildingId];
   if (!def) return { ok: false, reason: "Unknown building" };
   const tile = state.tiles[tileId];
@@ -240,7 +240,7 @@ export function canBuild(state: GameState, player: number, tileId: number, build
   if (!playerHasTech(state, player, def.tech)) return { ok: false, reason: `Requires ${TECH_BY_ID[def.tech].name}` };
   if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };
   if (unitAt(state, tileId)) return { ok: false, reason: "Tile occupied" };
-  if (state.players[player].stars < def.cost) return { ok: false, reason: "Not enough stars" };
+  if (!opts?.ignoreStars && state.players[player].stars < def.cost) return { ok: false, reason: "Not enough stars" };
   return { ok: true };
 }
 
@@ -266,12 +266,12 @@ export function buildableFor(state: GameState, player: number, tileId: number): 
 }
 
 // ---------- Infrastructure (roads / ports / burn-forest) ----------
-export function canInfra(state: GameState, player: number, tileId: number, infraId: string): { ok: boolean; reason?: string } {
+export function canInfra(state: GameState, player: number, tileId: number, infraId: string, opts?: { ignoreStars?: boolean }): { ok: boolean; reason?: string } {
   const def = INFRA_BY_ID[infraId];
   if (!def) return { ok: false, reason: "Unknown" };
   const tile = state.tiles[tileId];
   if (!playerHasTech(state, player, def.tech)) return { ok: false, reason: `Requires ${TECH_BY_ID[def.tech].name}` };
-  if (state.players[player].stars < def.cost) return { ok: false, reason: "Not enough stars" };
+  if (!opts?.ignoreStars && state.players[player].stars < def.cost) return { ok: false, reason: "Not enough stars" };
   if (infraId === "road") {
     if (tile.terrain === "water" || tile.terrain === "mountain") return { ok: false, reason: "Cannot road here" };
     if (tile.road) return { ok: false, reason: "Already a road" };
@@ -313,7 +313,11 @@ export function infraFor(state: GameState, player: number, tileId: number): stri
 
 // Any actionable option (building or infra) for the tile — used to decide the tap panel.
 export function tileHasActions(state: GameState, player: number, tileId: number): boolean {
-  return buildableFor(state, player, tileId).length > 0 || infraFor(state, player, tileId).length > 0;
+  // Open the build panel whenever a tile is buildable ignoring the star cost, so the
+  // player can still see the (unaffordable) options with their prices shown in red.
+  const hasBuild = BUILDINGS.some((b) => canBuild(state, player, tileId, b.id, { ignoreStars: true }).ok);
+  const hasInfra = Object.keys(INFRA_BY_ID).some((id) => canInfra(state, player, tileId, id, { ignoreStars: true }).ok);
+  return hasBuild || hasInfra;
 }
 
 // ---------- Naval (embark / disembark / upgrade) ----------

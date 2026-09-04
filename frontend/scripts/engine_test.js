@@ -442,5 +442,30 @@ if (anyWater) {
   ok("tier 3 unlocks once tier 2 is fully bought", r3buyable.length > 0 && r3buyable.every((tid) => engine.expansionOptionForTile(g, 0, tid).cost === 10));
 }
 
+// ---- Build panel opens even when the player cannot afford (price shown red) ----
+{
+  const data = require("../src/game/data.ts");
+  let g = generateGame({ tribe: "snow", opponents: 1, mapSize: 16, mapType: "continents", passAndPlay: false, seed: 7 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  const p = g.players[0];
+  p.techs = ["fishing", "sailing", "expedition", "trading", "roads", "construction", "climbing", "hunting", "forestry", "organization", "farming", "mining", "chivalry", "riding", "meditation", "philosophy", "mathematics", "shields", "aquatism", "navigation", "spiritualism", "chivalry"];
+  p.stars = 999;
+  const terr = [c.tileId, ...engine.neighbors(g, c.tileId)];
+  const buildTile = terr.find((tid) => engine.buildableFor(g, 0, tid).length > 0);
+  ok("a territory tile has a buildable option when affordable", buildTile != null);
+  if (buildTile != null) {
+    const bId = data.BUILDINGS.find((b) => engine.canBuild(g, 0, buildTile, b.id, { ignoreStars: true }).ok).id;
+    p.stars = 0;
+    ok("build panel still opens with 0 stars (tileHasActions true)", engine.tileHasActions(g, 0, buildTile) === true);
+    ok("nothing is actually buildable at 0 stars", engine.buildableFor(g, 0, buildTile).length === 0);
+    ok("strict canBuild fails only due to stars", engine.canBuild(g, 0, buildTile, bId).reason === "Not enough stars");
+    ok("canBuild(ignoreStars) still passes for that building", engine.canBuild(g, 0, buildTile, bId, { ignoreStars: true }).ok === true);
+    // a tile OUTSIDE the city's territory must NOT open the build panel, even ignoring stars
+    const ct = g.tiles[c.tileId];
+    const outside = g.tiles.find((t) => Math.max(Math.abs(t.x - ct.x), Math.abs(t.y - ct.y)) === 2);
+    ok("a tile outside territory has no build actions", outside == null || engine.tileHasActions(g, 0, outside.id) === false);
+  }
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
