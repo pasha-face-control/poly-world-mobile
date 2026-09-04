@@ -52,6 +52,7 @@ export interface City {
   production: number;
   hasWall: boolean;
   isCapital: boolean;
+  expandedTiles?: number[]; // territory cells bought beyond the default 3×3 (tier 2/3/4)
 }
 
 export interface Player {

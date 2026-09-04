@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only smoke + territory-expansion UI test on Expo SDK 54 preview. All 5 requested flows PASS. (1) App boots to HexTribes main menu, testID menu-new-game visible. (2) Single-player start: menu-new-game -> mode-single -> start-game navigates to /game and testID game-screen renders with isometric map + full TopHUD (stars, income, resources, turn label T1) and BottomBar (Tech / Next / Menu / End Turn). No red-screen, no page/console errors captured (only benign 'shadow*' style deprecation warnings from react-native-web). (3) Expand modal: tapping a land tile at Chebyshev distance 2 from the capital (e.g. offset dx=0, dy=-2) opens testID expand-modal reading 'Expand Territory ... (Tier 2) ... Buy this tile 5' — cost correctly = 5 stars for tier 2. (4) Buy: with 6 stars in HUD, tapping expand-buy closes the modal and stars HUD drops 6 -> 1 (=5 deducted), and the newly bought tile joins the tinted city territory (visible in after_buy screenshot). (5) Cancel: expand-cancel closes the modal with stars unchanged (6 -> 6). (6) Regression: action-end-turn advances turn (T1 -> T2), game-screen still visible, no crash, AI turns resolve. Note: fresh game actually shows 6 stars in HUD at T1 (not exactly 5 as the request stated 'starts with 5'). This is a minor spec deviation, not a UI bug — buy path still works correctly and deducts exactly 5 for tier 2.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "react-native-web shadow* props", "issue": "Console emits 'shadow*' style props are deprecated. Use \"boxShadow\". Reference: /app/frontend/src/theme.ts (shadow() helper likely emits shadowColor/shadowOffset/shadowOpacity/shadowRadius). Non-blocking on native, only a web warning; consider migrating in the shadow() helper to also produce boxShadow for RNW."}
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_10.json"
+  ],
+  "action_items": [
+    "OPTIONAL: Verify starting star count vs spec. Spec said human starts with exactly 5 stars (enough for one Tier-2 tile), but T1 HUD shows 6 (with '+1' income indicator). Confirm intended starting balance in engine initial state.",
+    "OPTIONAL: Migrate theme.ts shadow() helper to also emit boxShadow for web to silence 'shadow*' deprecation warning from react-native-web."
+  ],
+  "critical_code_review_comments": [
+    "game.tsx is ~700 lines and handles many modal/branch cases in onTileTap. Long-term it should be broken into smaller hooks/components (e.g. useTileActions), but not blocking.",
+    "expansionOptionForTile in engine.ts is well-scoped and matches ExpandModal props (tileId/cost/tier). Good."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only)", "frontend": "100% (5/5 flows)"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Public preview URL comes from EXPO_PUBLIC_BACKEND_URL in /app/frontend/.env. Skip the first-run tutorial by setting localStorage.hextribes_tutorial_seen_v1='true' before load. To reach the game: menu-new-game -> mode-single -> start-game (setup has default nature tribe + normal difficulty). testIDs of interest: game-screen, hud-stars, action-end-turn, expand-modal, expand-buy, expand-cancel. Map is a scaled isometric SVG (HW=38, HH=19, initial scale=0.9) auto-centered on the capital; to tap a tile at world offset (dx,dy) relative to the capital, click at (cap_screen_x + (dx-dy)*38*0.9, cap_screen_y + (dx+dy)*19*0.9). In this run the capital rendered near screen (285, 485) at 390x844 viewport; a click at (353, 451) hit a Tier-2 land tile and reliably opened expand-modal.",
+  "rca_of_issue": "N/A – no bugs found. All 5 requested flows pass end-to-end."
+}

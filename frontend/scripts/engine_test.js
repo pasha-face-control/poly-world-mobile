@@ -417,5 +417,30 @@ if (anyWater) {
   ok("knight dealt normal damage to the >10 HP target", pk2.hp < 15);
 }
 
+// ---- Territory expansion (purchasable rings) ----
+{
+  let g = generateGame({ tribe: "snow", opponents: 1, mapSize: 16, mapType: "continents", passAndPlay: false, seed: 7 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  g.players[0].stars = 500;
+  const ct = g.tiles[c.tileId];
+  const ring = (r) => g.tiles.filter((t) => Math.max(Math.abs(t.x - ct.x), Math.abs(t.y - ct.y)) === r).map((t) => t.id);
+  const r2 = ring(2), r3 = ring(3);
+
+  const r2buyable = r2.filter((tid) => engine.expansionOptionForTile(g, 0, tid));
+  ok("tier 2 tiles are buyable at 5 stars", r2buyable.length > 0 && r2buyable.every((tid) => { const o = engine.expansionOptionForTile(g, 0, tid); return o.cost === 5 && o.tier === 2; }));
+  ok("tier 3 tiles are LOCKED until tier 2 is fully bought", r3.every((tid) => engine.expansionOptionForTile(g, 0, tid) === null));
+
+  const first = r2buyable[0];
+  const before = g.players[0].stars;
+  ok("buy a tier-2 tile", engine.expandTerritory(g, 0, first));
+  ok("tier-2 purchase costs 5 stars", g.players[0].stars === before - 5);
+  ok("bought tile joins the city territory", (c.expandedTiles || []).includes(first));
+  ok("cannot buy a tile already owned", engine.expansionOptionForTile(g, 0, first) === null);
+
+  for (const tid of r2buyable) if (tid !== first) engine.expandTerritory(g, 0, tid);
+  const r3buyable = r3.filter((tid) => engine.expansionOptionForTile(g, 0, tid));
+  ok("tier 3 unlocks once tier 2 is fully bought", r3buyable.length > 0 && r3buyable.every((tid) => engine.expansionOptionForTile(g, 0, tid).cost === 10));
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

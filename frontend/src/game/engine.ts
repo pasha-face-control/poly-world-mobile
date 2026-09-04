@@ -129,7 +129,91 @@ function addPopulation(state: GameState, city: City, amount: number) {
 }
 
 function cityTerritory(state: GameState, city: City): number[] {
-  return [city.tileId, ...neighbors(state, city.tileId)];
+  return [city.tileId, ...neighbors(state, city.tileId), ...(city.expandedTiles ?? [])];
+}
+
+// ---------- Territory expansion (purchasable outward rings) ----------
+// The default territory is the 3×3 around a city (ring 0 + ring 1). Players buy
+// further concentric rings by Chebyshev distance: tier 2 (ring 2) = 5★/cell,
+// tier 3 (ring 3) = 10★/cell, tier 4 (ring 4) = 20★/cell. A tier only unlocks
+// once the previous ring is fully bought (blocked/off-map cells don't count).
+export const TERRITORY_TIER_COST: Record<number, number> = { 2: 5, 3: 10, 4: 20 };
+export const MAX_TERRITORY_TIER = 4;
+
+// On-map tiles at exactly Chebyshev distance r from a city's centre.
+function ringTilesForCity(state: GameState, city: City, r: number): number[] {
+  const center = state.tiles[city.tileId];
+  const res: number[] = [];
+  for (const t of state.tiles) {
+    if (chebyshev(center, t) === r) res.push(t.id);
+  }
+  return res;
+}
+
+// A candidate is unacquirable if a DIFFERENT city already controls it.
+function ringBlocked(state: GameState, city: City, tileId: number): boolean {
+  const ctrl = cityControllingTile(state, tileId);
+  return !!ctrl && ctrl.id !== city.id;
+}
+
+// A tier (2..4) is fully bought when every acquirable cell in that ring belongs to the city.
+function tierFullyBought(state: GameState, city: City, r: number): boolean {
+  const terr = new Set(cityTerritory(state, city));
+  for (const tid of ringTilesForCity(state, city, r)) {
+    if (ringBlocked(state, city, tid)) continue; // can never own it — doesn't gate progression
+    if (!terr.has(tid)) return false;
+  }
+  return true;
+}
+
+function tierUnlocked(state: GameState, city: City, r: number): boolean {
+  if (r <= 2) return true; // ring 2 is always the first purchasable tier
+  return tierFullyBought(state, city, r - 1);
+}
+
+// The best (cheapest, lowest-tier) expansion available for a tile, or null.
+export function expansionOptionForTile(
+  state: GameState,
+  player: number,
+  tileId: number,
+): { cityId: string; tier: number; cost: number } | null {
+  if (cityControllingTile(state, tileId)) return null; // already owned by some city
+  const tile = state.tiles[tileId];
+  let best: { cityId: string; tier: number; cost: number } | null = null;
+  for (const c of state.cities) {
+    if (c.owner !== player) continue;
+    const r = chebyshev(state.tiles[c.tileId], tile);
+    if (r < 2 || r > MAX_TERRITORY_TIER) continue;
+    if (!tierUnlocked(state, c, r)) continue;
+    const cost = TERRITORY_TIER_COST[r];
+    if (!best || cost < best.cost) best = { cityId: c.id, tier: r, cost };
+  }
+  return best;
+}
+
+export function canExpandTerritory(
+  state: GameState,
+  player: number,
+  tileId: number,
+): { ok: boolean; reason?: string; cost: number; tier: number } {
+  const opt = expansionOptionForTile(state, player, tileId);
+  if (!opt) return { ok: false, reason: "Cannot expand here", cost: 0, tier: 0 };
+  if (state.players[player].stars < opt.cost) return { ok: false, reason: "Not enough stars", cost: opt.cost, tier: opt.tier };
+  return { ok: true, cost: opt.cost, tier: opt.tier };
+}
+
+export function expandTerritory(state: GameState, player: number, tileId: number): boolean {
+  const opt = expansionOptionForTile(state, player, tileId);
+  if (!opt) return false;
+  if (state.players[player].stars < opt.cost) return false;
+  const city = state.cities.find((c) => c.id === opt.cityId);
+  if (!city) return false;
+  state.players[player].stars -= opt.cost;
+  if (!city.expandedTiles) city.expandedTiles = [];
+  city.expandedTiles.push(tileId);
+  refreshFog(state, player);
+  log(state, `${state.players[player].name} expanded their territory (${opt.cost}★)`);
+  return true;
 }
 
 // Find owned city whose territory includes tileId.

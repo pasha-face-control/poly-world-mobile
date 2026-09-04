@@ -10,6 +10,8 @@ import {
   cityBuyPrice,
   doInfra,
   embark,
+  expandTerritory,
+  expansionOptionForTile,
   harvest,
   loadMerchant,
   moveUnit,
@@ -41,13 +43,14 @@ const DIFF: Record<Difficulty, DiffCfg> = {
 const TRADE_LINE = ["organisation", "roads", "construction", "trading", "trading_overseas"];
 const NAVAL_LINE = ["fishing", "sailing", "expedition"];
 
-// Tiles that make up a player's territory (their cities + surrounding cells).
+// Tiles that make up a player's territory (their cities + surrounding cells + bought cells).
 function ownedTerritory(state: GameState, player: number): Set<number> {
   const set = new Set<number>();
   for (const c of state.cities) {
     if (c.owner !== player) continue;
     set.add(c.tileId);
     for (const n of neighbors(state, c.tileId)) set.add(n);
+    for (const e of c.expandedTiles ?? []) set.add(e);
   }
   return set;
 }
@@ -155,7 +158,7 @@ export function runAiTurn(state: GameState, player: number) {
 
   // 3b. Build production structures in city territory.
   for (const c of state.cities.filter((c) => c.owner === player)) {
-    const terr = [c.tileId, ...neighbors(state, c.tileId)];
+    const terr = [c.tileId, ...neighbors(state, c.tileId), ...(c.expandedTiles ?? [])];
     for (const tid of terr) {
       const opts = buildableFor(state, player, tid);
       if (opts.length) {
@@ -213,6 +216,21 @@ export function runAiTurn(state: GameState, player: number) {
       .filter(({ c }) => [...terr].some((tid) => chebyshev(state.tiles[tid], state.tiles[c.tileId]) <= 4))
       .sort((a, b) => a.price - b.price)[0];
     if (candidate) buyCity(state, player, candidate.c.id);
+  }
+
+  // 3f. Territory expansion: a bot with spare stars buys one cheap expansion tile
+  // per turn for one of its cities (keeps a small buffer so it can still act).
+  {
+    const buffer = 8;
+    let bestTile: number | null = null;
+    let bestCost = Infinity;
+    for (const t of state.tiles) {
+      const opt = expansionOptionForTile(state, player, t.id);
+      if (!opt) continue;
+      if (state.players[player].stars - opt.cost < buffer) continue;
+      if (opt.cost < bestCost) { bestCost = opt.cost; bestTile = t.id; }
+    }
+    if (bestTile != null) expandTerritory(state, player, bestTile);
   }
 
   // 4. Move & attack each unit (merchants stay put and trade).

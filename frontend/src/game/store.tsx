@@ -17,6 +17,7 @@ import {
   applyFogForPlayer,
   doInfra,
   embark,
+  expandTerritory,
   harvest,
   hireHunter,
   huntSuccess,
@@ -75,6 +76,7 @@ interface GameContextValue {
   doBuyVillage: (tileId: number) => boolean;
   doBuyCity: (cityId: string) => boolean;
   doResolveOffer: (cityId: string, accept: boolean) => boolean;
+  doExpandTerritory: (tileId: number) => boolean;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -223,6 +225,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doBuyVillage = useCallback((tileId: number) => apply((s) => buyVillage(s, s.currentPlayer, tileId)), [apply]);
   const doBuyCity = useCallback((cityId: string) => apply((s) => requestBuyCity(s, s.currentPlayer, cityId).ok), [apply]);
   const doResolveOffer = useCallback((cityId: string, accept: boolean) => apply((s) => resolveCityOffer(s, cityId, accept)), [apply]);
+  const doExpandTerritory = useCallback((tileId: number) => apply((s) => expandTerritory(s, s.currentPlayer, tileId)), [apply]);
 
   const endTurn = useCallback(() => {
     if (!state || state.status !== "playing") return;
@@ -280,6 +283,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doBuyVillage,
         doBuyCity,
         doResolveOffer,
+        doExpandTerritory,
       }}
     >
       {children}

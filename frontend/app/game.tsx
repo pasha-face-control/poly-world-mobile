@@ -27,11 +27,12 @@ import FishChoiceModal from "@/src/components/FishChoiceModal";
 import FishingMiniGame from "@/src/components/FishingMiniGame";
 import SaleModal from "@/src/components/SaleModal";
 import CaptureModal, { CaptureTarget } from "@/src/components/CaptureModal";
+import ExpandModal, { ExpandTarget } from "@/src/components/ExpandModal";
 import OfferModal from "@/src/components/OfferModal";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
 import { storage } from "@/src/utils/storage";
-import { attackableTiles, canBuyCity, canBuyVillage, canFish, canHunt, neighbors, reachableTiles, stalemateTurnsLeft, tileHasActions } from "@/src/game/engine";
+import { attackableTiles, canBuyCity, canBuyVillage, canFish, canHunt, expansionOptionForTile, neighbors, reachableTiles, stalemateTurnsLeft, tileHasActions } from "@/src/game/engine";
 import { TRIBE_BY_ID } from "@/src/game/data";
 import { UnitType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
@@ -40,7 +41,7 @@ export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { soundOn, hapticsOn, volume } = useFxSettings();
-  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, doExpandTerritory, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
@@ -52,6 +53,7 @@ export default function GameScreen() {
   const [fishTileId, setFishTileId] = useState<number | null>(null);
   const [fishPlaying, setFishPlaying] = useState(false);
   const [captureTarget, setCaptureTarget] = useState<(CaptureTarget & { tileId: number; cityId?: string }) | null>(null);
+  const [expandTarget, setExpandTarget] = useState<ExpandTarget | null>(null);
   const [moveAnim, setMoveAnim] = useState<{ unitId: string; fromTileId: number; toTileId: number; key: number } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -101,6 +103,7 @@ export default function GameScreen() {
       setFishTileId(null);
       setFishPlaying(false);
       setCaptureTarget(null);
+      setExpandTarget(null);
     }
   }, [state?.currentPlayer, state]);
 
@@ -142,6 +145,7 @@ export default function GameScreen() {
       if (c.owner !== state.currentPlayer) continue;
       set.add(c.tileId);
       for (const n of neighbors(state, c.tileId)) set.add(n);
+      for (const e of c.expandedTiles ?? []) set.add(e);
     }
     return set;
   }, [state]);
@@ -170,6 +174,7 @@ export default function GameScreen() {
       return;
     }
     setBuyMerchantId(null);
+    setExpandTarget(null);
 
     // Peaceful acquisition: tapping an enemy city or a neutral village offers a buy option,
     // unless a selected unit can act on that tile militarily (attack / move-in takes priority).
@@ -272,6 +277,16 @@ export default function GameScreen() {
       setSelectedCityId(null);
       setMerchantOpen(false);
     } else {
+      const exp = expansionOptionForTile(state, cp, tileId);
+      if (exp) {
+        haptic.select(); playSfx("tap");
+        setExpandTarget({ tileId, cost: exp.cost, tier: exp.tier });
+        setSelectedUnitId(null);
+        setSelectedCityId(null);
+        setSelectedBuildTileId(null);
+        setMerchantOpen(false);
+        return;
+      }
       setSelectedUnitId(null);
       setSelectedCityId(null);
       setSelectedBuildTileId(null);
@@ -490,6 +505,19 @@ export default function GameScreen() {
           setCaptureTarget(null);
         }}
         onClose={() => setCaptureTarget(null)}
+      />
+
+      <ExpandModal
+        target={expandTarget}
+        stars={state.players[state.currentPlayer]?.stars ?? 0}
+        onBuy={() => {
+          if (!expandTarget) return;
+          haptic.notify();
+          playSfx("coin");
+          doExpandTerritory(expandTarget.tileId);
+          setExpandTarget(null);
+        }}
+        onClose={() => setExpandTarget(null)}
       />
 
       {(() => {
