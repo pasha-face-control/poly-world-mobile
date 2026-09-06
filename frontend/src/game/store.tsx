@@ -167,6 +167,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         const g = (p.goods || {}) as Partial<Record<GoodType, number>>;
         p.goods = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, ...g };
         if (p.provoked === undefined) p.provoked = false;
+        if (!p.economy) p.economy = { bought: {}, sold: {} };
       }
       // Migrate old (record-based) merchant cargo to the new slot array.
       for (const u of loaded.units) {

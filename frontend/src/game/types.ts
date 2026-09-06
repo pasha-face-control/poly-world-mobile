@@ -55,6 +55,8 @@ export interface City {
   expandedTiles?: number[]; // territory cells bought beyond the default 3×3 (tier 2/3/4)
 }
 
+export type GoodLedger = Partial<Record<GoodType, { qty: number; stars: number }>>;
+
 export interface Player {
   index: number;
   tribe: TribeId;
@@ -65,6 +67,7 @@ export interface Player {
   techs: string[];
   eliminated: boolean;
   provoked?: boolean; // peaceful-mode bot has been attacked and may now fight back
+  economy?: { bought: GoodLedger; sold: GoodLedger }; // cumulative trade history for the economy panel
 }
 
 export interface GameState {

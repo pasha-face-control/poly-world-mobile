@@ -127,7 +127,7 @@ export function generateGame(config: {
     usedTribes.add(tribe);
     const isHuman = p === 0 ? true : !!config.passAndPlay;
     const name = config.passAndPlay ? `Player ${p + 1}` : p === 0 ? TRIBE_BY_ID[tribe].name : `${TRIBE_BY_ID[tribe].name} AI`;
-    players.push({ index: p, tribe, name, isHuman, stars: START_STARS, goods: { ...START_GOODS }, techs: [TRIBE_BY_ID[tribe].startTech], eliminated: false });
+    players.push({ index: p, tribe, name, isHuman, stars: START_STARS, goods: { ...START_GOODS }, techs: [TRIBE_BY_ID[tribe].startTech], eliminated: false, economy: { bought: {}, sold: {} } });
   }
 
   // Region seeds (= capitals): farthest-point spread across land.

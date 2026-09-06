@@ -13,7 +13,7 @@ import {
 import { resolveCombat } from "./combat";
 import { newCity, newUnit } from "./factory";
 import { attackableTiles, chebyshev, neighbors, playerHasTech, reachableTiles, unitAt } from "./grid";
-import { City, GameState, GoodType, NavalTier, ResourceType, Unit, UnitType } from "./types";
+import { City, GameState, GoodType, NavalTier, Player, ResourceType, Unit, UnitType } from "./types";
 
 export const clone = (s: GameState): GameState => JSON.parse(JSON.stringify(s));
 
@@ -65,6 +65,15 @@ export function revealFor(state: GameState, player: number) {
 // Sets the visible `explored` flags to reflect a single player's known map (closed games).
 export function applyFogForPlayer(state: GameState, player: number) {
   for (const t of state.tiles) t.explored = !!t.seenBy?.includes(player);
+}
+
+// Whether `player` has actually discovered a tile. In closed games every player tracks
+// their own vision via seenBy. In open games only the human (0) is fog-limited; AI
+// opponents see the whole map.
+export function hasDiscovered(state: GameState, player: number, tileId: number): boolean {
+  if (state.closed) return !!state.tiles[tileId]?.seenBy?.includes(player);
+  if (player === 0) return !!state.tiles[tileId]?.explored;
+  return true;
 }
 
 // Refresh fog after an action: closed games track per-player; otherwise reveal for the human (0).
@@ -434,6 +443,7 @@ export function buyFromMerchant(state: GameState, buyer: number, merchantId: str
   const g = slot.good;
   state.players[buyer].stars -= take * slot.price;
   state.players[buyer].goods[g] += take;
+  recordPurchase(state, buyer, g, take, take * slot.price);
   slot.qty -= take;
   state.players[m.owner].stars += take * slot.price;
   recordSale(state, m.owner, g, take, take * slot.price);
@@ -442,14 +452,51 @@ export function buyFromMerchant(state: GameState, buyer: number, merchantId: str
   return true;
 }
 
-// Records a sale made by a HUMAN player's merchant so their turn-start notification can show it.
+// Records a sale made by a player's merchant. Tracks cumulative economy stats for every
+// player; for HUMAN players it also queues a turn-start notification bucket.
 function recordSale(state: GameState, owner: number, good: GoodType, qty: number, stars: number) {
-  if (qty <= 0 || !state.players[owner]?.isHuman) return;
+  if (qty <= 0) return;
+  const e = ensureEconomy(state.players[owner]);
+  const s = e.sold[good] ?? { qty: 0, stars: 0 };
+  s.qty += qty; s.stars += stars; e.sold[good] = s;
+  if (!state.players[owner]?.isHuman) return;
   if (!state.pendingSales) state.pendingSales = {};
   if (!state.pendingSales[owner]) state.pendingSales[owner] = { goods: {}, stars: 0 };
   const bucket = state.pendingSales[owner];
   bucket.goods[good] = (bucket.goods[good] ?? 0) + qty;
   bucket.stars += stars;
+}
+
+// Ensures a player's economy ledger exists (old saves may not have it).
+function ensureEconomy(p: Player): { bought: import("./types").GoodLedger; sold: import("./types").GoodLedger } {
+  if (!p.economy) p.economy = { bought: {}, sold: {} };
+  if (!p.economy.bought) p.economy.bought = {};
+  if (!p.economy.sold) p.economy.sold = {};
+  return p.economy;
+}
+
+// Records a purchase made by a player (goods bought from another player's merchant).
+function recordPurchase(state: GameState, player: number, good: GoodType, qty: number, stars: number) {
+  if (qty <= 0) return;
+  const e = ensureEconomy(state.players[player]);
+  const b = e.bought[good] ?? { qty: 0, stars: 0 };
+  b.qty += qty; b.stars += stars; e.bought[good] = b;
+}
+
+// Goods a player gains at the start of each of their turns (building production).
+export function goodsIncome(state: GameState, player: number): Record<GoodType, number> {
+  const out: Record<GoodType, number> = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0 };
+  for (const tile of state.tiles) {
+    if (!tile.building) continue;
+    const city = cityControllingTile(state, tile.id);
+    if (!city || city.owner !== player) continue;
+    const def = BUILDING_BY_ID[tile.building];
+    if (!def) continue;
+    for (const [key, amt] of Object.entries(def.produces)) {
+      if (key !== "stars") out[key as GoodType] += amt ?? 0;
+    }
+  }
+  return out;
 }
 
 // Bots are buy-only; each round they buy 1 unit from an affordable stocked slot.
@@ -464,6 +511,7 @@ export function resolveTrades(state: GameState) {
       const good = slot.good;
       buyer.stars -= slot.price;
       buyer.goods[good] += 1;
+      recordPurchase(state, buyer.index, good, 1, slot.price);
       slot.qty -= 1;
       state.players[m.owner].stars += slot.price;
       recordSale(state, m.owner, good, 1, slot.price);
@@ -762,7 +810,7 @@ export function canBuyVillage(state: GameState, player: number, tileId: number):
   const price = villageBuyPrice();
   const tile = state.tiles[tileId];
   if (!tile || !tile.isVillage || tile.cityId) return { ok: false, reason: "Not a village", price };
-  if (player === 0 && !tile.explored) return { ok: false, reason: "Not discovered", price };
+  if (!hasDiscovered(state, player, tileId)) return { ok: false, reason: "Not discovered", price };
   const occ = unitAt(state, tileId);
   if (occ && occ.owner !== player) return { ok: false, reason: "Occupied by an enemy", price };
   if (state.players[player].stars < price) return { ok: false, reason: "Not enough stars", price };
@@ -790,7 +838,7 @@ export function canBuyCity(state: GameState, player: number, cityId: string): { 
   if (!city) return { ok: false, reason: "No city", price: 0 };
   const price = cityBuyPrice(city);
   if (city.owner === player) return { ok: false, reason: "Already yours", price };
-  if (player === 0 && !state.tiles[city.tileId].explored) return { ok: false, reason: "Not discovered", price };
+  if (!hasDiscovered(state, player, city.tileId)) return { ok: false, reason: "Not discovered", price };
   // A city can be bought even while a garrisoned unit sits inside — buying is peaceful,
   // the occupying unit is left untouched (it is NOT attacked or removed).
   if (state.players[player].stars < price) return { ok: false, reason: "Not enough stars", price };

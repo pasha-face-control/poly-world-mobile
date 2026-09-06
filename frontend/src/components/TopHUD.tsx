@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, shadow } from "@/src/theme";
@@ -7,7 +7,7 @@ import { GameState } from "@/src/game/types";
 import { TRIBE_BY_ID, GOODS } from "@/src/game/data";
 import { starIncome } from "@/src/game/engine";
 
-export default function TopHUD({ state, topInset }: { state: GameState; topInset: number }) {
+export default function TopHUD({ state, topInset, onOpenEconomy }: { state: GameState; topInset: number; onOpenEconomy?: () => void }) {
   const player = state.players[state.currentPlayer];
   const color = TRIBE_BY_ID[player.tribe].color;
   const cities = state.cities.filter((c) => c.owner === player.index).length;
@@ -49,6 +49,10 @@ export default function TopHUD({ state, topInset }: { state: GameState; topInset
             <Text style={styles.goodValue}>{player.goods[g.id]}</Text>
           </View>
         ))}
+        <View style={styles.goodSep} />
+        <Pressable onPress={onOpenEconomy} hitSlop={8} style={styles.ecoBtn} testID="hud-economy-btn">
+          <MaterialCommunityIcons name="chart-box" size={18} color={C.brand} />
+        </Pressable>
       </BlurView>
     </View>
   );
@@ -82,6 +86,7 @@ const styles = StyleSheet.create({
     ...shadow(3),
   },
   good: { flexDirection: "row", alignItems: "center", gap: 3 },
+  ecoBtn: { paddingHorizontal: 2, paddingVertical: 2 },
   goodSep: { width: 1, height: 14, backgroundColor: C.border },
   goodValue: { fontSize: 13, fontWeight: "900", color: C.onSurface },
   item: { flexDirection: "row", alignItems: "center", gap: 5, maxWidth: 130 },

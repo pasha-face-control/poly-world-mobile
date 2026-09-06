@@ -28,6 +28,7 @@ import FishingMiniGame from "@/src/components/FishingMiniGame";
 import SaleModal from "@/src/components/SaleModal";
 import CaptureModal, { CaptureTarget } from "@/src/components/CaptureModal";
 import ExpandModal, { ExpandTarget } from "@/src/components/ExpandModal";
+import EconomyModal from "@/src/components/EconomyModal";
 import OfferModal from "@/src/components/OfferModal";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
@@ -54,6 +55,7 @@ export default function GameScreen() {
   const [fishPlaying, setFishPlaying] = useState(false);
   const [captureTarget, setCaptureTarget] = useState<(CaptureTarget & { tileId: number; cityId?: string }) | null>(null);
   const [expandTarget, setExpandTarget] = useState<ExpandTarget | null>(null);
+  const [economyOpen, setEconomyOpen] = useState(false);
   const [moveAnim, setMoveAnim] = useState<{ unitId: string; fromTileId: number; toTileId: number; key: number } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -356,7 +358,7 @@ export default function GameScreen() {
         onTileDoubleTap={onTileDoubleTap}
       />
 
-      <TopHUD state={state} topInset={insets.top} />
+      <TopHUD state={state} topInset={insets.top} onOpenEconomy={() => { haptic.select(); setEconomyOpen(true); }} />
 
       {state.status === "playing" && stalemateTurnsLeft(state) > 0 && (
         <View pointerEvents="none" style={[styles.stalemateBanner, { top: insets.top + 52 }]} testID="stalemate-banner">
@@ -519,6 +521,8 @@ export default function GameScreen() {
         }}
         onClose={() => setExpandTarget(null)}
       />
+
+      <EconomyModal state={state} visible={economyOpen} onClose={() => setEconomyOpen(false)} />
 
       {(() => {
         const offer = state.pendingOffers?.find((o) => o.seller === state.currentPlayer);

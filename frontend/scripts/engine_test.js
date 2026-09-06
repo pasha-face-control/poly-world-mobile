@@ -467,5 +467,32 @@ if (anyWater) {
   }
 }
 
+// ---- Economy ledger, goods income, and fog-gated purchases ----
+{
+  let g = generateGame({ tribe: "snow", opponents: 1, mapSize: 16, mapType: "continents", passAndPlay: true, seed: 7 });
+  ok("players start with an economy ledger", g.players.every((p) => p.economy && p.economy.bought && p.economy.sold));
+
+  // goodsIncome reflects building production on controlled tiles
+  const c = g.cities.find((ci) => ci.owner === 0);
+  const nb = engine.neighbors(g, c.tileId)[0];
+  const t = g.tiles[nb];
+  t.terrain = "forest"; t.building = "lumber_hut"; t.resource = null;
+  ok("goodsIncome counts a lumber hut (+2 wood/turn)", engine.goodsIncome(g, 0).wood === 2);
+
+  // Closed-game fog: a player cannot buy a village/city they have not discovered
+  let cg = generateGame({ tribe: "snow", opponents: 1, mapSize: 18, mapType: "continents", passAndPlay: true, seed: 3 });
+  cg.closed = true;
+  for (const p of cg.players) engine.revealFor(cg, p.index);
+  cg.players[1].stars = 100;
+  const vil = cg.tiles.find((tl) => tl.isVillage && !tl.cityId && !(tl.seenBy || []).includes(1));
+  ok("found an undiscovered village for player 1", vil != null);
+  if (vil) {
+    ok("cannot buy an UNDISCOVERED village (closed game)", engine.canBuyVillage(cg, 1, vil.id).reason === "Not discovered");
+    if (!vil.seenBy) vil.seenBy = [];
+    vil.seenBy.push(1);
+    ok("CAN buy the village once discovered", engine.canBuyVillage(cg, 1, vil.id).ok === true);
+  }
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
