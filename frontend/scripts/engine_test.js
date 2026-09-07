@@ -479,6 +479,40 @@ if (anyWater) {
   t.terrain = "forest"; t.building = "lumber_hut"; t.resource = null;
   ok("goodsIncome counts a lumber hut (+2 wood/turn)", engine.goodsIncome(g, 0).wood === 2);
 
+  // Sell path: a bot buying from the human's merchant must record on the human's SOLD ledger
+  const cityTile0 = g.cities.find((ci) => ci.owner === 0).tileId;
+  g.units.push({ id: "mtest", type: "merchant", owner: 0, tileId: cityTile0, hp: 10, maxHp: 10, moved: false, attacked: false, boat: null, cargo: [{ good: "wood", qty: 3, price: 2 }, { good: null, qty: 0, price: 2 }, { good: null, qty: 0, price: 2 }, { good: null, qty: 0, price: 2 }] });
+  g.players[1].isHuman = false; g.players[1].stars = 100;
+  const soldStarsBefore = g.players[0].stars;
+  engine.resolveTrades(g);
+  ok("bot purchase records on human SOLD ledger", (g.players[0].economy.sold.wood?.qty ?? 0) >= 1);
+  ok("human receives stars for the sale", g.players[0].stars > soldStarsBefore);
+
+  // Pass-and-play case: a player buying via buyFromMerchant also records the owner's SOLD ledger
+  {
+    let gp = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: true, seed: 9 });
+    const ct = gp.cities.find((ci) => ci.owner === 0).tileId;
+    gp.units.push({ id: "mpp", type: "merchant", owner: 0, tileId: ct, hp: 10, maxHp: 10, moved: false, attacked: false, boat: null, cargo: [{ good: "iron", qty: 5, price: 3 }, { good: null, qty: 0, price: 3 }, { good: null, qty: 0, price: 3 }, { good: null, qty: 0, price: 3 }] });
+    gp.players[1].stars = 50;
+    gp.tiles[ct].explored = true; // buyer can see the merchant
+    engine.buyFromMerchant(gp, 1, "mpp", 0, 2);
+    ok("buyFromMerchant records owner SOLD ledger (pass-and-play)", (gp.players[0].economy.sold.iron?.qty ?? 0) === 2 && (gp.players[0].economy.sold.iron?.stars ?? 0) === 6);
+    ok("buyFromMerchant records buyer BOUGHT ledger", (gp.players[1].economy.bought.iron?.qty ?? 0) === 2);
+  }
+
+  // End-to-end: merchant + full round via advanceTurn (market tick) -> SOLD ledger populated
+  {
+    let g2 = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 11 });
+    const h = g2.players[0];
+    const cap2 = g2.cities.find((ci) => ci.owner === 0);
+    g2.units.push({ id: "me2e", type: "merchant", owner: 0, tileId: cap2.tileId, hp: 10, maxHp: 10, moved: false, attacked: false, boat: null, cargo: [{ good: "wood", qty: 3, price: 1 }, { good: null, qty: 0, price: 1 }, { good: null, qty: 0, price: 1 }, { good: null, qty: 0, price: 1 }] });
+    g2.players[1].isHuman = false; g2.players[1].stars = 100;
+    // advance a full round back to the human (startPlayerTurn(0) runs the market tick)
+    let guard = 0;
+    do { engine.advanceTurn(g2); guard++; } while (g2.currentPlayer !== 0 && guard < 12);
+    ok("SOLD ledger populated after a full round (market tick)", (h.economy.sold.wood?.qty ?? 0) >= 1);
+  }
+
   // Closed-game fog: a player cannot buy a village/city they have not discovered
   let cg = generateGame({ tribe: "snow", opponents: 1, mapSize: 18, mapType: "continents", passAndPlay: true, seed: 3 });
   cg.closed = true;
