@@ -15,18 +15,20 @@ export default function EconomyModal({ state, visible, onClose }: { state: GameS
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} testID="economy-modal" onPress={() => {}}>
-          <View style={styles.header}>
-            <View style={styles.titleRow}>
-              <MaterialCommunityIcons name="chart-box" size={22} color={C.brand} />
-              <Text style={styles.title}>Economy</Text>
+        <View style={styles.sheet} testID="economy-modal">
+          <Pressable onPress={() => {}}>
+            <View style={styles.header}>
+              <View style={styles.titleRow}>
+                <MaterialCommunityIcons name="chart-box" size={22} color={C.brand} />
+                <Text style={styles.title}>Economy</Text>
+              </View>
+              <Pressable testID="economy-close" onPress={onClose} hitSlop={10}>
+                <MaterialCommunityIcons name="close" size={24} color={C.onSurfaceSecondary} />
+              </Pressable>
             </View>
-            <Pressable testID="economy-close" onPress={onClose} hitSlop={10}>
-              <MaterialCommunityIcons name="close" size={24} color={C.onSurfaceSecondary} />
-            </Pressable>
-          </View>
+          </Pressable>
 
-          <ScrollView contentContainerStyle={{ paddingBottom: SP.lg }} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: SP.xxl }} showsVerticalScrollIndicator persistentScrollbar nestedScrollEnabled>
             {/* Per-turn income */}
             <Text style={styles.section}>Income per turn</Text>
             <View style={styles.card}>
@@ -77,7 +79,7 @@ export default function EconomyModal({ state, visible, onClose }: { state: GameS
               })}
             </View>
           </ScrollView>
-        </Pressable>
+        </View>
       </Pressable>
     </Modal>
   );
@@ -113,13 +115,14 @@ function TradeRow({ good, qty, stars, tone }: { good: { id: GoodType; name: stri
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: "rgba(28,28,28,0.6)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: C.surface, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, paddingHorizontal: SP.xl, paddingTop: SP.lg, maxHeight: "82%", ...shadow(12) },
+  sheet: { backgroundColor: C.surface, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, paddingHorizontal: SP.xl, paddingTop: SP.lg, maxHeight: "90%", ...shadow(12) },
+  scroll: { flexGrow: 0, flexShrink: 1 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: SP.md },
   titleRow: { flexDirection: "row", alignItems: "center", gap: SP.sm },
   title: { fontSize: 20, fontWeight: "900", color: C.onSurface },
-  section: { fontSize: 13, fontWeight: "900", color: C.onSurfaceSecondary, textTransform: "uppercase", letterSpacing: 0.5, marginTop: SP.md, marginBottom: SP.xs },
-  card: { backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingHorizontal: SP.md, paddingVertical: SP.xs, borderWidth: 1, borderColor: C.border },
-  row: { flexDirection: "row", alignItems: "center", gap: SP.sm, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
+  section: { fontSize: 13, fontWeight: "900", color: C.onSurfaceSecondary, textTransform: "uppercase", letterSpacing: 0.5, marginTop: SP.sm, marginBottom: SP.xs },
+  card: { backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingHorizontal: SP.md, paddingVertical: 2, borderWidth: 1, borderColor: C.border },
+  row: { flexDirection: "row", alignItems: "center", gap: SP.sm, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
   rowLabel: { fontSize: 14, fontWeight: "700", color: C.onSurface, flexShrink: 1 },
   resCell: { flexDirection: "row", alignItems: "center", gap: SP.sm },
   amt: { fontSize: 15, fontWeight: "900", color: C.onSurface },
