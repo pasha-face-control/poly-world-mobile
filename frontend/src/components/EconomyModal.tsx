@@ -1,5 +1,6 @@
 import React from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { GestureHandlerRootView, ScrollView } from "react-native-gesture-handler";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, SP, shadow } from "@/src/theme";
 import { GameState, GoodType } from "@/src/game/types";
@@ -14,7 +15,8 @@ export default function EconomyModal({ state, visible, onClose }: { state: GameS
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <GestureHandlerRootView style={styles.flex}>
+        <Pressable style={styles.overlay} onPress={onClose}>
         <View style={styles.sheet} testID="economy-modal">
           <Pressable onPress={() => {}}>
             <View style={styles.header}>
@@ -81,6 +83,7 @@ export default function EconomyModal({ state, visible, onClose }: { state: GameS
           </ScrollView>
         </View>
       </Pressable>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -114,6 +117,7 @@ function TradeRow({ good, qty, stars, tone }: { good: { id: GoodType; name: stri
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   overlay: { flex: 1, backgroundColor: "rgba(28,28,28,0.6)", justifyContent: "flex-end" },
   sheet: { backgroundColor: C.surface, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, paddingHorizontal: SP.xl, paddingTop: SP.lg, maxHeight: "90%", ...shadow(12) },
   scroll: { flexGrow: 0, flexShrink: 1 },

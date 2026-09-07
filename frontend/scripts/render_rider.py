@@ -19,7 +19,7 @@ TRIBES = {"nature": "#4F772D", "desert": "#E5A93A", "volcanic": "#BC4749", "snow
 
 # Match the CURRENT rider sprites exactly so size stays unchanged.
 CANVAS = (213, 175)
-CONTENT_H = 77          # rider pixel height in the existing sprites
+CONTENT_H = 154         # 2× the previous rider height (77) — rider drawn twice as big
 BASELINE_Y = 165        # bottom (feet) y of the existing sprite content
 CENTER_X = 106          # horizontal centre of the existing sprite content
 
@@ -87,7 +87,14 @@ def draw(R, cols, hasc, tint, L):
         b=0.55 if ln==0 else 0.5+0.5*max(0.0,float(np.dot(n/ln,LIGHT)))
         polys.append(t);fc.append(np.clip(base*b,0,1).tolist()+[1.0])
     fig=plt.figure(figsize=(4,4),dpi=150)
+    fig.patch.set_alpha(0.0)
     ax=fig.add_axes([0,0,1,1],projection="3d")
+    ax.patch.set_alpha(0.0)
+    try:
+        ax.set_facecolor((0,0,0,0))
+        for pane in (ax.xaxis, ax.yaxis, ax.zaxis):
+            pane.set_pane_color((0,0,0,0))
+    except Exception: pass
     ax.add_collection3d(Poly3DCollection(polys,facecolors=fc,edgecolors=(0,0,0,0.22),linewidths=0.25))
     ax.set_xlim(-L/2,L/2); ax.set_ylim(-L/2,L/2); ax.set_zlim(0,L)
     ax.set_box_aspect((1,1,1)); ax.view_init(elev=18,azim=-55); ax.set_axis_off()
