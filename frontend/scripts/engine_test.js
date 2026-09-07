@@ -492,6 +492,16 @@ if (anyWater) {
     vil.seenBy.push(1);
     ok("CAN buy the village once discovered", engine.canBuyVillage(cg, 1, vil.id).ok === true);
   }
+
+  // Closed-game fog: cannot buy an enemy CITY on an undiscovered tile
+  const enemyCity = cg.cities.find((ci) => ci.owner !== 1 && !(cg.tiles[ci.tileId].seenBy || []).includes(1));
+  if (enemyCity) {
+    ok("cannot buy an UNDISCOVERED enemy city (closed game)", engine.canBuyCity(cg, 1, enemyCity.id).reason === "Not discovered");
+    const ct = cg.tiles[enemyCity.tileId];
+    if (!ct.seenBy) ct.seenBy = [];
+    ct.seenBy.push(1);
+    ok("CAN buy the enemy city once discovered (given stars)", engine.canBuyCity(cg, 1, enemyCity.id).ok === true);
+  }
 }
 
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);

@@ -33,7 +33,7 @@ import OfferModal from "@/src/components/OfferModal";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
 import { storage } from "@/src/utils/storage";
-import { attackableTiles, canBuyCity, canBuyVillage, canFish, canHunt, expansionOptionForTile, neighbors, reachableTiles, stalemateTurnsLeft, tileHasActions } from "@/src/game/engine";
+import { attackableTiles, canBuyCity, canBuyVillage, canFish, canHunt, expansionOptionForTile, hasDiscovered, neighbors, reachableTiles, stalemateTurnsLeft, tileHasActions } from "@/src/game/engine";
 import { TRIBE_BY_ID } from "@/src/game/data";
 import { UnitType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
@@ -182,7 +182,7 @@ export default function GameScreen() {
     // unless a selected unit can act on that tile militarily (attack / move-in takes priority).
     const militaryTarget = !!selectedUnit && selectedUnit.owner === cp && (attackable.includes(tileId) || reachable.includes(tileId));
     if (!militaryTarget) {
-      if (city && city.owner !== cp && canBuyCity(state, cp, city.id).price > 0) {
+      if (city && city.owner !== cp && hasDiscovered(state, cp, city.tileId) && canBuyCity(state, cp, city.id).price > 0) {
         haptic.select(); playSfx("tap");
         setCaptureTarget({ kind: "city", price: canBuyCity(state, cp, city.id).price, level: city.level, tileId, cityId: city.id });
         setSelectedUnitId(null);
@@ -190,7 +190,7 @@ export default function GameScreen() {
         setSelectedBuildTileId(null);
         return;
       }
-      if (tile.isVillage && !tile.cityId && (cp !== 0 || tile.explored)) {
+      if (tile.isVillage && !tile.cityId && hasDiscovered(state, cp, tileId)) {
         haptic.select(); playSfx("tap");
         setCaptureTarget({ kind: "village", price: canBuyVillage(state, cp, tileId).price, tileId });
         setSelectedUnitId(null);
