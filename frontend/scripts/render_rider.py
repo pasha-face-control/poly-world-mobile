@@ -19,7 +19,7 @@ TRIBES = {"nature": "#4F772D", "desert": "#E5A93A", "volcanic": "#BC4749", "snow
 
 # Match the CURRENT rider sprites exactly so size stays unchanged.
 CANVAS = (213, 175)
-CONTENT_H = 154         # 2× the previous rider height (77) — rider drawn twice as big
+CONTENT_H = 77          # rider height (2× smaller than the previous 154)
 BASELINE_Y = 165        # bottom (feet) y of the existing sprite content
 CENTER_X = 106          # horizontal centre of the existing sprite content
 

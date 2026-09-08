@@ -38,8 +38,8 @@ export default function MainMenu() {
           <MaterialCommunityIcons name="hexagon-multiple" size={20} color={C.brandTertiary} />
           <Text style={styles.badgeText}>4X TURN-BASED STRATEGY</Text>
         </View>
-        <Text style={styles.title}>HexTribes</Text>
-        <Text style={styles.subtitle}>Explore. Expand. Exploit. Exterminate.</Text>
+        <Text style={styles.title}>Poly World</Text>
+        <Text style={styles.subtitle}>Trade. Buy. Grow. Thrive.</Text>
       </View>
 
       <View style={[styles.actions, { paddingBottom: insets.bottom + SP.xl }]}>

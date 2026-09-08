@@ -44,8 +44,8 @@ export const BUILDINGS: BuildingDef[] = [
   { id: "bull_farm", name: "Bull Farm", icon: "cow", terrain: "grass", tech: "bull_farming", cost: 4, produces: { meat: 2 }, color: "#BC4749" },
   { id: "horse_farm", name: "Horse Farm", icon: "horseshoe", terrain: "grass", tech: "horse_farming", cost: 4, produces: { horse: 1 }, color: "#8A5A34" },
   { id: "coal_mine", name: "Coal Mine", icon: "fire", terrain: "mountain", tech: "mining", cost: 4, produces: {}, color: "#3A3A3A", requiresResource: "coal" },
-  { id: "iron_mine", name: "Iron Mine", icon: "pickaxe", terrain: "mountain", tech: "iron_mine", cost: 5, produces: { iron: 2 }, color: "#7F8896", requiresResource: "iron_ore" },
-  { id: "gold_mine", name: "Gold Mine", icon: "cash-multiple", terrain: "mountain", tech: "gold_mine", cost: 6, produces: { stars: 5 }, color: "#E5A93A", requiresResource: "gold" },
+  { id: "iron_mine", name: "Iron Mine", icon: "anvil", terrain: "mountain", tech: "iron_mine", cost: 5, produces: { iron: 2 }, color: "#7F8896", requiresResource: "iron_ore" },
+  { id: "gold_mine", name: "Gold Mine", icon: "gold", terrain: "mountain", tech: "gold_mine", cost: 6, produces: { stars: 5 }, color: "#E5A93A", requiresResource: "gold" },
 ];
 
 export const BUILDING_BY_ID: Record<string, BuildingDef> = Object.fromEntries(BUILDINGS.map((b) => [b.id, b]));
@@ -179,10 +179,10 @@ export const TECHS: TechDef[] = [
   // Climbing branch
   T("forgery", "Forgery", 2, "climbing", "anvil", "Build Forge next to mines (+population)."),
   T("sword_art", "Sword Art", 3, "forgery", "sword-cross", "Unlock the Swordsman unit."),
-  T("mining", "Mining", 2, "climbing", "diamond-stone", "Build Coal Mine (+2 population)."),
+  T("mining", "Mining", 2, "climbing", "fire", "Build Coal Mine (+2 population)."),
   T("mining_technology", "Mining Technology", 3, "mining", "pickaxe", "Reveal Iron & Gold mine sites."),
-  T("iron_mine", "Iron Mine", 4, "mining_technology", "gold", "Build Iron Mines (+2 iron/turn)."),
-  T("gold_mine", "Gold Mine", 4, "mining_technology", "cash-multiple", "Build Gold Mines (+5 stars/turn)."),
+  T("iron_mine", "Iron Mine", 4, "mining_technology", "anvil", "Build Iron Mines (+2 iron/turn)."),
+  T("gold_mine", "Gold Mine", 4, "mining_technology", "gold", "Build Gold Mines (+5 stars/turn)."),
 
   // Fishing branch
   T("sailing", "Sailing", 2, "fishing", "sail-boat", "Build ports; upgrade to Sailing Boats."),

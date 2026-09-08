@@ -48,7 +48,7 @@ export default function VictoryCard({ state }: { state: GameState }) {
       }
       setStatus("sharing");
       const uri = await captureRef(shotRef, { format: "png", quality: 0.95 });
-      await Sharing.shareAsync(uri, { mimeType: "image/png", dialogTitle: "Share your HexTribes result" });
+      await Sharing.shareAsync(uri, { mimeType: "image/png", dialogTitle: "Share your Poly World result" });
     } catch {
       // user cancelled or capture failed — ignore
     } finally {
@@ -80,7 +80,7 @@ export default function VictoryCard({ state }: { state: GameState }) {
             <Text style={styles.scoreLabel}>SCORE</Text>
             <Text style={styles.scoreValue}>{score.toLocaleString()}</Text>
           </View>
-          <Text style={styles.brand}>HexTribes · 4X Strategy</Text>
+          <Text style={styles.brand}>Poly World · 4X Strategy</Text>
         </View>
       </ViewShot>
 

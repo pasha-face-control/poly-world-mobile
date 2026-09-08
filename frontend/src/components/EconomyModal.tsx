@@ -16,10 +16,10 @@ export default function EconomyModal({ state, visible, onClose }: { state: GameS
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <GestureHandlerRootView style={styles.flex}>
-        <Pressable style={styles.overlay} onPress={onClose}>
+        <View style={styles.overlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.sheet} testID="economy-modal">
-          <Pressable onPress={() => {}}>
-            <View style={styles.header}>
+          <View style={styles.header}>
               <View style={styles.titleRow}>
                 <MaterialCommunityIcons name="chart-box" size={22} color={C.brand} />
                 <Text style={styles.title}>Economy</Text>
@@ -27,8 +27,7 @@ export default function EconomyModal({ state, visible, onClose }: { state: GameS
               <Pressable testID="economy-close" onPress={onClose} hitSlop={10}>
                 <MaterialCommunityIcons name="close" size={24} color={C.onSurfaceSecondary} />
               </Pressable>
-            </View>
-          </Pressable>
+          </View>
 
           <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: SP.xxl }} showsVerticalScrollIndicator persistentScrollbar nestedScrollEnabled>
             {/* Per-turn income */}
@@ -82,7 +81,7 @@ export default function EconomyModal({ state, visible, onClose }: { state: GameS
             </View>
           </ScrollView>
         </View>
-      </Pressable>
+        </View>
       </GestureHandlerRootView>
     </Modal>
   );

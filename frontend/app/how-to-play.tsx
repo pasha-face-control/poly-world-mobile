@@ -7,11 +7,12 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, SP, shadow } from "@/src/theme";
 
 const SECTIONS: { icon: string; title: string; body: string }[] = [
-  { icon: "hexagon-multiple", title: "Goal", body: "Conquer every rival tribe by capturing all their cities. Lose all of yours and it's game over." },
+  { icon: "earth", title: "Goal", body: "Grow the strongest empire and outlast every rival — capture all their cities to win, and don't lose all of yours." },
   { icon: "gesture-tap", title: "Move & Attack", body: "Tap a unit to select it. Yellow tiles are moves, red tiles are attacks. Melee units chase; archers strike from 2 tiles away." },
-  { icon: "home-city", title: "Cities", body: "Tap your city to train units and harvest nearby resources. Harvesting grows population — full cities level up for more stars." },
-  { icon: "star-four-points", title: "Stars", body: "Each turn every city gives stars equal to its level. Spend stars on units, tech, and harvesting." },
-  { icon: "file-tree", title: "Technology", body: "Open the Tech tree to unlock new units (Rider, Archer, Swordsman), traverse mountains & water, and harvest more resources." },
+  { icon: "home-city", title: "Cities", body: "Tap your city to train units and harvest nearby resources. Harvesting grows population — full cities level up for more stars. Buy adjacent tiles to expand your borders." },
+  { icon: "swap-horizontal", title: "Trade & Economy", body: "Load a Merchant with goods and set a price so rivals buy them for stars. Open the Economy panel (chart icon, top bar) to see what you buy, sell and earn per turn." },
+  { icon: "star-four-points", title: "Stars", body: "Each turn every city gives stars equal to its level. Spend stars on units, tech, harvesting, buying territory and trading." },
+  { icon: "file-tree", title: "Technology", body: "Open the Tech tree to unlock new units, traverse mountains & water, and build mines. A mine's tech icon matches the ore shown on the mountain where it's built." },
   { icon: "flag-variant", title: "Villages", body: "Move a unit onto a neutral village to found a new city and expand your empire." },
 ];
 

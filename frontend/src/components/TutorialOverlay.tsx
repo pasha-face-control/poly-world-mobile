@@ -6,11 +6,12 @@ import { C, R, SP, shadow } from "@/src/theme";
 interface Step { icon: string; title: string; body: string }
 
 const STEPS: Step[] = [
-  { icon: "hexagon-multiple", title: "Welcome, Chief!", body: "Lead your tribe to conquer every rival. Here's a 30-second crash course — you can reopen this any time from the pause menu." },
+  { icon: "earth", title: "Welcome to Poly World!", body: "Trade, buy, grow and thrive. Build a prosperous empire and outlast every rival. Here's a 30-second crash course — reopen it any time from the pause menu." },
   { icon: "gesture-tap", title: "Move your units", body: "Tap a unit to select it, then tap a highlighted yellow tile to move. Units glide to their new spot. Use the Next button to jump to your next ready unit." },
   { icon: "sword-cross", title: "Battle & capture", body: "Tap an enemy on a red tile to attack. Defeat the last defender of a city and move in to capture it. Move onto a neutral village to found a new city." },
-  { icon: "home-city", title: "Grow your cities", body: "Tap a city to train units and harvest nearby food, ore and crops. Harvesting grows population — full cities level up and let you pick a reward." },
-  { icon: "file-tree", title: "Research tech", body: "Open the Tech tree to unlock new units, roads, ports & boats, and the Merchant for trading. Each tech opens new strategies. Now go — expand and exterminate!" },
+  { icon: "home-city", title: "Grow your cities", body: "Tap a city to train units and harvest nearby food, ore and crops. Harvesting grows population — full cities level up and let you pick a reward. Buy extra tiles to expand a city's borders." },
+  { icon: "swap-horizontal", title: "Trade & thrive", body: "Load a Merchant with goods and set a price — rivals buy your stock for stars. Tap the chart icon in the top bar to open the Economy panel and track what you buy, sell and earn each turn." },
+  { icon: "file-tree", title: "Research tech", body: "Open the Tech tree to unlock new units, roads, ports & boats, and the Merchant for trading. A mine's tech icon matches the ore icon on the mountain where you build it. Now go — trade, grow and thrive!" },
 ];
 
 export default function TutorialOverlay({ visible, onClose }: { visible: boolean; onClose: () => void }) {

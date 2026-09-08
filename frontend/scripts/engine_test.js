@@ -479,6 +479,20 @@ if (anyWater) {
   t.terrain = "forest"; t.building = "lumber_hut"; t.resource = null;
   ok("goodsIncome counts a lumber hut (+2 wood/turn)", engine.goodsIncome(g, 0).wood === 2);
 
+  // Iron/Gold mines must NOT add city population (only coal mine does); iron mine produces iron
+  {
+    let gm = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+    gm.players[0].stars = 200; gm.players[0].techs = [...gm.players[0].techs, "climbing", "mining", "mining_technology", "iron_mine"];
+    const cm = gm.cities.find((ci) => ci.owner === 0);
+    const mt = engine.neighbors(gm, cm.tileId).find((n) => gm.tiles[n].terrain === "mountain") ?? engine.neighbors(gm, cm.tileId)[0];
+    const tile = gm.tiles[mt];
+    tile.terrain = "mountain"; tile.resource = "iron_ore"; tile.building = null;
+    const popBefore = cm.population;
+    engine.build(gm, 0, mt, "iron_mine");
+    ok("iron mine adds NO city population", cm.population === popBefore);
+    ok("iron mine produces iron income (+2/turn)", engine.goodsIncome(gm, 0).iron >= 2);
+  }
+
   // Sell path: a bot buying from the human's merchant must record on the human's SOLD ledger
   const cityTile0 = g.cities.find((ci) => ci.owner === 0).tileId;
   g.units.push({ id: "mtest", type: "merchant", owner: 0, tileId: cityTile0, hp: 10, maxHp: 10, moved: false, attacked: false, boat: null, cargo: [{ good: "wood", qty: 3, price: 2 }, { good: null, qty: 0, price: 2 }, { good: null, qty: 0, price: 2 }, { good: null, qty: 0, price: 2 }] });
