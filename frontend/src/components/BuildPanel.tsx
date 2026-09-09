@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import GameIcon from "@/src/components/GameIcon";
 import { C, R, SP, shadow } from "@/src/theme";
 import { BUILDINGS, BUILDING_POP, GOODS, INFRA } from "@/src/game/data";
 import { canBuild, canInfra } from "@/src/game/engine";
@@ -25,6 +26,7 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfr
   const infraOptions = INFRA.filter((i) => {
     if (i.id === "road") return tile.terrain !== "water" && tile.terrain !== "mountain" && !tile.road;
     if (i.id === "port") return tile.terrain === "water" && !tile.port;
+    if (i.id === "trade_port") return tile.terrain === "water" && !tile.tradePort;
     if (i.id === "burn_forest") return tile.terrain === "forest";
     return false;
   });
@@ -47,7 +49,7 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfr
             return (
               <Pressable key={b.id} testID={`build-${b.id}`} disabled={!check.ok} onPress={() => onBuild(b.id)} style={[styles.chip, !check.ok && !onlyStars && styles.chipDisabled, onlyStars && styles.chipUnaffordable]}>
                 <View style={[styles.chipIcon, { backgroundColor: b.color }]}>
-                  <MaterialCommunityIcons name={b.icon as any} size={20} color="#fff" />
+                  <GameIcon name={b.icon} size={20} color="#fff" />
                 </View>
                 <Text style={styles.chipName}>{b.name}</Text>
                 <View style={styles.chipCost}>
@@ -63,8 +65,8 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfr
                 <View style={styles.produce}>
                   {Object.entries(b.produces).map(([key, amt]) => (
                     <View key={key} style={styles.produceItem}>
-                      <MaterialCommunityIcons
-                        name={(key === "stars" ? "star-four-points" : (goodMeta(key)?.icon ?? "help")) as any}
+                      <GameIcon
+                        name={key === "stars" ? "star-four-points" : (goodMeta(key)?.icon ?? "help")}
                         size={11}
                         color={key === "stars" ? C.warning : goodMeta(key)?.color ?? C.onSurface}
                       />
@@ -96,8 +98,14 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfr
                     <MaterialCommunityIcons name="lock" size={12} color={C.borderStrong} />
                   ) : (
                     <>
-                      <MaterialCommunityIcons name="star-four-points" size={11} color={onlyStars ? C.error : C.warning} />
-                      <Text style={[styles.chipCostText, onlyStars && styles.costRed]}>{i.cost}</Text>
+                      <MaterialCommunityIcons name="star-four-points" size={11} color={player.stars < i.cost ? C.error : C.warning} />
+                      <Text style={[styles.chipCostText, player.stars < i.cost && styles.costRed]}>{i.cost}</Text>
+                      {!!i.woodCost && (
+                        <>
+                          <MaterialCommunityIcons name="tree" size={11} color={player.goods.wood < i.woodCost ? C.error : "#7A5230"} style={{ marginLeft: 4 }} />
+                          <Text style={[styles.chipCostText, player.goods.wood < i.woodCost && styles.costRed]}>{i.woodCost}</Text>
+                        </>
+                      )}
                     </>
                   )}
                 </View>

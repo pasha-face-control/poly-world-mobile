@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import GameIcon from "@/src/components/GameIcon";
 import { C, R, shadow } from "@/src/theme";
 import { GameState } from "@/src/game/types";
 import { TRIBE_BY_ID, GOODS } from "@/src/game/data";
@@ -45,7 +46,7 @@ export default function TopHUD({ state, topInset, onOpenEconomy }: { state: Game
         <View style={styles.goodSep} />
         {GOODS.map((g) => (
           <View key={g.id} style={styles.good} testID={`hud-good-${g.id}`}>
-            <MaterialCommunityIcons name={g.icon as any} size={14} color={g.color} />
+            <GameIcon name={g.icon} size={14} color={g.color} />
             <Text style={styles.goodValue}>{player.goods[g.id]}</Text>
           </View>
         ))}

@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Line } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import GameIcon from "@/src/components/GameIcon";
 import { C, R, SP, shadow } from "@/src/theme";
 import { TECHS, TECH_BY_ID } from "@/src/game/data";
 import { techCost } from "@/src/game/engine";
@@ -141,7 +142,7 @@ export default function TechTreeModal({ visible, state, onResearch, onClose, top
                         onPress={() => onResearch(t.id)}
                         style={[styles.node, researched ? styles.nodeDone : unlocked ? styles.nodeOpen : styles.nodeLocked, canResearch && styles.nodeReady]}
                       >
-                        <MaterialCommunityIcons name={t.icon as any} size={24} color={researched ? "#fff" : unlocked ? C.brand : C.borderStrong} />
+                        <GameIcon name={t.icon} size={24} color={researched ? "#fff" : unlocked ? C.brand : C.borderStrong} />
                         {!researched && (
                           <View style={styles.costTag}>
                             {unlocked ? (

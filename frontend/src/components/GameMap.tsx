@@ -4,6 +4,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 import Svg, { Ellipse, Line, Polygon } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import GameIcon from "@/src/components/GameIcon";
 import { C, shadow } from "@/src/theme";
 import { BOAT_DEFS, BUILDING_BY_ID, RESOURCE_ICON, TERRAIN_COLOR, TRIBE_BY_ID, UNIT_DEFS } from "@/src/game/data";
 import { canFish, canHunt } from "@/src/game/engine";
@@ -231,9 +232,10 @@ function drawBoat(arr: React.ReactNode[], bx: number, by: number, color: string,
 }
 
 // Wooden dock (port) on a water tile.
-function drawDock(arr: React.ReactNode[], bx: number, by: number, k: string | number) {
+function drawDock(arr: React.ReactNode[], bx: number, by: number, k: string | number, trade = false) {
   isoBox(arr, bx, by + 2, 10, 5, 5, "#9A7B4F", "#5C4326", "#7A5A34", `dk${k}`);
-  arr.push(<Polygon key={`dpost${k}`} points={pts([[bx + 7, by - 2], [bx + 9, by - 2], [bx + 9, by - 14], [bx + 7, by - 14]])} fill="#5C4326" />);
+  arr.push(<Polygon key={`dpost${k}`} points={pts([[bx + 7, by - 2], [bx + 9, by - 2], [bx + 9, by - 14], [bx + 7, by - 14]])} fill={trade ? "#2E6B4E" : "#5C4326"} />);
+  if (trade) arr.push(<Polygon key={`dflag${k}`} points={pts([[bx + 9, by - 14], [bx + 15, by - 12], [bx + 9, by - 10]])} fill="#4A8A6A" />);
 }
 
 export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, roadExtra = [], attackable, centerTileId, focusTileId, focusKey, territory, territoryColor, moveAnim, onTileTap, onTileDoubleTap }: Props) {
@@ -509,6 +511,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     const city = t.cityId ? state.cities.find((c) => c.id === t.cityId) : undefined;
     const unit = state.units.find((u) => u.tileId === t.id);
     if (t.port && !city) drawDock(terrainShapes, cx, surfY, k);
+    if (t.tradePort && !city) drawDock(terrainShapes, cx, surfY, `t${k}`, true);
     if (city) drawCity(terrainShapes, cx, surfY, playerColor(state, city.owner), city.isCapital, k);
     else if (t.isVillage) drawCity(terrainShapes, cx, surfY, t.claimBy != null ? playerColor(state, t.claimBy) : C.borderStrong, false, k);
     if (unit && !city && unit.id !== animUnit?.id) {
@@ -548,12 +551,12 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                 )}
                 {t.building && !city && !unit && (
                   <View style={[styles.building, { left: cx - 15, top: baseY - 30, backgroundColor: BUILDING_BY_ID[t.building]?.color ?? C.brand }]}>
-                    <MaterialCommunityIcons name={(BUILDING_BY_ID[t.building]?.icon ?? "home") as any} size={18} color="#fff" />
+                    <GameIcon name={BUILDING_BY_ID[t.building]?.icon ?? "home"} size={18} color="#fff" />
                   </View>
                 )}
                 {t.resource && t.resource !== "animal" && !city && !unit && !t.building && (
                   <View style={[styles.resourceBadge, { left: cx + 6, top: baseY - 16 }]}>
-                    <MaterialCommunityIcons name={RESOURCE_ICON[t.resource] as any} size={13} color={C.onSurface} />
+                    <GameIcon name={RESOURCE_ICON[t.resource]} size={13} color={C.onSurface} />
                   </View>
                 )}
                 {city && (

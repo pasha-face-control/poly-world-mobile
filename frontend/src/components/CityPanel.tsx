@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import GameIcon from "@/src/components/GameIcon";
 import { C, R, SP, shadow } from "@/src/theme";
 import { GOODS, UNIT_DEFS, levelThreshold } from "@/src/game/data";
 import { canTrain } from "@/src/game/engine";
@@ -71,7 +72,7 @@ export default function CityPanel({ state, city, bottomInset, onTrain, onClose }
                       const enough = player.goods[g.id] >= need;
                       return (
                         <View key={g.id} style={styles.goodCost}>
-                          <MaterialCommunityIcons name={g.icon as any} size={11} color={enough ? g.color : C.error} />
+                          <GameIcon name={g.icon} size={11} color={enough ? g.color : C.error} />
                           <Text style={[styles.goodCostText, !enough && { color: C.error }]}>{need}</Text>
                         </View>
                       );

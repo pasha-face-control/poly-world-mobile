@@ -2,6 +2,7 @@ import React from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureHandlerRootView, ScrollView } from "react-native-gesture-handler";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import GameIcon from "@/src/components/GameIcon";
 import { C, R, SP, shadow } from "@/src/theme";
 import { GameState, GoodType } from "@/src/game/types";
 import { GOODS } from "@/src/game/data";
@@ -90,7 +91,7 @@ export default function EconomyModal({ state, visible, onClose }: { state: GameS
 function Row({ icon, iconColor, label, right }: { icon: string; iconColor: string; label: string; right: React.ReactNode }) {
   return (
     <View style={styles.row}>
-      <MaterialCommunityIcons name={icon as any} size={18} color={iconColor} />
+      <GameIcon name={icon} size={18} color={iconColor} />
       <Text style={styles.rowLabel}>{label}</Text>
       {right}
     </View>
@@ -104,7 +105,7 @@ function TradeRow({ good, qty, stars, tone }: { good: { id: GoodType; name: stri
     <View style={styles.row}>
       <View style={styles.flex1}>
         <View style={styles.resCell}>
-          <MaterialCommunityIcons name={good.icon as any} size={16} color={good.color} />
+          <GameIcon name={good.icon} size={16} color={good.color} />
           <Text style={[styles.rowLabel, dim && styles.dim]}>{good.name}</Text>
         </View>
       </View>

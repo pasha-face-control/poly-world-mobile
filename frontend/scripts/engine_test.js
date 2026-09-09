@@ -92,18 +92,22 @@ ok("bot spent stars & got good", bot.stars === 95 && bot.goods.wood >= 1);
   ok("cannot buy own merchant", !engine.canBuyFromMerchant(s, 1, bm.id).ok);
 }
 
-// ---- Merchant Ship: 8 slots, 32/slot ----
+// ---- Merchant Ship: embark at a Trade Port (needs Trading Overseas) ----
 {
-  // ensure merch is on a port so it can embark
   const grid = require("../src/game/grid.ts");
   let portT = s.tiles.find((t) => t.terrain === "water" && grid.neighbors(s, t.id).some((n) => s.tiles[n].terrain !== "water"));
   if (portT) {
-    portT.port = true;
+    portT.tradePort = true;
     merch.tileId = portT.id;
     merch.boat = null;
-    if (!player.techs.includes("sailing")) player.techs.push("sailing");
-    ok("embark merchant -> ship", engine.embark(s, merch.id) && merch.boat === "rowing");
+    if (!player.techs.includes("trading_overseas")) player.techs.push("trading_overseas");
+    // merchant cannot embark on a plain (military) main port
+    portT.tradePort = false; portT.port = true;
+    ok("merchant blocked on main port", !engine.canEmbark(s, merch.id).ok);
+    portT.port = false; portT.tradePort = true;
+    ok("embark merchant -> merchant ship", engine.embark(s, merch.id) && merch.boat === "sailing");
     ok("ship has 8 slots", merch.cargo.length === 8);
+    ok("merchant ship can't upgrade", !engine.canUpgradeBoat(s, merch.id).ok);
     player.goods.wheat = 50;
     ok("load 32 wheat into a ship slot", engine.loadMerchant(s, merch.id, 4, "wheat", 32) && merch.cargo[4].qty === 32);
     ok("ship slot cap is 32", !engine.loadMerchant(s, merch.id, 4, "wheat", 1) || merch.cargo[4].qty === 32);
@@ -133,13 +137,22 @@ for (const t of s.tiles) {
   if (adj.some((n) => s.tiles[n].terrain !== "water" && capTerr.includes(n))) { portTile = t; break; }
 }
 if (portTile) {
+  if (!player.techs.includes("sailing")) player.techs.push("sailing");
+  // Wood-cost enforcement: port needs 10★ + 12 wood
+  player.stars = 50; player.goods.wood = 5;
+  ok("main port blocked without enough wood", !engine.canInfra(s, P, portTile.id, "port").ok);
+  ok("main port panel opens (ignoreStars) despite low wood", engine.canInfra(s, P, portTile.id, "port", { ignoreStars: true }).ok);
+  player.goods.wood = 40;
+  const woodBefore = player.goods.wood, starBefore = player.stars;
   const built = engine.doInfra(s, P, portTile.id, "port");
   ok("build port", built && s.tiles[portTile.id].port === true);
+  ok("port deducted 12 wood", player.goods.wood === woodBefore - 12);
+  ok("port deducted 10 stars", player.stars === starBefore - 10);
   // place a warrior on the port tile (simulate having moved there) and embark
   const { newUnit } = require("../src/game/factory.ts");
   const w = newUnit("warrior", P, portTile.id);
   s.units.push(w);
-  ok("can embark on port", engine.canEmbark(s, w.id).ok);
+  ok("can embark on main port", engine.canEmbark(s, w.id).ok);
   ok("embark", engine.embark(s, w.id) && w.boat === "rowing");
   ok("boat move stat > land", unitStats(w).move === 2);
   w.moved = false;
@@ -157,6 +170,35 @@ if (portTile) {
     ok("land unit can reach port tile", engine.reachableTiles(s, w2).includes(portTile.id));
   }
 } else { console.log("SKIP naval (no coastal water near capital)"); }
+
+// ---- Trade Port: distinct build + merchant-only embark + wood cost (8★ + 10 wood) ----
+{
+  let tpTile = null;
+  const capTerr2 = [cap.tileId, ...engine.neighbors(s, cap.tileId)];
+  for (const t of s.tiles) {
+    if (t.terrain !== "water" || t.port || t.tradePort) continue;
+    const adj = engine.neighbors(s, t.id);
+    if (adj.some((n) => s.tiles[n].terrain !== "water" && capTerr2.includes(n))) { tpTile = t; break; }
+  }
+  if (tpTile) {
+    if (!player.techs.includes("trading_overseas")) player.techs.push("trading_overseas");
+    player.stars = 50; player.goods.wood = 3;
+    ok("trade port blocked without enough wood", !engine.canInfra(s, P, tpTile.id, "trade_port").ok);
+    player.goods.wood = 30;
+    const wB = player.goods.wood, sB = player.stars;
+    ok("build trade port", engine.doInfra(s, P, tpTile.id, "trade_port") && s.tiles[tpTile.id].tradePort === true);
+    ok("trade port deducted 10 wood", player.goods.wood === wB - 10);
+    ok("trade port deducted 8 stars", player.stars === sB - 8);
+    // a warrior cannot embark on a trade port (merchants only)
+    const { newUnit: mk2 } = require("../src/game/factory.ts");
+    const wt = mk2("warrior", P, tpTile.id);
+    s.units.push(wt);
+    if (!player.techs.includes("sailing")) player.techs.push("sailing");
+    ok("warrior cannot embark on trade port", !engine.canEmbark(s, wt.id).ok);
+    s.units = s.units.filter((u) => u.id !== wt.id);
+  } else { console.log("SKIP trade port (no coastal water near capital)"); }
+}
+
 
 // ---- Land unit cannot enter open water ----
 const anyWater = s.tiles.find((t) => t.terrain === "water" && !t.port);
@@ -479,7 +521,7 @@ if (anyWater) {
   t.terrain = "forest"; t.building = "lumber_hut"; t.resource = null;
   ok("goodsIncome counts a lumber hut (+2 wood/turn)", engine.goodsIncome(g, 0).wood === 2);
 
-  // Iron/Gold mines must NOT add city population (only coal mine does); iron mine produces iron
+  // Iron mine gives +2 population AND +2 iron income
   {
     let gm = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
     gm.players[0].stars = 200; gm.players[0].techs = [...gm.players[0].techs, "climbing", "mining", "mining_technology", "iron_mine"];
@@ -487,9 +529,10 @@ if (anyWater) {
     const mt = engine.neighbors(gm, cm.tileId).find((n) => gm.tiles[n].terrain === "mountain") ?? engine.neighbors(gm, cm.tileId)[0];
     const tile = gm.tiles[mt];
     tile.terrain = "mountain"; tile.resource = "iron_ore"; tile.building = null;
-    const popBefore = cm.population;
+    cm.level = 5; cm.population = 0; // high level so +2 pop won't trigger a level-up
+    const popBefore = cm.population, lvlBefore = cm.level;
     engine.build(gm, 0, mt, "iron_mine");
-    ok("iron mine adds NO city population", cm.population === popBefore);
+    ok("iron mine adds +2 city population", cm.population === popBefore + 2 && cm.level === lvlBefore);
     ok("iron mine produces iron income (+2/turn)", engine.goodsIncome(gm, 0).iron >= 2);
   }
 

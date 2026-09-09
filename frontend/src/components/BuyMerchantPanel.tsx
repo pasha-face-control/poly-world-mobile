@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ScrollView, Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import GameIcon from "@/src/components/GameIcon";
 import { C, R, SP, shadow } from "@/src/theme";
 import { GOODS, TRIBE_BY_ID } from "@/src/game/data";
 import { GameState, GoodType, Unit } from "@/src/game/types";
@@ -57,7 +58,7 @@ export default function BuyMerchantPanel({ state, merchant, bottomInset, onBuy, 
               return (
                 <View key={slot.i} style={styles.row}>
                   <View style={styles.rowTop}>
-                    <MaterialCommunityIcons name={meta.icon as any} size={20} color={meta.color} />
+                    <GameIcon name={meta.icon} size={20} color={meta.color} />
                     <Text style={styles.goodName}>{meta.name}</Text>
                     <Text style={styles.avail}>x{slot.qty}</Text>
                     <View style={styles.priceChip}>

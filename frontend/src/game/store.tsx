@@ -169,6 +169,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (p.provoked === undefined) p.provoked = false;
         if (!p.economy) p.economy = { bought: {}, sold: {} };
       }
+      // Backfill the Trade Port flag on older saves' tiles.
+      for (const t of loaded.tiles || []) {
+        if (t.tradePort === undefined) t.tradePort = false;
+      }
       // Migrate old (record-based) merchant cargo to the new slot array.
       for (const u of loaded.units) {
         if (u.type === "merchant" && u.cargo && !Array.isArray(u.cargo)) {

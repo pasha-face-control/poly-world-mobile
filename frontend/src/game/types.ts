@@ -19,7 +19,8 @@ export interface Tile {
   seenBy?: number[]; // per-player exploration (closed games)
   building: string | null; // building def id
   road: boolean; // road infrastructure
-  port: boolean; // dock built on a water tile
+  port: boolean; // Main Port (military/civilian embark) built on a water tile
+  tradePort?: boolean; // Trade Port (merchants embark to a Merchant Ship)
   claimBy?: number | null; // player index currently claiming this village (capture completes next turn)
   claimTurn?: number; // round number when the claim started
 }

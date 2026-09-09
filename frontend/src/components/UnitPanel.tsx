@@ -28,13 +28,13 @@ export default function UnitPanel({ state, unit, bottomInset, onEmbark, onUpgrad
   const def = UNIT_DEFS[unit.type];
   const stats = unitStats(unit);
   const status = unit.attacked ? "Done" : unit.moved ? "Can attack" : "Ready";
-  const name = unit.boat ? BOAT_DEFS[unit.boat].name : def.name;
-  const icon = unit.boat ? BOAT_DEFS[unit.boat].icon : def.icon;
+  const isMerchant = unit.type === "merchant";
+  const name = unit.boat ? (isMerchant ? "Merchant Ship" : BOAT_DEFS[unit.boat].name) : def.name;
+  const icon = unit.boat ? (isMerchant ? "ferry" : BOAT_DEFS[unit.boat].icon) : def.icon;
 
   const embarkOk = canEmbark(state, unit.id).ok;
   const upgradeOk = canUpgradeBoat(state, unit.id).ok;
   const next = unit.boat ? nextBoatTier(unit.boat) : null;
-  const isMerchant = unit.type === "merchant";
 
   return (
     <View style={[styles.wrap, { paddingBottom: bottomInset + 96 }]} pointerEvents="box-none">
@@ -66,7 +66,7 @@ export default function UnitPanel({ state, unit, bottomInset, onEmbark, onUpgrad
               <Text style={styles.actionText}>Embark</Text>
             </Pressable>
           )}
-          {unit.boat && next && (
+          {unit.boat && next && !isMerchant && (
             <Pressable testID="unit-upgrade-boat" disabled={!upgradeOk} onPress={() => onUpgradeBoat(unit.id)} style={[styles.actionBtn, { backgroundColor: C.brand }, !upgradeOk && styles.disabled]}>
               <MaterialCommunityIcons name="arrow-up-bold" size={16} color="#fff" />
               <Text style={styles.actionText}>{BOAT_DEFS[next].name.replace(" Boat", "")}</Text>

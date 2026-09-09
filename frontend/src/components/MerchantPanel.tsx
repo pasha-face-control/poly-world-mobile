@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import GameIcon from "@/src/components/GameIcon";
 import { C, R, SP, shadow } from "@/src/theme";
 import { GOODS, merchantSlots, slotCapacity } from "@/src/game/data";
 import { GameState, GoodType, Unit } from "@/src/game/types";
@@ -51,7 +52,7 @@ export default function MerchantPanel({ state, unit, bottomInset, onLoad, onSetP
                           onPress={() => onLoad(unit.id, i, g.id, 1)}
                           style={[styles.pick, disabled && styles.dim]}
                         >
-                          <MaterialCommunityIcons name={g.icon as any} size={18} color={g.color} />
+                          <GameIcon name={g.icon} size={18} color={g.color} />
                           <Text style={styles.pickQty}>{player.goods[g.id] ?? 0}</Text>
                         </Pressable>
                       );
@@ -65,7 +66,7 @@ export default function MerchantPanel({ state, unit, bottomInset, onLoad, onSetP
             return (
               <View key={i} style={styles.slot} testID={`slot-${i}`}>
                 <View style={styles.slotTop}>
-                  <MaterialCommunityIcons name={meta.icon as any} size={20} color={meta.color} />
+                  <GameIcon name={meta.icon} size={20} color={meta.color} />
                   <Text style={styles.goodName}>{meta.name}</Text>
                   <Text style={styles.qty} testID={`slot-${i}-qty`}>{slot.qty}/{cap}</Text>
                   <Text style={styles.stock}>stock {stock}</Text>

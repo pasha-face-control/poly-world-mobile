@@ -281,6 +281,7 @@ export function canInfra(state: GameState, player: number, tileId: number, infra
   const tile = state.tiles[tileId];
   if (!playerHasTech(state, player, def.tech)) return { ok: false, reason: `Requires ${TECH_BY_ID[def.tech].name}` };
   if (!opts?.ignoreStars && state.players[player].stars < def.cost) return { ok: false, reason: "Not enough stars" };
+  if (!opts?.ignoreStars && def.woodCost && state.players[player].goods.wood < def.woodCost) return { ok: false, reason: "Not enough wood" };
   if (infraId === "road") {
     if (tile.terrain === "water" || tile.terrain === "mountain") return { ok: false, reason: "Cannot road here" };
     if (tile.road) return { ok: false, reason: "Already a road" };
@@ -289,6 +290,11 @@ export function canInfra(state: GameState, player: number, tileId: number, infra
     if (tile.terrain !== "water") return { ok: false, reason: "Needs water" };
     if (tile.port) return { ok: false, reason: "Already a port" };
     // must border land in one of your cities' territory
+    const adjOwned = neighbors(state, tileId).some((n) => state.tiles[n].terrain !== "water" && owningCityForTile(state, player, n));
+    if (!adjOwned) return { ok: false, reason: "Must border your land" };
+  } else if (infraId === "trade_port") {
+    if (tile.terrain !== "water") return { ok: false, reason: "Needs water" };
+    if (tile.tradePort) return { ok: false, reason: "Already a trade port" };
     const adjOwned = neighbors(state, tileId).some((n) => state.tiles[n].terrain !== "water" && owningCityForTile(state, player, n));
     if (!adjOwned) return { ok: false, reason: "Must border your land" };
   } else if (infraId === "burn_forest") {
@@ -303,9 +309,11 @@ export function doInfra(state: GameState, player: number, tileId: number, infraI
   if (!canInfra(state, player, tileId, infraId).ok) return false;
   const def = INFRA_BY_ID[infraId];
   state.players[player].stars -= def.cost;
+  if (def.woodCost) state.players[player].goods.wood -= def.woodCost;
   const tile = state.tiles[tileId];
   if (infraId === "road") tile.road = true;
   else if (infraId === "port") tile.port = true;
+  else if (infraId === "trade_port") tile.tradePort = true;
   else if (infraId === "burn_forest") {
     tile.terrain = "grass";
     tile.resource = "crop";
@@ -334,18 +342,25 @@ export function canEmbark(state: GameState, unitId: string): { ok: boolean; reas
   const u = state.units.find((x) => x.id === unitId);
   if (!u) return { ok: false, reason: "No unit" };
   if (u.boat) return { ok: false, reason: "Already at sea" };
+  if (u.type === "merchant") {
+    if (!playerHasTech(state, u.owner, "trading_overseas")) return { ok: false, reason: "Requires Trading Overseas" };
+    if (!state.tiles[u.tileId].tradePort) return { ok: false, reason: "Must be on a trade port" };
+    return { ok: true };
+  }
   if (!playerHasTech(state, u.owner, "sailing")) return { ok: false, reason: "Requires Sailing" };
-  if (!state.tiles[u.tileId].port) return { ok: false, reason: "Must be on a port" };
+  if (!state.tiles[u.tileId].port) return { ok: false, reason: "Must be on a main port" };
   return { ok: true };
 }
 
 export function embark(state: GameState, unitId: string): boolean {
   if (!canEmbark(state, unitId).ok) return false;
   const u = state.units.find((x) => x.id === unitId)!;
-  u.boat = "rowing";
-  // Merchant ships have 8 cargo slots — grow the inventory when embarking.
-  if (u.type === "merchant" && u.cargo) {
-    while (u.cargo.length < 8) u.cargo.push({ good: null, qty: 0, price: 3 });
+  if (u.type === "merchant") {
+    // Merchants embark straight to a Merchant Ship (skip the rowing-boat tier).
+    u.boat = "sailing";
+    if (u.cargo) while (u.cargo.length < 8) u.cargo.push({ good: null, qty: 0, price: 3 });
+  } else {
+    u.boat = "rowing";
   }
   u.moved = true;
   u.attacked = true;

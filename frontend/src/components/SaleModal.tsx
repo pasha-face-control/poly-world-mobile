@@ -1,6 +1,7 @@
 import React from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import GameIcon from "@/src/components/GameIcon";
 import { GOODS } from "@/src/game/data";
 import { GoodType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
@@ -30,7 +31,7 @@ export default function SaleModal({ sale, onClose }: Props) {
               return (
                 <View key={good} style={styles.row} testID={`sale-row-${good}`}>
                   <View style={[styles.goodIcon, { backgroundColor: def?.color ?? C.brand }]}>
-                    <MaterialCommunityIcons name={(def?.icon ?? "cube") as any} size={18} color="#fff" />
+                    <GameIcon name={def?.icon ?? "cube"} size={18} color="#fff" />
                   </View>
                   <Text style={styles.goodName}>{def?.name ?? good}</Text>
                   <Text style={styles.goodQty}>×{qty}</Text>

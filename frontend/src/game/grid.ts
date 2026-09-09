@@ -38,8 +38,8 @@ function canEnter(state: GameState, unit: Unit, tile: Tile): boolean {
     if (tile.terrain === "mountain") return false; // can't sail up a mountain
     return true; // water = sail, land = disembark
   }
-  // Land units may only step onto water tiles that hold a port (to embark there).
-  if (tile.terrain === "water") return tile.port;
+  // Land units may only step onto water tiles that hold the right port (to embark there).
+  if (tile.terrain === "water") return unit.type === "merchant" ? !!tile.tradePort : tile.port;
   if (tile.terrain === "mountain") return playerHasTech(state, unit.owner, "climbing");
   return true;
 }
