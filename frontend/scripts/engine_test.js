@@ -229,6 +229,31 @@ if (anyWater) {
   ok("pending cleared", !s.pendingLevelUps.includes(rcap.id));
 }
 
+// ---- Level-up reward choice is offered to ALL human players (not just player 0) ----
+{
+  const mkGame = () => {
+    const g = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: true, seed: 9 });
+    const c1 = g.cities.find((c) => c.owner === 1);
+    g.players[1].techs = [...g.players[1].techs, "climbing", "mining", "mining_technology", "iron_mine"];
+    g.players[1].stars = 200;
+    const mt = engine.neighbors(g, c1.tileId).find((n) => g.tiles[n].terrain !== "water" && !engine.unitAt(g, n) && !g.tiles[n].cityId) ?? engine.neighbors(g, c1.tileId)[0];
+    const tile = g.tiles[mt]; tile.terrain = "mountain"; tile.resource = "iron_ore"; tile.building = null;
+    c1.level = 1; c1.population = 0;
+    return { g, c1, mt };
+  };
+  // Human player #2 (index 1): should be queued for a reward pick.
+  const a = mkGame();
+  a.g.players[1].isHuman = true;
+  engine.build(a.g, 1, a.mt, "iron_mine"); // +2 pop -> level up
+  ok("human player #2 level up enqueued", (a.g.pendingLevelUps || []).includes(a.c1.id));
+  // Non-human (AI) player: should NOT be queued (auto reward instead).
+  const b = mkGame();
+  b.g.players[1].isHuman = false;
+  engine.build(b.g, 1, b.mt, "iron_mine");
+  ok("AI player level up NOT enqueued", !(b.g.pendingLevelUps || []).includes(b.c1.id));
+}
+
+
 // ---- Tech pricing (trade line) ----
 {
   const dataMod = require("../src/game/data.ts");

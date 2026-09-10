@@ -487,7 +487,10 @@ export default function GameScreen() {
       />
 
       <LevelUpModal
-        city={state.pendingLevelUps?.length ? state.cities.find((c) => c.id === state.pendingLevelUps[0]) ?? null : null}
+        city={(() => {
+          const id = (state.pendingLevelUps ?? []).find((cid) => state.cities.find((c) => c.id === cid)?.owner === state.currentPlayer);
+          return id ? state.cities.find((c) => c.id === id) ?? null : null;
+        })()}
         onPick={(cityId, rewardId) => {
           haptic.notify();
           doApplyReward(cityId, rewardId);

@@ -128,7 +128,7 @@ function addPopulation(state: GameState, city: City, amount: number) {
     city.population -= levelThreshold(city.level);
     city.level += 1;
     city.production += 1; // every new level yields +1 star per turn
-    if (city.owner === 0) {
+    if (state.players[city.owner].isHuman) {
       if (!state.pendingLevelUps) state.pendingLevelUps = [];
       state.pendingLevelUps.push(city.id); // human picks a reward via the UI
     } else {
