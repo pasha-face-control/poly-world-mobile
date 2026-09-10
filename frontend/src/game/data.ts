@@ -82,7 +82,7 @@ export interface BoatDef {
 export const BOAT_DEFS: Record<import("./types").NavalTier, BoatDef> = {
   rowing: { tier: "rowing", name: "Rowing Boat", icon: "rowing", atk: 1, def: 1, move: 2, range: 1, upgradeCost: 0, requires: null },
   sailing: { tier: "sailing", name: "Sailing Boat", icon: "sail-boat", atk: 2, def: 1, move: 3, range: 2, upgradeCost: 5, requires: "sailing" },
-  battleship: { tier: "battleship", name: "Battleship", icon: "ferry", atk: 4, def: 3, move: 3, range: 2, upgradeCost: 15, requires: "expedition" },
+  battleship: { tier: "battleship", name: "Frigate", icon: "ferry", atk: 4, def: 3, move: 3, range: 2, upgradeCost: 15, requires: "expedition" },
 };
 
 // Effective combat/movement stats for a unit, accounting for its embarked boat tier.
@@ -188,7 +188,7 @@ export const TECHS: TechDef[] = [
 
   // Fishing branch
   T("sailing", "Sailing", 2, "fishing", "sail-boat", "Build ports; upgrade to Sailing Boats."),
-  T("expedition", "Expedition", 3, "sailing", "ferry", "Upgrade Sailing Boats to Battleships."),
+  T("expedition", "Expedition", 3, "sailing", "ferry", "Upgrade Sailing Boats to Frigates."),
 ];
 
 export const TECH_BY_ID: Record<string, TechDef> = Object.fromEntries(TECHS.map((t) => [t.id, t]));
