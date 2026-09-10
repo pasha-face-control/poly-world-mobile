@@ -106,6 +106,16 @@ export default function GameScreen() {
       setFishPlaying(false);
       setCaptureTarget(null);
       setExpandTarget(null);
+      // Snap the camera to the new player's capital so a turn never starts
+      // showing an opponent's territory (important for pass-and-play).
+      const cur = state.currentPlayer;
+      if (state.players[cur]?.isHuman) {
+        const cap = state.cities.find((c) => c.owner === cur && c.isCapital) ?? state.cities.find((c) => c.owner === cur);
+        if (cap) {
+          setFocusTileId(cap.tileId);
+          setFocusKey((k) => k + 1);
+        }
+      }
     }
   }, [state?.currentPlayer, state]);
 
@@ -154,7 +164,10 @@ export default function GameScreen() {
 
   if (!state) return <View style={{ flex: 1, backgroundColor: C.surface }} />;
 
-  const capitalTile = state.cities.find((c) => c.owner === 0 && c.isCapital)?.tileId ?? state.tiles[0].id;
+  const capitalTile = state.cities.find((c) => c.owner === state.currentPlayer && c.isCapital)?.tileId
+    ?? state.cities.find((c) => c.owner === state.currentPlayer)?.tileId
+    ?? state.cities.find((c) => c.owner === 0 && c.isCapital)?.tileId
+    ?? state.tiles[0].id;
 
   const onTileTap = (tileId: number) => {
     if (!interactive) return;

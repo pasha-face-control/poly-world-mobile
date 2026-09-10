@@ -243,9 +243,8 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
   const scale = useSharedValue(0.9);
-  const startX = useSharedValue(0);
-  const startY = useSharedValue(0);
-  const startScale = useSharedValue(0.9);
+  const vpW = useSharedValue(0);
+  const vpH = useSharedValue(0);
   const viewport = useRef({ w: 0, h: 0 });
   const centered = useRef(false);
 
@@ -344,6 +343,8 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
 
   const onLayout = (e: LayoutChangeEvent) => {
     viewport.current = { w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height };
+    vpW.value = e.nativeEvent.layout.width;
+    vpH.value = e.nativeEvent.layout.height;
     if (!centered.current && centerTileId != null) {
       centered.current = true;
       centerOn(centerTileId);
@@ -361,21 +362,24 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
   };
 
   const pan = Gesture.Pan()
-    .onBegin(() => {
-      startX.value = tx.value;
-      startY.value = ty.value;
-    })
-    .onUpdate((e) => {
-      tx.value = startX.value + e.translationX;
-      ty.value = startY.value + e.translationY;
+    .averageTouches(true)
+    .onChange((e) => {
+      tx.value += e.changeX;
+      ty.value += e.changeY;
     });
 
   const pinch = Gesture.Pinch()
-    .onBegin(() => {
-      startScale.value = scale.value;
-    })
-    .onUpdate((e) => {
-      scale.value = Math.min(2.2, Math.max(0.4, startScale.value * e.scale));
+    .onChange((e) => {
+      const newScale = Math.min(2.2, Math.max(0.4, scale.value * e.scaleChange));
+      // Keep the viewport centre fixed while zooming (top-left transform origin:
+      // screen = board * scale + translate). Board point under the centre:
+      const cxp = vpW.value / 2;
+      const cyp = vpH.value / 2;
+      const bx = (cxp - tx.value) / scale.value;
+      const by = (cyp - ty.value) / scale.value;
+      tx.value = cxp - bx * newScale;
+      ty.value = cyp - by * newScale;
+      scale.value = newScale;
     });
 
   const rotate = Gesture.Rotation().onEnd((e) => {
@@ -523,7 +527,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
   return (
     <View style={styles.viewport} onLayout={onLayout}>
       <GestureDetector gesture={composed}>
-        <Animated.View style={[{ width: boardW, height: boardH }, animStyle]}>
+        <Animated.View style={[{ width: boardW, height: boardH, transformOrigin: "top left" }, animStyle]}>
           <Svg width={boardW} height={boardH} style={StyleSheet.absoluteFill}>
             {terrainShapes}
           </Svg>
