@@ -36,6 +36,46 @@ import { GameState, GoodType, NewGameConfig, UnitType } from "./types";
 
 const SAVE_KEY = "hextribes_save_v1";
 const STATS_KEY = "hextribes_stats_v1";
+export const NUM_SLOTS = 10;
+const slotKey = (i: number) => `hextribes_slot_${i}`;
+
+export interface SlotInfo {
+  index: number;
+  empty: boolean;
+  savedAt?: number;
+  turn?: number;
+  tribe?: string;
+  status?: GameState["status"];
+  players?: number;
+}
+
+// Backfill/repair a loaded save so older schemas don't crash the UI.
+function migrateState(loaded: GameState): GameState {
+  if (!loaded.pendingLevelUps) loaded.pendingLevelUps = [];
+  if (!loaded.difficulty) loaded.difficulty = "normal";
+  for (const p of loaded.players || []) {
+    const g = (p.goods || {}) as Partial<Record<GoodType, number>>;
+    p.goods = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, ...g };
+    if (p.provoked === undefined) p.provoked = false;
+    if (!p.economy) p.economy = { bought: {}, sold: {} };
+  }
+  for (const t of loaded.tiles || []) {
+    if (t.tradePort === undefined) t.tradePort = false;
+  }
+  for (const u of loaded.units) {
+    if (u.type === "merchant" && u.cargo && !Array.isArray(u.cargo)) {
+      const rec = u.cargo as unknown as Record<string, number>;
+      const oldPrice = (u as unknown as { price?: number }).price ?? 3;
+      const slots = Object.entries(rec)
+        .filter(([, q]) => q > 0)
+        .map(([good, q]) => ({ good: good as GoodType, qty: q, price: oldPrice }));
+      const count = u.boat ? 8 : 4;
+      while (slots.length < count) slots.push({ good: null as unknown as GoodType, qty: 0, price: 3 });
+      u.cargo = slots.slice(0, count) as unknown as GameState["units"][number]["cargo"];
+    }
+  }
+  return loaded;
+}
 
 export interface Stats {
   played: number;
@@ -53,6 +93,9 @@ interface GameContextValue {
   stats: Stats;
   startNewGame: (config: NewGameConfig) => void;
   continueGame: () => Promise<boolean>;
+  saveToSlot: (index: number) => Promise<boolean>;
+  loadFromSlot: (index: number) => Promise<boolean>;
+  listSlots: () => Promise<SlotInfo[]>;
   exitToMenu: () => void;
   endTurn: () => void;
   doMove: (unitId: string, tileId: number) => boolean;
@@ -158,39 +201,57 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const raw = await storage.getItem<string>(SAVE_KEY, "");
     if (!raw) return false;
     try {
-      const loaded = JSON.parse(raw) as GameState;
-      if (!loaded.pendingLevelUps) loaded.pendingLevelUps = [];
-      if (!loaded.difficulty) loaded.difficulty = "normal";
-      // Ensure every player has a complete goods record + flags (older saves
-      // may be missing keys, which would crash the HUD reading `goods.wood`).
-      for (const p of loaded.players || []) {
-        const g = (p.goods || {}) as Partial<Record<GoodType, number>>;
-        p.goods = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, ...g };
-        if (p.provoked === undefined) p.provoked = false;
-        if (!p.economy) p.economy = { bought: {}, sold: {} };
-      }
-      // Backfill the Trade Port flag on older saves' tiles.
-      for (const t of loaded.tiles || []) {
-        if (t.tradePort === undefined) t.tradePort = false;
-      }
-      // Migrate old (record-based) merchant cargo to the new slot array.
-      for (const u of loaded.units) {
-        if (u.type === "merchant" && u.cargo && !Array.isArray(u.cargo)) {
-          const rec = u.cargo as unknown as Record<string, number>;
-          const oldPrice = (u as unknown as { price?: number }).price ?? 3;
-          const slots = Object.entries(rec)
-            .filter(([, q]) => q > 0)
-            .map(([good, q]) => ({ good: good as GoodType, qty: q, price: oldPrice }));
-          const count = u.boat ? 8 : 4;
-          while (slots.length < count) slots.push({ good: null as unknown as GoodType, qty: 0, price: 3 });
-          u.cargo = slots.slice(0, count) as unknown as GameState["units"][number]["cargo"];
-        }
-      }
+      const loaded = migrateState(JSON.parse(raw) as GameState);
       setState(loaded);
       return true;
     } catch {
       return false;
     }
+  }, []);
+
+  // Save the current game into one of the numbered slots (with metadata).
+  const saveToSlot = useCallback(
+    async (index: number) => {
+      if (!state) return false;
+      const payload = { savedAt: Date.now(), state };
+      return storage.setItem(slotKey(index), JSON.stringify(payload));
+    },
+    [state],
+  );
+
+  // Load a game from a numbered slot into the active session.
+  const loadFromSlot = useCallback(async (index: number) => {
+    const raw = await storage.getItem<string>(slotKey(index), "");
+    if (!raw) return false;
+    try {
+      const parsed = JSON.parse(raw) as { savedAt: number; state: GameState };
+      const loaded = migrateState(parsed.state);
+      setState(loaded);
+      await persist(loaded); // also becomes the "Continue" save
+      return true;
+    } catch {
+      return false;
+    }
+  }, [persist]);
+
+  // Read lightweight metadata for all ten slots (for the Saved Games screen).
+  const listSlots = useCallback(async (): Promise<SlotInfo[]> => {
+    const out: SlotInfo[] = [];
+    for (let i = 0; i < NUM_SLOTS; i++) {
+      const raw = await storage.getItem<string>(slotKey(i), "");
+      if (!raw) {
+        out.push({ index: i, empty: true });
+        continue;
+      }
+      try {
+        const parsed = JSON.parse(raw) as { savedAt: number; state: GameState };
+        const s = parsed.state;
+        out.push({ index: i, empty: false, savedAt: parsed.savedAt, turn: s.turn, tribe: s.players?.[0]?.tribe, status: s.status, players: s.players?.length });
+      } catch {
+        out.push({ index: i, empty: true });
+      }
+    }
+    return out;
   }, []);
 
   const exitToMenu = useCallback(() => setState(null), []);
@@ -265,6 +326,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         stats,
         startNewGame,
         continueGame,
+        saveToSlot,
+        loadFromSlot,
+        listSlots,
         exitToMenu,
         endTurn,
         doMove,

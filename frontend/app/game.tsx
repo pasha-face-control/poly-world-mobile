@@ -31,6 +31,7 @@ import ExpandModal, { ExpandTarget } from "@/src/components/ExpandModal";
 import EconomyModal from "@/src/components/EconomyModal";
 import OfferModal from "@/src/components/OfferModal";
 import Button from "@/src/components/Button";
+import SaveSlotList from "@/src/components/SaveSlotList";
 import { useGame } from "@/src/game/store";
 import { storage } from "@/src/utils/storage";
 import { attackableTiles, canBuyCity, canBuyVillage, canFish, canHunt, expansionOptionForTile, hasDiscovered, neighbors, reachableTiles, stalemateTurnsLeft, tileHasActions } from "@/src/game/engine";
@@ -42,7 +43,7 @@ export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { soundOn, hapticsOn, volume } = useFxSettings();
-  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, doExpandTerritory, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, doExpandTerritory, saveToSlot, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
@@ -59,6 +60,7 @@ export default function GameScreen() {
   const [moveAnim, setMoveAnim] = useState<{ unitId: string; fromTileId: number; toTileId: number; key: number } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const tutorialChecked = useRef(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -671,8 +673,32 @@ export default function GameScreen() {
             </Pressable>
 
             <Button testID="menu-tutorial" label="How to Play" icon="help-circle" variant="secondary" onPress={() => { setMenuOpen(false); setTutorialOpen(true); }} />
+            <Button testID="menu-save" label="Save Game" icon="content-save" variant="secondary" onPress={() => { setMenuOpen(false); setSaveOpen(true); }} />
             <Button testID="menu-exit" label="Main Menu" icon="home" variant="secondary" onPress={goMenu} />
             <Text style={styles.saveNote}>Your game is auto-saved.</Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Save into a numbered slot */}
+      <Modal visible={saveOpen} transparent animationType="slide" onRequestClose={() => setSaveOpen(false)}>
+        <View style={styles.sheetOverlay}>
+          <View style={styles.sheet} testID="save-slots">
+            <View style={styles.sheetHeader}>
+              <Text style={styles.dialogTitle}>Save to Slot</Text>
+              <Pressable testID="save-close" onPress={() => setSaveOpen(false)} style={styles.sheetClose}>
+                <MaterialCommunityIcons name="close" size={22} color={C.onSurface} />
+              </Pressable>
+            </View>
+            <SaveSlotList
+              mode="save"
+              onSelect={async (index) => {
+                const ok = await saveToSlot(index);
+                haptic.notify();
+                showToast(ok ? `Saved to Slot ${index + 1}` : "Save failed");
+                setSaveOpen(false);
+              }}
+            />
           </View>
         </View>
       </Modal>
@@ -714,6 +740,10 @@ const styles = StyleSheet.create({
   dialogTitle: { fontSize: 28, fontWeight: "900", color: C.onSurface, textAlign: "center" },
   dialogSub: { fontSize: 14, color: C.onSurfaceSecondary, textAlign: "center", marginBottom: SP.sm },
   saveNote: { fontSize: 12, color: C.onSurfaceSecondary, textAlign: "center" },
+  sheetOverlay: { flex: 1, backgroundColor: "rgba(28,28,28,0.6)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: C.surface, borderTopLeftRadius: R.lg, borderTopRightRadius: R.lg, maxHeight: "85%", paddingBottom: SP.md, ...shadow(10) },
+  sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: SP.lg, paddingTop: SP.lg, paddingBottom: SP.xs },
+  sheetClose: { padding: 6, backgroundColor: C.surfaceSecondary, borderRadius: R.pill },
   toggleRow: { flexDirection: "row", alignItems: "center", gap: SP.md, backgroundColor: C.surfaceSecondary, paddingVertical: 14, paddingHorizontal: SP.lg, borderRadius: R.md },
   toggleLabel: { flex: 1, fontSize: 16, fontWeight: "800", color: C.onSurface },
   volumeRow: { flexDirection: "row", alignItems: "center", gap: SP.sm, paddingHorizontal: SP.sm, marginTop: -SP.xs },

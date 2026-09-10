@@ -44,6 +44,7 @@ export default function MainMenu() {
 
       <View style={[styles.actions, { paddingBottom: insets.bottom + SP.xl }]}>
         {hasSave && <Button testID="menu-continue" label="Continue" icon="play" onPress={onContinue} />}
+        <Button testID="menu-saved-games" label="Saved Games" icon="folder-open" variant="secondary" onPress={() => router.push("/saved-games")} />
         <Button testID="menu-new-game" label="New Game" icon="plus-circle" variant={hasSave ? "secondary" : "primary"} onPress={onNew} />
         <View style={styles.rowButtons}>
           <Button testID="menu-stats" label="Stats" icon="chart-bar" variant="ghost" onPress={() => router.push("/stats")} style={{ flex: 1 }} />

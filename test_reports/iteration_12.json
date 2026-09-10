@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only test of the new 'Saved Games' feature in Poly World (Expo/React Native web preview). Verified all five requested flows end-to-end: (1) Main menu shows 'Saved Games' (testID menu-saved-games) between Continue and New Game and opens a Saved Games screen with 10 slots (slot-0..slot-9), all initially 'Empty'. (2) New Game flow (menu-new-game -> mode-single -> start-game) reaches game-screen; HUD menu button (testID action-menu) opens the Paused dialog (testID ingame-menu) which contains 'Save Game' (testID menu-save). (3) Tapping menu-save opens the save-slots sheet (testID save-slots) with 10 slots each showing 'Save' (empty) / 'Overwrite' (filled). Tapping slot-0 saves the game, shows toast (testID toast) 'Saved to Slot 1', and closes the sheet. (4) After returning to the Main Menu (menu-exit) and opening Saved Games, slot-0 is FILLED and displays 'Lesnoi · Turn 1 · In progress' plus a timestamp (e.g. '9/10/2026 · 08:52 PM'). (5) Tapping the filled slot-0 loads that game and renders game-screen + top-hud. Data persistence via AsyncStorage/localStorage under hextribes_slot_0 was validated; loadFromSlot also updates the main Continue save (Continue button appears back on the menu). All success criteria met. No red screens or React Native errors. Only benign deprecation warnings observed in console ('shadow*' style props, props.pointerEvents, Image style.resizeMode) — reported below as minor React Native issues.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "shadow style prop", "issue": "Console warning: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Emitted from shadow() helper used across components. Reference: /app/frontend/src/theme.ts (shadow helper) and any component using shadow()."},
+      {"component": "props.pointerEvents", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents' — used on toast/stalemate-banner and possibly other overlays. Reference: /app/frontend/app/game.tsx:379,388 (View pointerEvents=\"none\")."},
+      {"component": "Image resizeMode", "issue": "Console warning: 'Image: style.resizeMode is deprecated. Please use props.resizeMode.' Reference: check components/screens using <Image> with style.resizeMode."}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Minor) Migrate shadow style props to boxShadow (or gate under Platform.OS) in the shadow() theme helper to silence RN Web deprecation warnings.",
+    "(Minor) Replace View pointerEvents=\"none\" prop with style={{ pointerEvents: 'none' }} in game.tsx (toast + stalemate banner) and other overlays.",
+    "(Minor) Move Image resizeMode from style to prop (or migrate to expo-image contentFit consistently) where the deprecation appears.",
+    "No functional fix required — the Saved Games feature works as specified in the PRD/request."
+  ],
+  "critical_code_review_comments": [
+    "SaveSlotList uses ScrollView with a hard-coded 85% sheet max height — on shorter viewports the last slots may require scrolling; acceptable but consider FlatList for large N.",
+    "storage.setItem in saveToSlot silently returns boolean; toast only says 'Save failed' generically. Consider surfacing the error reason for debugging.",
+    "listSlots reads slots sequentially in a for-loop — fine for N=10 but Promise.all would be marginally faster.",
+    "loadFromSlot overwrites the main Continue save on load — intentional per PRD but should be documented near the function for future maintainers."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (skipped)", "frontend": "100%" },
+  "seed_data_creation": "None. A live game was created via New Game -> Single -> Start Game and saved into slot 0 for the load verification.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "HUD pause button testID is 'action-menu' (not 'hud-menu'). Save sheet is a slide-in Modal, so add wait_for_timeout(~1200ms) after opening save-slots and call scroll_into_view_if_needed on slot-0 before clicking (otherwise 'element outside viewport' can occur). After router.replace('/'), Expo Router may keep two elements with testID 'main-menu' (previous route still mounted); use locator(...).last() or query for menu-saved-games directly.",
+  "rca_of_issue": "N/A — no functional issues found. All five acceptance criteria pass."
+}
