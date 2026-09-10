@@ -74,6 +74,28 @@ const MODEL_SPRITES: Record<string, Record<string, number>> = {
   },
 };
 
+// 3D boat sprites keyed by naval tier, tinted per tribe (blank hull parts).
+const BOAT_SPRITES: Record<string, Record<string, number>> = {
+  rowing: {
+    nature: require("../../assets/images/rowing/rowing_nature.png"),
+    desert: require("../../assets/images/rowing/rowing_desert.png"),
+    volcanic: require("../../assets/images/rowing/rowing_volcanic.png"),
+    snow: require("../../assets/images/rowing/rowing_snow.png"),
+  },
+  sailing: {
+    nature: require("../../assets/images/sailing/sailing_nature.png"),
+    desert: require("../../assets/images/sailing/sailing_desert.png"),
+    volcanic: require("../../assets/images/sailing/sailing_volcanic.png"),
+    snow: require("../../assets/images/sailing/sailing_snow.png"),
+  },
+  battleship: {
+    nature: require("../../assets/images/battleship/battleship_nature.png"),
+    desert: require("../../assets/images/battleship/battleship_desert.png"),
+    volcanic: require("../../assets/images/battleship/battleship_volcanic.png"),
+    snow: require("../../assets/images/battleship/battleship_snow.png"),
+  },
+};
+
 // Isometric (2.5D) metrics.
 export const TILE = 76;
 const HW = TILE / 2;
@@ -104,6 +126,12 @@ function playerColor(state: GameState, owner: number): string {
 }
 function modelSprite(state: GameState, owner: number, type: string): number | null {
   const set = MODEL_SPRITES[type];
+  if (!set) return null;
+  return set[state.players[owner].tribe] ?? set.nature;
+}
+function boatSprite(state: GameState, owner: number, tier: string | null): number | null {
+  if (!tier) return null;
+  const set = BOAT_SPRITES[tier];
   if (!set) return null;
   return set[state.players[owner].tribe] ?? set.nature;
 }
@@ -328,7 +356,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     animPos.current = { x: txp, y: typ };
     animOffX.value = fx - txp;
     animOffY.value = fy - typ;
-    setAnimUnit({ id: unit.id, color: playerColor(state, unit.owner), icon: unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon, boat: unit.boat, sprite: !unit.boat ? modelSprite(state, unit.owner, unit.type) : null });
+    setAnimUnit({ id: unit.id, color: playerColor(state, unit.owner), icon: unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon, boat: unit.boat, sprite: unit.boat ? boatSprite(state, unit.owner, unit.boat) : modelSprite(state, unit.owner, unit.type) });
     animOffX.value = withTiming(0, { duration: 300 });
     animOffY.value = withTiming(0, { duration: 300 }, (fin) => {
       if (fin) runOnJS(setAnimUnit)(null);
@@ -519,7 +547,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     if (city) drawCity(terrainShapes, cx, surfY, playerColor(state, city.owner), city.isCapital, k);
     else if (t.isVillage) drawCity(terrainShapes, cx, surfY, t.claimBy != null ? playerColor(state, t.claimBy) : C.borderStrong, false, k);
     if (unit && !city && unit.id !== animUnit?.id) {
-      if (unit.boat) drawBoat(terrainShapes, cx, surfY, playerColor(state, unit.owner), unit.boat, k);
+      if (unit.boat) { if (!BOAT_SPRITES[unit.boat]) drawBoat(terrainShapes, cx, surfY, playerColor(state, unit.owner), unit.boat, k); }
       else if (!MODEL_SPRITES[unit.type]) drawUnit(terrainShapes, cx, surfY, playerColor(state, unit.owner), k);
     } else if (!city && t.resource === "animal" && !t.building) drawBull(terrainShapes, cx - 4, surfY, k);
   }
@@ -585,6 +613,14 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                 )}
                 {unit && !city && unit.id !== animUnit?.id && (
                   <>
+                    {unit.boat && BOAT_SPRITES[unit.boat] && (
+                      <Image
+                        source={boatSprite(state, unit.owner, unit.boat)!}
+                        pointerEvents="none"
+                        style={{ position: "absolute", left: cx - 45, top: baseY - 86, width: 90, height: 92 }}
+                        resizeMode="contain"
+                      />
+                    )}
                     {!unit.boat && MODEL_SPRITES[unit.type] && (
                       <Image
                         source={modelSprite(state, unit.owner, unit.type)!}
@@ -593,12 +629,14 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                         resizeMode="contain"
                       />
                     )}
-                    <MaterialCommunityIcons
-                      name={(unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon) as any}
-                      size={17}
-                      color="#FFFFFF"
-                      style={{ position: "absolute", left: cx - 8.5, top: (!unit.boat && MODEL_SPRITES[unit.type] ? baseY - 66 : baseY - 24) }}
-                    />
+                    {!(unit.boat && BOAT_SPRITES[unit.boat]) && (
+                      <MaterialCommunityIcons
+                        name={(unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon) as any}
+                        size={17}
+                        color="#FFFFFF"
+                        style={{ position: "absolute", left: cx - 8.5, top: (!unit.boat && MODEL_SPRITES[unit.type] ? baseY - 66 : baseY - 24) }}
+                      />
+                    )}
                     <View style={[styles.hpBarBg, { left: cx - 14, top: baseY + 5 }]}>
                       <View style={[styles.hpBar, { width: `${Math.max(0, (unit.hp / unit.maxHp) * 100)}%` }]} />
                     </View>
@@ -616,7 +654,11 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
               style={[{ position: "absolute", left: animPos.current.x - 30, top: animPos.current.y - 48, width: 60, height: 64 }, animTokenStyle]}
             >
               {animUnit.sprite ? (
-                <Image source={animUnit.sprite} pointerEvents="none" style={{ position: "absolute", left: -10, top: -6, width: 80, height: 66 }} resizeMode="contain" />
+                animUnit.boat ? (
+                  <Image source={animUnit.sprite} pointerEvents="none" style={{ position: "absolute", left: -15, top: -38, width: 90, height: 92 }} resizeMode="contain" />
+                ) : (
+                  <Image source={animUnit.sprite} pointerEvents="none" style={{ position: "absolute", left: -10, top: -6, width: 80, height: 66 }} resizeMode="contain" />
+                )
               ) : (
                 <Svg width={60} height={64}>
                   {(() => {
@@ -627,7 +669,9 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                   })()}
                 </Svg>
               )}
-              <MaterialCommunityIcons name={animUnit.icon as any} size={17} color="#FFFFFF" style={{ position: "absolute", left: 21.5, top: animUnit.sprite ? -18 : 24 }} />
+              {!animUnit.boat && (
+                <MaterialCommunityIcons name={animUnit.icon as any} size={17} color="#FFFFFF" style={{ position: "absolute", left: 21.5, top: animUnit.sprite ? -18 : 24 }} />
+              )}
             </Animated.View>
           )}
         </Animated.View>
