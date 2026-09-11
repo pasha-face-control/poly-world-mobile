@@ -79,6 +79,7 @@ const BOAT_SIZE: Record<string, { w: number; h: number }> = {
   rowing: { w: 34, h: 34.5 },
   sailing: { w: 56.25, h: 57.5 },
   battleship: { w: 67.5, h: 69 },
+  merchant: { w: 60, h: 53 },
 };
 
 // 3D boat sprites keyed by naval tier, tinted per tribe (blank hull parts).
@@ -101,6 +102,14 @@ const BOAT_SPRITES: Record<string, Record<string, number>> = {
     volcanic: require("../../assets/images/battleship/battleship_volcanic.png"),
     snow: require("../../assets/images/battleship/battleship_snow.png"),
   },
+};
+
+// Merchant Ship (embarked merchant) has its own 3D model, tinted per tribe.
+const MERCHANT_SPRITES: Record<string, number> = {
+  nature: require("../../assets/images/merchant_ship/merchant_ship_nature.png"),
+  desert: require("../../assets/images/merchant_ship/merchant_ship_desert.png"),
+  volcanic: require("../../assets/images/merchant_ship/merchant_ship_volcanic.png"),
+  snow: require("../../assets/images/merchant_ship/merchant_ship_snow.png"),
 };
 
 // Isometric (2.5D) metrics.
@@ -141,6 +150,9 @@ function boatSprite(state: GameState, owner: number, tier: string | null): numbe
   const set = BOAT_SPRITES[tier];
   if (!set) return null;
   return set[state.players[owner].tribe] ?? set.nature;
+}
+function merchantSprite(state: GameState, owner: number): number {
+  return MERCHANT_SPRITES[state.players[owner].tribe] ?? MERCHANT_SPRITES.nature;
 }
 function hexToRgba(hex: string, a: number): string {
   const h = hex.replace("#", "");
@@ -287,7 +299,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
   const animOffX = useSharedValue(0);
   const animOffY = useSharedValue(0);
   const animPos = useRef({ x: 0, y: 0 });
-  const [animUnit, setAnimUnit] = useState<{ id: string; color: string; icon: string; boat: string | null; sprite: number | null } | null>(null);
+  const [animUnit, setAnimUnit] = useState<{ id: string; color: string; icon: string; boat: string | null; merchant?: boolean; sprite: number | null } | null>(null);
 
   // Gentle pulse for the "huntable" glow around wild animals inside your borders.
   const glowPulse = useSharedValue(0);
@@ -363,7 +375,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     animPos.current = { x: txp, y: typ };
     animOffX.value = fx - txp;
     animOffY.value = fy - typ;
-    setAnimUnit({ id: unit.id, color: playerColor(state, unit.owner), icon: unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon, boat: unit.boat, sprite: unit.boat ? boatSprite(state, unit.owner, unit.boat) : modelSprite(state, unit.owner, unit.type) });
+    setAnimUnit({ id: unit.id, color: playerColor(state, unit.owner), icon: unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon, boat: unit.boat, merchant: unit.type === "merchant" && !!unit.boat, sprite: unit.boat ? (unit.type === "merchant" ? merchantSprite(state, unit.owner) : boatSprite(state, unit.owner, unit.boat)) : modelSprite(state, unit.owner, unit.type) });
     animOffX.value = withTiming(0, { duration: 300 });
     animOffY.value = withTiming(0, { duration: 300 }, (fin) => {
       if (fin) runOnJS(setAnimUnit)(null);
@@ -620,20 +632,19 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                 )}
                 {unit && !city && unit.id !== animUnit?.id && (
                   <>
-                    {unit.boat && BOAT_SPRITES[unit.boat] && (
-                      <Image
-                        source={boatSprite(state, unit.owner, unit.boat)!}
-                        pointerEvents="none"
-                        style={{
-                          position: "absolute",
-                          left: cx - (BOAT_SIZE[unit.boat] ?? BOAT_SIZE.sailing).w / 2,
-                          top: baseY + 6 - (BOAT_SIZE[unit.boat] ?? BOAT_SIZE.sailing).h,
-                          width: (BOAT_SIZE[unit.boat] ?? BOAT_SIZE.sailing).w,
-                          height: (BOAT_SIZE[unit.boat] ?? BOAT_SIZE.sailing).h,
-                        }}
-                        resizeMode="contain"
-                      />
-                    )}
+                    {unit.boat && BOAT_SPRITES[unit.boat] && (() => {
+                      const isMerchantShip = unit.type === "merchant";
+                      const sz = BOAT_SIZE[isMerchantShip ? "merchant" : unit.boat] ?? BOAT_SIZE.sailing;
+                      const src = isMerchantShip ? merchantSprite(state, unit.owner) : boatSprite(state, unit.owner, unit.boat)!;
+                      return (
+                        <Image
+                          source={src}
+                          pointerEvents="none"
+                          style={{ position: "absolute", left: cx - sz.w / 2, top: baseY + 6 - sz.h, width: sz.w, height: sz.h }}
+                          resizeMode="contain"
+                        />
+                      );
+                    })()}
                     {!unit.boat && MODEL_SPRITES[unit.type] && (
                       <Image
                         source={modelSprite(state, unit.owner, unit.type)!}
@@ -673,10 +684,10 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                     pointerEvents="none"
                     style={{
                       position: "absolute",
-                      left: 30 - (BOAT_SIZE[animUnit.boat ?? "sailing"] ?? BOAT_SIZE.sailing).w / 2,
-                      top: 54 - (BOAT_SIZE[animUnit.boat ?? "sailing"] ?? BOAT_SIZE.sailing).h,
-                      width: (BOAT_SIZE[animUnit.boat ?? "sailing"] ?? BOAT_SIZE.sailing).w,
-                      height: (BOAT_SIZE[animUnit.boat ?? "sailing"] ?? BOAT_SIZE.sailing).h,
+                      left: 30 - (BOAT_SIZE[animUnit.merchant ? "merchant" : (animUnit.boat ?? "sailing")] ?? BOAT_SIZE.sailing).w / 2,
+                      top: 54 - (BOAT_SIZE[animUnit.merchant ? "merchant" : (animUnit.boat ?? "sailing")] ?? BOAT_SIZE.sailing).h,
+                      width: (BOAT_SIZE[animUnit.merchant ? "merchant" : (animUnit.boat ?? "sailing")] ?? BOAT_SIZE.sailing).w,
+                      height: (BOAT_SIZE[animUnit.merchant ? "merchant" : (animUnit.boat ?? "sailing")] ?? BOAT_SIZE.sailing).h,
                     }}
                     resizeMode="contain"
                   />
