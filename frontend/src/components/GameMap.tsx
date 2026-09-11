@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { LayoutChangeEvent, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
+import Animated, { cancelAnimation, runOnJS, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 import Svg, { Ellipse, Line, Polygon } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import GameIcon from "@/src/components/GameIcon";
@@ -300,6 +300,10 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
   const animOffY = useSharedValue(0);
   const animPos = useRef({ x: 0, y: 0 });
   const [animUnit, setAnimUnit] = useState<{ id: string; color: string; icon: string; boat: string | null; merchant?: boolean; sprite: number | null } | null>(null);
+  // Wake ripple that trails a moving ship (direction = stern side of travel).
+  const wakeDir = useRef({ x: 0, y: 1 });
+  const wakePulse = useSharedValue(0);
+  const wakeStyle = useAnimatedStyle(() => ({ opacity: 0.55 + wakePulse.value * 0.45 }));
 
   // Gentle pulse for the "huntable" glow around wild animals inside your borders.
   const glowPulse = useSharedValue(0);
@@ -375,10 +379,21 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     animPos.current = { x: txp, y: typ };
     animOffX.value = fx - txp;
     animOffY.value = fy - typ;
+    // Wake trails toward the stern (opposite the direction of travel).
+    const ddx = txp - fx, ddy = typ - fy;
+    const dlen = Math.hypot(ddx, ddy) || 1;
+    wakeDir.current = { x: ddx / dlen, y: ddy / dlen };
     setAnimUnit({ id: unit.id, color: playerColor(state, unit.owner), icon: unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon, boat: unit.boat, merchant: unit.type === "merchant" && !!unit.boat, sprite: unit.boat ? (unit.type === "merchant" ? merchantSprite(state, unit.owner) : boatSprite(state, unit.owner, unit.boat)) : modelSprite(state, unit.owner, unit.type) });
+    if (unit.boat) {
+      wakePulse.value = 0;
+      wakePulse.value = withRepeat(withTiming(1, { duration: 550 }), -1, true);
+    }
     animOffX.value = withTiming(0, { duration: 300 });
     animOffY.value = withTiming(0, { duration: 300 }, (fin) => {
-      if (fin) runOnJS(setAnimUnit)(null);
+      if (fin) {
+        cancelAnimation(wakePulse);
+        runOnJS(setAnimUnit)(null);
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moveAnim?.key]);
@@ -677,6 +692,28 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
               pointerEvents="none"
               style={[{ position: "absolute", left: animPos.current.x - 30, top: animPos.current.y - 48, width: 60, height: 64 }, animTokenStyle]}
             >
+              {animUnit.boat && (
+                <Animated.View pointerEvents="none" style={[{ position: "absolute", left: 0, top: 0, width: 60, height: 64 }, wakeStyle]}>
+                  {[0, 1, 2, 3].map((i) => {
+                    const d = 8 + i * 11;
+                    const s = 18 - i * 3.5;
+                    return (
+                      <View
+                        key={i}
+                        style={{
+                          position: "absolute",
+                          left: 30 - wakeDir.current.x * d - s / 2,
+                          top: 52 - wakeDir.current.y * d - (s * 0.5) / 2,
+                          width: s,
+                          height: s * 0.5,
+                          borderRadius: s,
+                          backgroundColor: `rgba(228,244,250,${0.32 - i * 0.075})`,
+                        }}
+                      />
+                    );
+                  })}
+                </Animated.View>
+              )}
               {animUnit.sprite ? (
                 animUnit.boat ? (
                   <Image
