@@ -74,6 +74,13 @@ const MODEL_SPRITES: Record<string, Record<string, number>> = {
   },
 };
 
+// On-map display size per boat tier (hull anchored to the waterline).
+const BOAT_SIZE: Record<string, { w: number; h: number }> = {
+  rowing: { w: 34, h: 34.5 },
+  sailing: { w: 56.25, h: 57.5 },
+  battleship: { w: 67.5, h: 69 },
+};
+
 // 3D boat sprites keyed by naval tier, tinted per tribe (blank hull parts).
 const BOAT_SPRITES: Record<string, Record<string, number>> = {
   rowing: {
@@ -619,10 +626,10 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                         pointerEvents="none"
                         style={{
                           position: "absolute",
-                          left: cx - (unit.boat === "rowing" ? 17 : 22.5),
-                          top: baseY - (unit.boat === "rowing" ? 28.5 : 40),
-                          width: unit.boat === "rowing" ? 34 : 45,
-                          height: unit.boat === "rowing" ? 34.5 : 46,
+                          left: cx - (BOAT_SIZE[unit.boat] ?? BOAT_SIZE.sailing).w / 2,
+                          top: baseY + 6 - (BOAT_SIZE[unit.boat] ?? BOAT_SIZE.sailing).h,
+                          width: (BOAT_SIZE[unit.boat] ?? BOAT_SIZE.sailing).w,
+                          height: (BOAT_SIZE[unit.boat] ?? BOAT_SIZE.sailing).h,
                         }}
                         resizeMode="contain"
                       />
@@ -666,10 +673,10 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                     pointerEvents="none"
                     style={{
                       position: "absolute",
-                      left: animUnit.boat === "rowing" ? 13 : 7.5,
-                      top: animUnit.boat === "rowing" ? 19.5 : 8,
-                      width: animUnit.boat === "rowing" ? 34 : 45,
-                      height: animUnit.boat === "rowing" ? 34.5 : 46,
+                      left: 30 - (BOAT_SIZE[animUnit.boat ?? "sailing"] ?? BOAT_SIZE.sailing).w / 2,
+                      top: 54 - (BOAT_SIZE[animUnit.boat ?? "sailing"] ?? BOAT_SIZE.sailing).h,
+                      width: (BOAT_SIZE[animUnit.boat ?? "sailing"] ?? BOAT_SIZE.sailing).w,
+                      height: (BOAT_SIZE[animUnit.boat ?? "sailing"] ?? BOAT_SIZE.sailing).h,
                     }}
                     resizeMode="contain"
                   />
