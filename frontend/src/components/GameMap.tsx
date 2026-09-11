@@ -617,7 +617,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                       <Image
                         source={boatSprite(state, unit.owner, unit.boat)!}
                         pointerEvents="none"
-                        style={{ position: "absolute", left: cx - 45, top: baseY - 86, width: 90, height: 92 }}
+                        style={{ position: "absolute", left: cx - 22.5, top: baseY - 40, width: 45, height: 46 }}
                         resizeMode="contain"
                       />
                     )}
@@ -655,7 +655,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
             >
               {animUnit.sprite ? (
                 animUnit.boat ? (
-                  <Image source={animUnit.sprite} pointerEvents="none" style={{ position: "absolute", left: -15, top: -38, width: 90, height: 92 }} resizeMode="contain" />
+                  <Image source={animUnit.sprite} pointerEvents="none" style={{ position: "absolute", left: 7.5, top: 8, width: 45, height: 46 }} resizeMode="contain" />
                 ) : (
                   <Image source={animUnit.sprite} pointerEvents="none" style={{ position: "absolute", left: -10, top: -6, width: 80, height: 66 }} resizeMode="contain" />
                 )
