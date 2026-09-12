@@ -299,7 +299,9 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
   const animOffX = useSharedValue(0);
   const animOffY = useSharedValue(0);
   const animPos = useRef({ x: 0, y: 0 });
-  const [animUnit, setAnimUnit] = useState<{ id: string; color: string; icon: string; boat: string | null; merchant?: boolean; sprite: number | null } | null>(null);
+  const [animUnit, setAnimUnit] = useState<{ id: string; color: string; icon: string; boat: string | null; merchant?: boolean; flip?: number; sprite: number | null } | null>(null);
+  // Per-ship horizontal facing (1 = bow right [native], -1 = bow left). Persists between moves.
+  const facingRef = useRef<Record<string, number>>({});
   // Wake ripple that trails a moving ship (direction = stern side of travel).
   const wakeDir = useRef({ x: 0, y: 1 });
   const wakePulse = useSharedValue(0);
@@ -383,7 +385,13 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     const ddx = txp - fx, ddy = typ - fy;
     const dlen = Math.hypot(ddx, ddy) || 1;
     wakeDir.current = { x: ddx / dlen, y: ddy / dlen };
-    setAnimUnit({ id: unit.id, color: playerColor(state, unit.owner), icon: unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon, boat: unit.boat, merchant: unit.type === "merchant" && !!unit.boat, sprite: unit.boat ? (unit.type === "merchant" ? merchantSprite(state, unit.owner) : boatSprite(state, unit.owner, unit.boat)) : modelSprite(state, unit.owner, unit.type) });
+    // Face the direction of travel (mirror horizontally for leftward moves).
+    let flip = facingRef.current[unit.id] ?? 1;
+    if (unit.boat && Math.abs(ddx) > 0.5) {
+      flip = ddx >= 0 ? 1 : -1;
+      facingRef.current[unit.id] = flip;
+    }
+    setAnimUnit({ id: unit.id, color: playerColor(state, unit.owner), icon: unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon, boat: unit.boat, merchant: unit.type === "merchant" && !!unit.boat, flip, sprite: unit.boat ? (unit.type === "merchant" ? merchantSprite(state, unit.owner) : boatSprite(state, unit.owner, unit.boat)) : modelSprite(state, unit.owner, unit.type) });
     if (unit.boat) {
       wakePulse.value = 0;
       wakePulse.value = withRepeat(withTiming(1, { duration: 550 }), -1, true);
@@ -651,11 +659,12 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                       const isMerchantShip = unit.type === "merchant";
                       const sz = BOAT_SIZE[isMerchantShip ? "merchant" : unit.boat] ?? BOAT_SIZE.sailing;
                       const src = isMerchantShip ? merchantSprite(state, unit.owner) : boatSprite(state, unit.owner, unit.boat)!;
+                      const flip = facingRef.current[unit.id] ?? 1;
                       return (
                         <Image
                           source={src}
                           pointerEvents="none"
-                          style={{ position: "absolute", left: cx - sz.w / 2, top: baseY + 6 - sz.h, width: sz.w, height: sz.h }}
+                          style={{ position: "absolute", left: cx - sz.w / 2, top: baseY + 6 - sz.h, width: sz.w, height: sz.h, transform: [{ scaleX: flip }] }}
                           resizeMode="contain"
                         />
                       );
@@ -725,6 +734,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                       top: 54 - (BOAT_SIZE[animUnit.merchant ? "merchant" : (animUnit.boat ?? "sailing")] ?? BOAT_SIZE.sailing).h,
                       width: (BOAT_SIZE[animUnit.merchant ? "merchant" : (animUnit.boat ?? "sailing")] ?? BOAT_SIZE.sailing).w,
                       height: (BOAT_SIZE[animUnit.merchant ? "merchant" : (animUnit.boat ?? "sailing")] ?? BOAT_SIZE.sailing).h,
+                      transform: [{ scaleX: animUnit.flip ?? 1 }],
                     }}
                     resizeMode="contain"
                   />
