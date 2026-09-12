@@ -319,6 +319,17 @@ export function doInfra(state: GameState, player: number, tileId: number, infraI
     tile.resource = "crop";
     tile.building = null;
   }
+  // Ports grow the adjacent city (Main Port +3 pop, Trade Port +2 pop).
+  if (infraId === "port" || infraId === "trade_port") {
+    let city: City | undefined;
+    for (const n of neighbors(state, tileId)) {
+      if (state.tiles[n].terrain !== "water") {
+        city = owningCityForTile(state, player, n);
+        if (city) break;
+      }
+    }
+    if (city) addPopulation(state, city, infraId === "port" ? 3 : 2);
+  }
   refreshFog(state, player);
   log(state, `${state.players[player].name} built a ${def.name}`);
   return true;

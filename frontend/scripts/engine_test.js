@@ -144,8 +144,10 @@ if (portTile) {
   ok("main port panel opens (ignoreStars) despite low wood", engine.canInfra(s, P, portTile.id, "port", { ignoreStars: true }).ok);
   player.goods.wood = 40;
   const woodBefore = player.goods.wood, starBefore = player.stars;
+  cap.level = 6; cap.population = 0; // high level so the +3 pop won't trigger a level-up
   const built = engine.doInfra(s, P, portTile.id, "port");
   ok("build port", built && s.tiles[portTile.id].port === true);
+  ok("main port gives +3 population", cap.population === 3 && cap.level === 6);
   ok("port deducted 12 wood", player.goods.wood === woodBefore - 12);
   ok("port deducted 10 stars", player.stars === starBefore - 10);
   // place a warrior on the port tile (simulate having moved there) and embark
@@ -186,7 +188,9 @@ if (portTile) {
     ok("trade port blocked without enough wood", !engine.canInfra(s, P, tpTile.id, "trade_port").ok);
     player.goods.wood = 30;
     const wB = player.goods.wood, sB = player.stars;
+    cap.level = 8; cap.population = 0; // high level so the +2 pop won't trigger a level-up
     ok("build trade port", engine.doInfra(s, P, tpTile.id, "trade_port") && s.tiles[tpTile.id].tradePort === true);
+    ok("trade port gives +2 population", cap.population === 2 && cap.level === 8);
     ok("trade port deducted 10 wood", player.goods.wood === wB - 10);
     ok("trade port deducted 8 stars", player.stars === sB - 8);
     // a warrior cannot embark on a trade port (merchants only)
@@ -219,6 +223,7 @@ if (anyWater) {
   const ftile = s.tiles[terr.find((id) => id !== rcap.tileId && s.tiles[id].terrain === "grass" && !s.tiles[id].cityId && !engine.unitAt(s, id)) ?? terr[1]];
   ftile.terrain = "grass";
   ftile.resource = "fruit";
+  rcap.level = 1; // reset (earlier port tests bumped the capital's level)
   rcap.population = 1; // one harvest (levelThreshold(1)=2) will level it up
   player.stars = 50;
   const before = (s.pendingLevelUps || []).length;

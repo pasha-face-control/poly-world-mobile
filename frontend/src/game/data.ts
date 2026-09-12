@@ -123,8 +123,8 @@ export interface InfraDef {
 
 export const INFRA: InfraDef[] = [
   { id: "road", name: "Road", icon: "road-variant", tech: "roads", cost: 2, color: "#8A7B5C", desc: "Move freely along connected roads." },
-  { id: "port", name: "Main Port", icon: "sail-boat", tech: "sailing", cost: 10, woodCost: 12, color: "#5C7A8A", desc: "Embark military & civilian units (not merchants). 10★ + 12 wood." },
-  { id: "trade_port", name: "Trade Port", icon: "ferry", tech: "trading_overseas", cost: 8, woodCost: 10, color: "#4A8A6A", desc: "Embark Merchants onto Merchant Ships. 8★ + 10 wood." },
+  { id: "port", name: "Main Port", icon: "sail-boat", tech: "sailing", cost: 10, woodCost: 12, color: "#5C7A8A", desc: "Embark military & civilian units (not merchants). +3 pop. 10★ + 12 wood." },
+  { id: "trade_port", name: "Trade Port", icon: "ferry", tech: "trading_overseas", cost: 8, woodCost: 10, color: "#4A8A6A", desc: "Embark Merchants onto Merchant Ships. +2 pop. 8★ + 10 wood." },
   { id: "burn_forest", name: "Clear Forest", icon: "fire", tech: "construction", cost: 3, color: "#B5651D", desc: "Burn forest into farmable grassland." },
 ];
 
