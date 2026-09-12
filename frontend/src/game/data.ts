@@ -43,7 +43,7 @@ export const BUILDINGS: BuildingDef[] = [
   { id: "wheat_farm", name: "Wheat Farm", icon: "barley", terrain: "grass", tech: "farming", cost: 3, produces: { wheat: 2 }, color: "#E5A93A" },
   { id: "bull_farm", name: "Bull Farm", icon: "cow", terrain: "grass", tech: "bull_farming", cost: 4, produces: { meat: 2 }, color: "#BC4749" },
   { id: "horse_farm", name: "Horse Farm", icon: "horseshoe", terrain: "grass", tech: "horse_farming", cost: 4, produces: { horse: 1 }, color: "#8A5A34" },
-  { id: "coal_mine", name: "Coal Mine", icon: "fire", terrain: "mountain", tech: "mining", cost: 4, produces: {}, color: "#3A3A3A", requiresResource: "coal" },
+  { id: "coal_mine", name: "Coal Mine", icon: "img:coal_mine", terrain: "mountain", tech: "mining", cost: 4, produces: {}, color: "#3A3A3A", requiresResource: "coal" },
   { id: "iron_mine", name: "Iron Mine", icon: "img:mine", terrain: "mountain", tech: "iron_mine", cost: 5, produces: { iron: 2 }, color: "#7F8896", requiresResource: "iron_ore" },
   { id: "gold_mine", name: "Gold Mine", icon: "gold", terrain: "mountain", tech: "gold_mine", cost: 6, produces: { stars: 5 }, color: "#E5A93A", requiresResource: "gold" },
 ];
@@ -181,7 +181,7 @@ export const TECHS: TechDef[] = [
   // Climbing branch
   T("forgery", "Forgery", 2, "climbing", "anvil", "Build Forge next to mines (+population)."),
   T("sword_art", "Sword Art", 3, "forgery", "sword-cross", "Unlock the Swordsman unit."),
-  T("mining", "Mining", 2, "climbing", "fire", "Build Coal Mine (+2 population)."),
+  T("mining", "Mining", 2, "climbing", "img:coal_mine_line", "Build Coal Mine (+2 population)."),
   T("mining_technology", "Mining Technology", 3, "mining", "pickaxe", "Reveal Iron & Gold mine sites."),
   T("iron_mine", "Iron Mine", 4, "mining_technology", "img:ingot_line", "Build Iron Mines (+2 iron/turn)."),
   T("gold_mine", "Gold Mine", 4, "mining_technology", "gold", "Build Gold Mines (+5 stars/turn)."),
@@ -291,7 +291,7 @@ export const RESOURCE_ICON: Record<string, string> = {
   fish: "fish",
   ore: "diamond-stone",
   crop: "barley",
-  coal: "fire",
+  coal: "img:coal_ore",
   iron_ore: "img:ingot_line",
   gold: "gold",
 };

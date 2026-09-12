@@ -9,6 +9,9 @@ const IMG: Record<string, { src: ReturnType<typeof require>; tint: boolean }> = 
   "img:ingot": { src: require("../../assets/images/iron_ingot.png"), tint: false },
   "img:mine": { src: require("../../assets/images/iron_mine_icon.png"), tint: false },
   "img:ingot_line": { src: require("../../assets/images/iron_ingot_line.png"), tint: true },
+  "img:coal_ore": { src: require("../../assets/images/coal_ore.png"), tint: false },
+  "img:coal_mine": { src: require("../../assets/images/coal_mine.png"), tint: false },
+  "img:coal_mine_line": { src: require("../../assets/images/coal_mine_line.png"), tint: true },
 };
 
 interface Props {
