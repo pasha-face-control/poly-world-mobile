@@ -12,12 +12,13 @@ interface Props {
   city: City;
   bottomInset: number;
   onTrain: (type: UnitType) => void;
+  onEnterCity: () => void;
   onClose: () => void;
 }
 
 const TRAINABLE: UnitType[] = ["warrior", "archer", "beefeater", "catapult", "rider", "armored_rider", "chivalry", "pikemen", "swordsmen", "merchant"];
 
-export default function CityPanel({ state, city, bottomInset, onTrain, onClose }: Props) {
+export default function CityPanel({ state, city, bottomInset, onTrain, onEnterCity, onClose }: Props) {
   const player = state.players[state.currentPlayer];
 
   return (
@@ -83,6 +84,12 @@ export default function CityPanel({ state, city, bottomInset, onTrain, onClose }
             );
           })}
         </ScrollView>
+
+        <Text style={styles.section}>City Actions</Text>
+        <Pressable testID="enter-city" onPress={onEnterCity} style={({ pressed }) => [styles.enterBtn, { opacity: pressed ? 0.9 : 1 }]}>
+          <MaterialCommunityIcons name="home-city" size={20} color="#fff" />
+          <Text style={styles.enterText}>Enter the City</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -122,4 +129,6 @@ const styles = StyleSheet.create({
   goodsRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 5 },
   goodCost: { flexDirection: "row", alignItems: "center", gap: 1 },
   goodCostText: { fontSize: 10, fontWeight: "800", color: C.onSurface },
+  enterBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.brand, borderRadius: R.md, paddingVertical: 12, marginTop: 2 },
+  enterText: { color: "#fff", fontSize: 15, fontWeight: "900" },
 });

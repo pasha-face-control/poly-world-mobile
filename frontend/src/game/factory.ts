@@ -33,5 +33,7 @@ export function newCity(owner: number, tileId: number, isCapital: boolean): City
     production: 1,
     hasWall: isCapital,
     isCapital,
+    citadelStage: 1,
+    layout: { buildings: [], roads: [] },
   };
 }

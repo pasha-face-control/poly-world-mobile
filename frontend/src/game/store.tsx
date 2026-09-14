@@ -18,6 +18,7 @@ import {
   doInfra,
   embark,
   expandTerritory,
+  upgradeCitadel,
   harvest,
   hireHunter,
   huntSuccess,
@@ -55,9 +56,13 @@ function migrateState(loaded: GameState): GameState {
   if (!loaded.difficulty) loaded.difficulty = "normal";
   for (const p of loaded.players || []) {
     const g = (p.goods || {}) as Partial<Record<GoodType, number>>;
-    p.goods = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, ...g };
+    p.goods = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, ...g };
     if (p.provoked === undefined) p.provoked = false;
     if (!p.economy) p.economy = { bought: {}, sold: {} };
+  }
+  for (const c of loaded.cities || []) {
+    if (!c.citadelStage) c.citadelStage = 1;
+    if (!c.layout) c.layout = { buildings: [], roads: [] };
   }
   for (const t of loaded.tiles || []) {
     if (t.tradePort === undefined) t.tradePort = false;
@@ -120,6 +125,7 @@ interface GameContextValue {
   doBuyCity: (cityId: string) => boolean;
   doResolveOffer: (cityId: string, accept: boolean) => boolean;
   doExpandTerritory: (tileId: number) => boolean;
+  doUpgradeCitadel: (cityId: string) => boolean;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -292,6 +298,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doBuyCity = useCallback((cityId: string) => apply((s) => requestBuyCity(s, s.currentPlayer, cityId).ok), [apply]);
   const doResolveOffer = useCallback((cityId: string, accept: boolean) => apply((s) => resolveCityOffer(s, cityId, accept)), [apply]);
   const doExpandTerritory = useCallback((tileId: number) => apply((s) => expandTerritory(s, s.currentPlayer, tileId)), [apply]);
+  const doUpgradeCitadel = useCallback((cityId: string) => apply((s) => upgradeCitadel(s, s.currentPlayer, cityId)), [apply]);
 
   const endTurn = useCallback(() => {
     if (!state || state.status !== "playing") return;
@@ -353,6 +360,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doBuyCity,
         doResolveOffer,
         doExpandTerritory,
+        doUpgradeCitadel,
       }}
     >
       {children}

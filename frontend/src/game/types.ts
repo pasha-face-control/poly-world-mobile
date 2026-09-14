@@ -3,7 +3,7 @@ export type ResourceType = "fruit" | "animal" | "fish" | "ore" | "crop" | "coal"
 export type UnitType = "warrior" | "archer" | "beefeater" | "catapult" | "rider" | "armored_rider" | "chivalry" | "pikemen" | "swordsmen" | "merchant";
 export type TribeId = "nature" | "desert" | "volcanic" | "snow";
 export type MapType = "dryland" | "lakes" | "pangea" | "continents" | "archipelago";
-export type GoodType = "wood" | "iron" | "wheat" | "meat" | "horse";
+export type GoodType = "wood" | "iron" | "wheat" | "meat" | "horse" | "planks" | "stone" | "sand" | "glass" | "coal";
 export type NavalTier = "rowing" | "sailing" | "battleship";
 export type Difficulty = "peaceful" | "easy" | "normal" | "hard";
 
@@ -44,6 +44,20 @@ export interface Unit {
   cargo?: CargoSlot[]; // merchant inventory — 4 slots on land, 8 as a ship
 }
 
+export type CityBuildingType = "house" | "factory" | "trade_tower" | "park";
+
+export interface CityBuilding {
+  id: string;
+  type: CityBuildingType;
+  x: number; // top-left cell on the 30×30 city grid
+  y: number;
+}
+
+export interface CityLayout {
+  buildings: CityBuilding[];
+  roads: number[]; // cell indices (y*30 + x) that hold a road
+}
+
 export interface City {
   id: string;
   owner: number;
@@ -54,6 +68,8 @@ export interface City {
   hasWall: boolean;
   isCapital: boolean;
   expandedTiles?: number[]; // territory cells bought beyond the default 3×3 (tier 2/3/4)
+  citadelStage?: number; // citadel model stage: 1, 5, 10 or 15
+  layout?: CityLayout; // in-city builder placements (buildings + roads)
 }
 
 export type GoodLedger = Partial<Record<GoodType, { qty: number; stars: number }>>;

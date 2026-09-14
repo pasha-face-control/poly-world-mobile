@@ -625,5 +625,20 @@ if (anyWater) {
   }
 }
 
+
+// ---- Citadel upgrade (City Screen) ----
+{
+  let g = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  ok("new city citadel stage 1", (c.citadelStage ?? 1) === 1);
+  g.players[0].stars = 5; g.players[0].goods.planks = 10;
+  ok("citadel upgrade blocked without resources", !engine.canUpgradeCitadel(g, 0, c.id).ok);
+  g.players[0].stars = 100; g.players[0].goods.planks = 60;
+  ok("citadel upgrade ok", engine.canUpgradeCitadel(g, 0, c.id).ok);
+  const sBefore = g.players[0].stars, pBefore = g.players[0].goods.planks;
+  ok("upgrade to stage 5", engine.upgradeCitadel(g, 0, c.id) && c.citadelStage === 5);
+  ok("upgrade spent 10 stars + 50 planks", g.players[0].stars === sBefore - 10 && g.players[0].goods.planks === pBefore - 50);
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

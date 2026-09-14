@@ -3,6 +3,7 @@ import {
   BUILDINGS,
   BUILDING_BY_ID,
   BUILDING_POP,
+  CITADEL_UPGRADES,
   INFRA_BY_ID,
   RESOURCE_DEFS,
   TECH_BY_ID,
@@ -121,6 +122,37 @@ export function applyLevelReward(state: GameState, cityId: string, rewardId: str
   state.pendingLevelUps.splice(i, 1);
   return true;
 }
+
+// ---------- Citadel upgrade (City Screen) ----------
+export function nextCitadelUpgrade(city: City) {
+  return CITADEL_UPGRADES.find((u) => u.toStage > (city.citadelStage ?? 1)) ?? null;
+}
+
+export function canUpgradeCitadel(state: GameState, player: number, cityId: string): { ok: boolean; reason?: string } {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city || city.owner !== player) return { ok: false, reason: "Not your city" };
+  const up = nextCitadelUpgrade(city);
+  if (!up) return { ok: false, reason: "Citadel fully upgraded" };
+  const p = state.players[player];
+  if (p.stars < up.stars) return { ok: false, reason: "Not enough stars" };
+  for (const [g, need] of Object.entries(up.cost)) {
+    if ((p.goods[g as GoodType] ?? 0) < (need as number)) return { ok: false, reason: `Not enough ${g}` };
+  }
+  return { ok: true };
+}
+
+export function upgradeCitadel(state: GameState, player: number, cityId: string): boolean {
+  if (!canUpgradeCitadel(state, player, cityId).ok) return false;
+  const city = state.cities.find((c) => c.id === cityId)!;
+  const up = nextCitadelUpgrade(city)!;
+  const p = state.players[player];
+  p.stars -= up.stars;
+  for (const [g, need] of Object.entries(up.cost)) p.goods[g as GoodType] -= need as number;
+  city.citadelStage = up.toStage;
+  log(state, `${p.name} upgraded a citadel to stage ${up.toStage}`);
+  return true;
+}
+
 
 function addPopulation(state: GameState, city: City, amount: number) {
   city.population += amount;

@@ -449,6 +449,12 @@ export default function GameScreen() {
             doTrain(selectedCity.id, t);
           }}
           onClose={() => setSelectedCityId(null)}
+          onEnterCity={() => {
+            haptic.select();
+            const id = selectedCity.id;
+            setSelectedCityId(null);
+            router.push(`/city?cityId=${id}`);
+          }}
         />
       )}
       {selectedBuildTileId != null && !selectedCity && !selectedUnit && (

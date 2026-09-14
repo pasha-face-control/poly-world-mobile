@@ -1,5 +1,5 @@
 import { C } from "@/src/theme";
-import { GoodType, ResourceType, TerrainType, TribeId, UnitType } from "./types";
+import { CityBuildingType, GoodType, ResourceType, TerrainType, TribeId, UnitType } from "./types";
 
 export interface UnitDef {
   type: UnitType;
@@ -23,8 +23,18 @@ export const GOODS: { id: GoodType; name: string; icon: string; color: string }[
   { id: "horse", name: "Horse", icon: "horse-variant", color: "#8A5A34" },
 ];
 
+// Crafted / city-builder resources (global, shared across a player's cities).
+export const CITY_GOODS: { id: GoodType; name: string; icon: string; color: string }[] = [
+  ...GOODS,
+  { id: "planks", name: "Planks", icon: "wall", color: "#B08040" },
+  { id: "stone", name: "Stone", icon: "cube", color: "#9AA0A6" },
+  { id: "sand", name: "Sand", icon: "grain", color: "#E8CE8A" },
+  { id: "glass", name: "Glass", icon: "diamond-stone", color: "#7FC6D6" },
+  { id: "coal", name: "Coal", icon: "img:coal_ore", color: "#3A3A3A" },
+];
+
 // Modest starting stockpile so goods-costed units are usable before production buildings exist.
-export const START_GOODS: Record<GoodType, number> = { wood: 12, meat: 10, wheat: 6, iron: 8, horse: 2 };
+export const START_GOODS: Record<GoodType, number> = { wood: 12, meat: 10, wheat: 6, iron: 8, horse: 2, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0 };
 
 export interface BuildingDef {
   id: string;
@@ -315,10 +325,41 @@ export const MAP_TYPES: { id: import("./types").MapType; label: string; icon: st
   { id: "archipelago", label: "Archipelago", icon: "island" },
 ];
 
+// ---------- City Screen (city-builder) ----------
+
 export const DIFFICULTIES: { id: import("./types").Difficulty; label: string; icon: string; blurb: string }[] = [
   { id: "peaceful", label: "Peaceful", icon: "peace", blurb: "Rivals trade; fight only if attacked" },
   { id: "easy", label: "Easy", icon: "emoticon-happy", blurb: "Timid tribes, gentle challenge" },
   { id: "normal", label: "Normal", icon: "sword-cross", blurb: "A balanced fight" },
   { id: "hard", label: "Hard", icon: "skull", blurb: "Aggressive, resourceful tribes" },
 ];
+
+export const CITY_GRID = 30; // city map is always 30×30 cells
+export const CITADEL_SIZE = 6; // centered citadel footprint
+
+// Citadel model stage → sprite key (used by CityMap). Stage advances via upgrades.
+export const CITADEL_STAGES = [1, 5, 10, 15];
+export function citadelAssetKey(stage: number): string {
+  const s = CITADEL_STAGES.filter((x) => x <= (stage || 1)).pop() ?? 1;
+  return `citadel_${s}_tm`;
+}
+
+export interface CitadelUpgradeDef { toStage: number; stars: number; cost: Partial<Record<GoodType, number>> }
+export const CITADEL_UPGRADES: CitadelUpgradeDef[] = [
+  { toStage: 5, stars: 10, cost: { planks: 50 } },
+  { toStage: 10, stars: 30, cost: { stone: 150, planks: 25 } },
+  { toStage: 15, stars: 40, cost: { stone: 100, glass: 10, planks: 40 } },
+];
+
+export interface CityBuildingDef { id: CityBuildingType; name: string; icon: string; size: number; stars: number; cost: Partial<Record<GoodType, number>>; desc: string }
+export const CITY_BUILDINGS: CityBuildingDef[] = [
+  { id: "house", name: "House", icon: "home", size: 2, stars: 0, cost: { planks: 2 }, desc: "A home for your citizens." },
+  { id: "factory", name: "Material Factory", icon: "factory", size: 3, stars: 0, cost: {}, desc: "Produces your tribe's unique material." },
+  { id: "trade_tower", name: "Trade Tower", icon: "bank", size: 4, stars: 100, cost: {}, desc: "Doubles income from trade." },
+  { id: "park", name: "Park", icon: "tree", size: 2, stars: 15, cost: { glass: 5 }, desc: "A green retreat for the city." },
+];
+export const CITY_BUILDING_BY_ID: Record<string, CityBuildingDef> = Object.fromEntries(CITY_BUILDINGS.map((b) => [b.id, b]));
+
+// Each tribe's Material Factory makes a different resource.
+export const TRIBE_MATERIAL: Record<TribeId, GoodType> = { nature: "planks", desert: "sand", volcanic: "stone", snow: "glass" };
 
