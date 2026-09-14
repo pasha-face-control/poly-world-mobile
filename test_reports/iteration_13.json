@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend-only regression test for the Poly World City Screen citadel distortion bug fix. Verified the full flow: New Game -> Single Player -> Start -> Skip tutorial -> tap capital (195,420) -> Enter the City -> City Screen. BUG FIX VERIFIED: citadel_1_tm now renders as a small brown tower cleanly on the light-green city grass with NO large dark-green flat base diamond beneath it (the removal of near-horizontal bottom-slab faces in scripts/render_city.py is applied and rendered sprites are clean). Top HUD income pill shows '+1 /turn' and goods pill is visible. All four bottom-bar buttons (Citadel, Buildings, Roads, Exit) are tappable and functional. Exit correctly returns to the game map showing the capital tile. Minor React Native Web deprecation warnings observed in console (shadow*, resizeMode, pointerEvents props) — non-blocking.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CityScreen", "issues": ["A very faint diamond outline is visible around the citadel structure (the transparent bounding box edge of the cropped PNG). This is not the reported dark base plane — it is only ~1px anti-aliased border. Optional cosmetic polish: expand the PNG bbox padding slightly or feather alpha to remove the visible outline."]}
+    ],
+    "react_native_issues": [
+      {"component": "Global styles (theme shadow helper)", "issue": "React Native Web console warning: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Reference: src/theme.ts shadow() helper (used across city.tsx via ...shadow(3/6/10))."},
+      {"component": "Image style.resizeMode", "issue": "Console warning: 'Image: style.resizeMode is deprecated. Please use props.resizeMode.' Somewhere in the map/city image usage."},
+      {"component": "props.pointerEvents", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents.' Present in app/city.tsx hudTop/bottomWrap Views (pointerEvents=\"box-none\") — this pattern is common but flagged by RN Web."}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_13.json"],
+  "action_items": [
+    "(Optional cosmetic) The transparent PNG bounding box edge of citadel_1_tm.png is faintly visible as a thin diamond outline; consider adding transparent padding around the crop in scripts/render_city.py to hide it — not functional, cosmetic only.",
+    "(Non-blocking) Migrate shadow() theme helper from shadow* props to boxShadow to silence RN Web deprecation warnings.",
+    "(Non-blocking) Move pointerEvents from prop to style on Views in app/city.tsx and other screens using pointerEvents=\"box-none\".",
+    "(Non-blocking) Replace Image style.resizeMode with props.resizeMode wherever used."
+  ],
+  "critical_code_review_comments": [
+    "scripts/render_city.py flat-base-removal heuristic (|n_z|/|n| > 0.90 AND face top < 12% of zmax) is applied uniformly across all four citadel stages and houses_tm — correct and effective. Verified all 4 sprites saved after fix (see mtimes) render without base plane."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "seed_data_creation": "None. New single-player game was started fresh via the New Game flow.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "To reach the City Screen: at 390x844 viewport, after New Game -> Single Player -> Start and dismissing the 'Skip' tutorial, a single mouse click at (195,420) reliably selects the player's capital and opens the City Panel with the 'Enter the City' (testID enter-city) button. City Screen testID is 'city-screen'. All four bottom bar buttons (city-citadel, city-buildings, city-roads, city-exit) work; Roads shows a 'coming soon' toast; Exit returns to the map.",
+  "rca_of_issue": "Original bug: citadel_1_tm.png rendered by scripts/render_city.py included the model's own flat dark-green ground plane, which visually overlapped the CityMap's light-green 30x30 grass field producing a skewed dark diamond under the citadel. Fix in render_city.py draw(): skip triangles whose normal is near-vertical (|n_z|/|n| > 0.90) AND whose top vertex z is below 12% of zmax — this removes the base slab while keeping structure faces. Verified on-screen: citadel renders as clean brown towers sitting on the light-green grass, no dark base plane."
+}

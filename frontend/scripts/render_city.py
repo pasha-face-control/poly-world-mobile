@@ -77,10 +77,16 @@ def is_blank(c):
 
 
 def draw(R, cols, hasc, L):
+    zmax = float(R[:, :, 2].max()) or 1.0
     polys = []; fc = []
     for t, c, h in zip(R, cols, hasc):
-        base = NEUTRAL if (not h or is_blank(c)) else c
         n = np.cross(t[1] - t[0], t[2] - t[0]); ln = np.linalg.norm(n)
+        # Skip the model's flat ground base: near-horizontal faces sitting in the
+        # bottom slab. This removes the big green base plane so only the structure
+        # sits on the city's grass.
+        if ln > 0 and abs(n[2]) / ln > 0.90 and t[:, 2].max() < 0.12 * zmax:
+            continue
+        base = NEUTRAL if (not h or is_blank(c)) else c
         b = 0.6 if ln == 0 else 0.55 + 0.45 * max(0.0, float(np.dot(n / ln, LIGHT)))
         polys.append(t); fc.append(np.clip(base * b, 0, 1).tolist() + [1.0])
     fig = plt.figure(figsize=(5, 5), dpi=120); fig.patch.set_alpha(0.0)
@@ -103,7 +109,14 @@ def draw(R, cols, hasc, L):
     plt.close(fig)
     im = Image.fromarray(argb.copy(), "RGBA")
     bb = im.getbbox()
-    return im.crop(bb) if bb else im
+    if not bb:
+        return im
+    im = im.crop(bb)
+    # Small transparent margin so the crop bbox edge isn't visible as a hairline.
+    pad = 8
+    canvas = Image.new("RGBA", (im.width + pad * 2, im.height + pad * 2), (0, 0, 0, 0))
+    canvas.paste(im, (pad, pad))
+    return canvas
 
 
 os.makedirs(ASSETS, exist_ok=True)
