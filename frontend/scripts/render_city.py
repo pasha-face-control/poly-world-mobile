@@ -98,9 +98,9 @@ def draw(R, cols, hasc, L):
         pass
     ax.add_collection3d(Poly3DCollection(polys, facecolors=fc, edgecolors=(0, 0, 0, 0.18), linewidths=0.2))
     ax.set_xlim(-L / 2, L / 2); ax.set_ylim(-L / 2, L / 2); ax.set_zlim(0, L)
-    ax.set_box_aspect((1, 1, 1)); ax.view_init(elev=30, azim=-60); ax.set_axis_off()
+    ax.set_box_aspect((1, 1, 1)); ax.view_init(elev=30, azim=-45); ax.set_axis_off()
     try:
-        ax.set_proj_type("persp", focal_length=0.6)
+        ax.set_proj_type("ortho")  # 2:1 isometric to match the city grid
     except Exception:
         pass
     fig.canvas.draw()
@@ -108,22 +108,33 @@ def draw(R, cols, hasc, L):
     argb = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8).reshape(h, w, 4)
     plt.close(fig)
     im = Image.fromarray(argb.copy(), "RGBA")
-    bb = im.getbbox()
-    if not bb:
-        return im
-    im = im.crop(bb)
-    # Small transparent margin so the crop bbox edge isn't visible as a hairline.
-    pad = 8
-    canvas = Image.new("RGBA", (im.width + pad * 2, im.height + pad * 2), (0, 0, 0, 0))
-    canvas.paste(im, (pad, pad))
-    return canvas
+    return im  # full frame; callers crop (shared crop keeps stages aligned)
 
 
 os.makedirs(ASSETS, exist_ok=True)
+CITADELS = [m for m in MODELS if m.startswith("citadel")]
+rendered = {}
 for name in MODELS:
     R, cols, hasc = load(name)
     flat = R.reshape(-1, 3)
-    L = max(2 * np.abs(flat[:, :2]).max(), flat[:, 2].max()) * 1.05
+    L = 5.75 * 1.05  # shared cube for all citadels (same 6×6 footprint)
+    if name == "houses_tm":
+        L = max(2 * np.abs(flat[:, :2]).max(), flat[:, 2].max()) * 1.05
     print(f"{name}: tris={len(R)} L={L:.2f} blank={100*np.mean([is_blank(c) for c in cols]):.0f}%")
-    draw(R, cols, hasc, L).save(os.path.join(ASSETS, name + ".png"))
+    rendered[name] = draw(R, cols, hasc, L)
+
+# Citadels share ONE canvas (union crop) so the base sits at the same pixel in
+# every stage — the City Screen can then anchor all stages identically.
+ux0 = uy0 = 10 ** 9; ux1 = uy1 = -1
+for name in CITADELS:
+    bb = rendered[name].getbbox()
+    if bb:
+        ux0 = min(ux0, bb[0]); uy0 = min(uy0, bb[1]); ux1 = max(ux1, bb[2]); uy1 = max(uy1, bb[3])
+pad = 8
+crop = (ux0 - pad, uy0 - pad, ux1 + pad, uy1 + pad)
+print("citadel shared canvas", (crop[2] - crop[0], crop[3] - crop[1]))
+for name in CITADELS:
+    rendered[name].crop(crop).save(os.path.join(ASSETS, name + ".png"))
+rendered["houses_tm"].crop(rendered["houses_tm"].getbbox()).save(os.path.join(ASSETS, "houses_tm.png"))
 print("done")
+

@@ -3,7 +3,7 @@ import { Image, LayoutChangeEvent, StyleSheet, View } from "react-native";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import Svg, { Line, Polygon } from "react-native-svg";
-import { CITY_GRID, citadelAssetKey } from "@/src/game/data";
+import { CITADEL_SIZE, CITY_GRID, citadelAssetKey } from "@/src/game/data";
 import { City } from "@/src/game/types";
 import { C } from "@/src/theme";
 
@@ -55,9 +55,12 @@ export default function CityMap({ city }: Props) {
   }, []);
 
   const center = proj(N / 2, N / 2);
+  const baseBottom = proj(N / 2 + CITADEL_SIZE / 2, N / 2 + CITADEL_SIZE / 2); // grid bottom vertex of the 6×6 footprint
   const stageKey = citadelAssetKey(city.citadelStage ?? 1);
-  const citW = 6 * 2 * HW * 1.15; // ~6 cells wide
-  const citH = citW; // sprites are ~square; contain handles aspect
+  // Citadel PNG is 475×312 with its 6×6 base (≈458px wide) centred at x-frac 0.499
+  // and the base bottom vertex at y-frac 0.971. Scale so the base spans 12·HW (6 cells).
+  const citW = (6 * 2 * HW) / 0.964; // ≈249
+  const citH = citW * (312 / 475);
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -99,7 +102,7 @@ export default function CityMap({ city }: Props) {
             source={CITADEL_SPRITES[stageKey]}
             pointerEvents="none"
             resizeMode="contain"
-            style={{ position: "absolute", left: center.x - citW / 2, top: center.y - citH * 0.72, width: citW, height: citH }}
+            style={{ position: "absolute", left: baseBottom.x - citW * 0.499, top: baseBottom.y - citH * 0.971, width: citW, height: citH }}
           />
         </Animated.View>
       </GestureDetector>
