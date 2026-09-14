@@ -4,6 +4,10 @@ import {
   BUILDING_BY_ID,
   BUILDING_POP,
   CITADEL_UPGRADES,
+  CITADEL_SIZE,
+  CITY_BUILDING_BY_ID,
+  CITY_GRID,
+  TRIBE_MATERIAL,
   INFRA_BY_ID,
   RESOURCE_DEFS,
   TECH_BY_ID,
@@ -151,6 +155,128 @@ export function upgradeCitadel(state: GameState, player: number, cityId: string)
   city.citadelStage = up.toStage;
   log(state, `${p.name} upgraded a citadel to stage ${up.toStage}`);
   return true;
+}
+
+// ---------- City-builder building placement ----------
+function rangesOverlap(a0: number, a1: number, b0: number, b1: number) {
+  return a0 < b1 && b0 < a1;
+}
+
+export function canPlaceCityBuilding(state: GameState, player: number, cityId: string, type: string, x: number, y: number): { ok: boolean; reason?: string } {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city || city.owner !== player) return { ok: false, reason: "Not your city" };
+  const def = CITY_BUILDING_BY_ID[type];
+  if (!def) return { ok: false, reason: "Unknown building" };
+  const s = def.size;
+  if (x < 0 || y < 0 || x + s > CITY_GRID || y + s > CITY_GRID) return { ok: false, reason: "Off the map" };
+  // Keep clear of the centred citadel footprint.
+  const c0 = (CITY_GRID - CITADEL_SIZE) / 2, c1 = c0 + CITADEL_SIZE;
+  if (rangesOverlap(x, x + s, c0, c1) && rangesOverlap(y, y + s, c0, c1)) return { ok: false, reason: "Blocked by citadel" };
+  const layout = city.layout ?? { buildings: [], roads: [] };
+  for (const b of layout.buildings) {
+    const bs = CITY_BUILDING_BY_ID[b.type].size;
+    if (rangesOverlap(x, x + s, b.x, b.x + bs) && rangesOverlap(y, y + s, b.y, b.y + bs)) return { ok: false, reason: "Overlaps a building" };
+  }
+  for (const r of layout.roads) {
+    const rx = r % CITY_GRID, ry = Math.floor(r / CITY_GRID);
+    if (rx >= x && rx < x + s && ry >= y && ry < y + s) return { ok: false, reason: "Overlaps a road" };
+  }
+  const p = state.players[player];
+  if (p.stars < def.stars) return { ok: false, reason: "Not enough stars" };
+  for (const [g, need] of Object.entries(def.cost)) {
+    if ((p.goods[g as GoodType] ?? 0) < (need as number)) return { ok: false, reason: `Not enough ${g}` };
+  }
+  return { ok: true };
+}
+
+export function placeCityBuilding(state: GameState, player: number, cityId: string, type: string, x: number, y: number): boolean {
+  if (!canPlaceCityBuilding(state, player, cityId, type, x, y).ok) return false;
+  const city = state.cities.find((c) => c.id === cityId)!;
+  if (!city.layout) city.layout = { buildings: [], roads: [] };
+  const def = CITY_BUILDING_BY_ID[type];
+  const p = state.players[player];
+  p.stars -= def.stars;
+  for (const [g, need] of Object.entries(def.cost)) p.goods[g as GoodType] -= need as number;
+  city.layout.buildings.push({ id: `b_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`, type: type as import("./types").CityBuildingType, x, y });
+  log(state, `${p.name} built a ${def.name}`);
+  return true;
+}
+
+// ---------- City roads (cosmetic drawing) ----------
+export function canPlaceCityRoad(state: GameState, player: number, cityId: string, cell: number): boolean {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city || city.owner !== player) return false;
+  const x = cell % CITY_GRID, y = Math.floor(cell / CITY_GRID);
+  if (x < 0 || y < 0 || x >= CITY_GRID || y >= CITY_GRID) return false;
+  const c0 = (CITY_GRID - CITADEL_SIZE) / 2, c1 = c0 + CITADEL_SIZE;
+  if (x >= c0 && x < c1 && y >= c0 && y < c1) return false; // under the citadel
+  const layout = city.layout ?? { buildings: [], roads: [] };
+  if (layout.roads.includes(cell)) return false;
+  for (const b of layout.buildings) {
+    const bs = CITY_BUILDING_BY_ID[b.type].size;
+    if (x >= b.x && x < b.x + bs && y >= b.y && y < b.y + bs) return false; // under a building
+  }
+  return true;
+}
+
+// Adds every valid road cell from a drag stroke; returns how many were added.
+export function drawCityRoads(state: GameState, player: number, cityId: string, cells: number[]): number {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city || city.owner !== player) return 0;
+  if (!city.layout) city.layout = { buildings: [], roads: [] };
+  let added = 0;
+  for (const cell of cells) {
+    if (canPlaceCityRoad(state, player, cityId, cell)) { city.layout.roads.push(cell); added += 1; }
+  }
+  return added;
+}
+
+// ---------- Material Factories (per-city, tribe-specific) ----------
+// Whether a player owns at least one Trade Tower (doubles their trade income).
+export function hasTradeTower(state: GameState, player: number): boolean {
+  return state.cities.some((c) => c.owner === player && (c.layout?.buildings ?? []).some((b) => b.type === "trade_tower"));
+}
+export const tradeMultiplier = (state: GameState, player: number): number => (hasTradeTower(state, player) ? 2 : 1);
+
+// Sets how much wood a Lesnoi planks factory consumes each turn (2 wood → 1 plank).
+export function setFactoryFeed(state: GameState, player: number, cityId: string, buildingId: string, feed: number): boolean {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city || city.owner !== player) return false;
+  const b = (city.layout?.buildings ?? []).find((x) => x.id === buildingId && x.type === "factory");
+  if (!b) return false;
+  b.feed = Math.max(0, Math.floor(feed));
+  return true;
+}
+
+// Runs every Material Factory the player owns at the start of their turn.
+export function runCityFactories(state: GameState, player: number) {
+  const p = state.players[player];
+  const material = TRIBE_MATERIAL[p.tribe];
+  for (const city of state.cities) {
+    if (city.owner !== player) continue;
+    for (const f of (city.layout?.buildings ?? []).filter((b) => b.type === "factory")) {
+      if (material === "planks") {
+        // Lesnoi: consume fed wood, 2 wood → 1 plank.
+        const feed = Math.max(0, Math.min(f.feed ?? 0, p.goods.wood));
+        const usable = feed - (feed % 2);
+        if (usable > 0) { p.goods.wood -= usable; p.goods.planks += usable / 2; }
+      } else if (material === "sand") {
+        p.goods.sand += 5; // Freemen: sand courier
+      } else if (material === "stone") {
+        p.goods.stone += 2; // He-he: stone factory
+      } else if (material === "glass") {
+        // Fishmen: 1 glass for 5 sand + (1 coal OR 2 wood). Partial/nothing when short.
+        if (p.goods.sand >= 5 && (p.goods.coal >= 1 || p.goods.wood >= 2)) {
+          p.goods.sand -= 5;
+          if (p.goods.coal >= 1) p.goods.coal -= 1; else p.goods.wood -= 2;
+          p.goods.glass += 1;
+          f.starved = false;
+        } else {
+          f.starved = true; // couldn't run — surfaced as a warning in the City Screen
+        }
+      }
+    }
+  }
 }
 
 
@@ -503,8 +629,9 @@ export function buyFromMerchant(state: GameState, buyer: number, merchantId: str
   state.players[buyer].goods[g] += take;
   recordPurchase(state, buyer, g, take, take * slot.price);
   slot.qty -= take;
-  state.players[m.owner].stars += take * slot.price;
-  recordSale(state, m.owner, g, take, take * slot.price);
+  const earned = take * slot.price * tradeMultiplier(state, m.owner);
+  state.players[m.owner].stars += earned;
+  recordSale(state, m.owner, g, take, earned);
   if (slot.qty <= 0) slot.good = null;
   log(state, `${state.players[buyer].name} bought ${take} ${g} from ${state.players[m.owner].name}'s merchant`);
   return true;
@@ -571,8 +698,9 @@ export function resolveTrades(state: GameState) {
       buyer.goods[good] += 1;
       recordPurchase(state, buyer.index, good, 1, slot.price);
       slot.qty -= 1;
-      state.players[m.owner].stars += slot.price;
-      recordSale(state, m.owner, good, 1, slot.price);
+      const earned = slot.price * tradeMultiplier(state, m.owner);
+      state.players[m.owner].stars += earned;
+      recordSale(state, m.owner, good, 1, earned);
       if (slot.qty <= 0) slot.good = null;
     }
   }
@@ -614,6 +742,7 @@ export function startPlayerTurn(state: GameState, player: number) {
       u.attacked = false;
     }
   }
+  runCityFactories(state, player); // Material Factory production
   completeVillageClaims(state, player);
   if (player === 0) resolveTrades(state); // market tick once per round
   if (state.closed) {

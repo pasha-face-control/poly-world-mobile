@@ -19,6 +19,9 @@ import {
   embark,
   expandTerritory,
   upgradeCitadel,
+  placeCityBuilding,
+  setFactoryFeed,
+  drawCityRoads,
   harvest,
   hireHunter,
   huntSuccess,
@@ -126,6 +129,9 @@ interface GameContextValue {
   doResolveOffer: (cityId: string, accept: boolean) => boolean;
   doExpandTerritory: (tileId: number) => boolean;
   doUpgradeCitadel: (cityId: string) => boolean;
+  doPlaceCityBuilding: (cityId: string, type: string, x: number, y: number) => boolean;
+  doSetFactoryFeed: (cityId: string, buildingId: string, feed: number) => boolean;
+  doDrawCityRoads: (cityId: string, cells: number[]) => boolean;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -299,6 +305,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doResolveOffer = useCallback((cityId: string, accept: boolean) => apply((s) => resolveCityOffer(s, cityId, accept)), [apply]);
   const doExpandTerritory = useCallback((tileId: number) => apply((s) => expandTerritory(s, s.currentPlayer, tileId)), [apply]);
   const doUpgradeCitadel = useCallback((cityId: string) => apply((s) => upgradeCitadel(s, s.currentPlayer, cityId)), [apply]);
+  const doPlaceCityBuilding = useCallback((cityId: string, type: string, x: number, y: number) => apply((s) => placeCityBuilding(s, s.currentPlayer, cityId, type, x, y)), [apply]);
+  const doSetFactoryFeed = useCallback((cityId: string, buildingId: string, feed: number) => apply((s) => setFactoryFeed(s, s.currentPlayer, cityId, buildingId, feed)), [apply]);
+  const doDrawCityRoads = useCallback((cityId: string, cells: number[]) => apply((s) => drawCityRoads(s, s.currentPlayer, cityId, cells) > 0), [apply]);
 
   const endTurn = useCallback(() => {
     if (!state || state.status !== "playing") return;
@@ -361,6 +370,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doResolveOffer,
         doExpandTerritory,
         doUpgradeCitadel,
+        doPlaceCityBuilding,
+        doSetFactoryFeed,
+        doDrawCityRoads,
       }}
     >
       {children}

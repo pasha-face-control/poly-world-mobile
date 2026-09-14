@@ -8,9 +8,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import CityMap from "@/src/components/CityMap";
 import GameIcon from "@/src/components/GameIcon";
 import { useGame } from "@/src/game/store";
-import { nextCitadelUpgrade, canUpgradeCitadel } from "@/src/game/engine";
-import { CITY_GOODS, CITY_BUILDINGS } from "@/src/game/data";
-import { GoodType } from "@/src/game/types";
+import { nextCitadelUpgrade, canUpgradeCitadel, canPlaceCityBuilding, canPlaceCityRoad } from "@/src/game/engine";
+import { CITY_GOODS, CITY_BUILDINGS, TRIBE_MATERIAL } from "@/src/game/data";
+import { CityBuilding, CityBuildingType, GoodType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
 import { haptic } from "@/src/utils/fx";
 
@@ -18,9 +18,12 @@ export default function CityScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { cityId } = useLocalSearchParams<{ cityId: string }>();
-  const { state, doUpgradeCitadel } = useGame();
+  const { state, doUpgradeCitadel, doPlaceCityBuilding, doSetFactoryFeed, doDrawCityRoads } = useGame();
   const [citadelOpen, setCitadelOpen] = useState(false);
   const [buildOpen, setBuildOpen] = useState(false);
+  const [placing, setPlacing] = useState<CityBuildingType | null>(null);
+  const [roadMode, setRoadMode] = useState(false);
+  const [factory, setFactory] = useState<CityBuilding | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const city = state?.cities.find((c) => c.id === cityId);
@@ -42,7 +45,34 @@ export default function CityScreen() {
   return (
     <View style={styles.container} testID="city-screen">
       <StatusBar style="dark" />
-      <CityMap city={city} />
+      <CityMap
+        city={city}
+        placing={placing}
+        canPlaceAt={(t, x, y) => canPlaceCityBuilding(state, city.owner, city.id, t, x, y).ok}
+        onPlace={(x, y) => {
+          if (!placing) return;
+          const check = canPlaceCityBuilding(state, city.owner, city.id, placing, x, y);
+          if (check.ok && doPlaceCityBuilding(city.id, placing, x, y)) { haptic.notify(); showToast(`${CITY_BUILDINGS.find((b) => b.id === placing)!.name} built`); }
+          else showToast(check.reason ?? "Can't build there");
+          setPlacing(null);
+        }}
+        onCancelPlace={() => setPlacing(null)}
+        roadMode={roadMode}
+        canRoadAt={(cell) => canPlaceCityRoad(state, city.owner, city.id, cell)}
+        onDrawRoads={(cells) => { if (doDrawCityRoads(city.id, cells)) haptic.select(); }}
+        onTapBuilding={(b) => { if (b.type === "factory") { haptic.select(); setFactory(b); } }}
+      />
+
+      {placing && (
+        <View pointerEvents="none" style={[styles.placeHint, { top: insets.top + 92 }]}>
+          <Text style={styles.toastText}>Drag to position · release to place</Text>
+        </View>
+      )}
+      {roadMode && !placing && (
+        <View pointerEvents="none" style={[styles.placeHint, { top: insets.top + 92 }]}>
+          <Text style={styles.toastText}>Drag to draw roads · tap Roads to finish</Text>
+        </View>
+      )}
 
       {/* Top HUD */}
       <View style={[styles.hudTop, { top: insets.top + 8 }]} pointerEvents="box-none">
@@ -76,10 +106,10 @@ export default function CityScreen() {
       {/* Bottom action bar */}
       <View style={[styles.bottomWrap, { bottom: insets.bottom + 10 }]} pointerEvents="box-none">
         <BlurView intensity={40} tint="light" style={styles.bar}>
-          <BarBtn icon="crown" label="Citadel" testID="city-citadel" onPress={() => { haptic.select(); setCitadelOpen(true); }} />
-          <BarBtn icon="home-group" label="Buildings" testID="city-buildings" onPress={() => { haptic.select(); setBuildOpen(true); }} />
-          <BarBtn icon="road-variant" label="Roads" testID="city-roads" onPress={() => showToast("Road building — coming soon")} />
-          <BarBtn icon="exit-run" label="Exit" testID="city-exit" primary onPress={() => router.back()} />
+          <BarBtn icon="crown" label="Citadel" testID="city-citadel" onPress={() => { haptic.select(); setRoadMode(false); setCitadelOpen(true); }} />
+          <BarBtn icon="home-group" label="Buildings" testID="city-buildings" onPress={() => { haptic.select(); setRoadMode(false); setBuildOpen(true); }} />
+          <BarBtn icon="road-variant" label={roadMode ? "Done" : "Roads"} testID="city-roads" primary={roadMode} onPress={() => { haptic.select(); setPlacing(null); setRoadMode((v) => !v); showToast(roadMode ? "Roads saved" : "Drag on the map to draw roads"); }} />
+          <BarBtn icon="exit-run" label="Exit" testID="city-exit" primary={!roadMode} onPress={() => router.back()} />
         </BlurView>
       </View>
 
@@ -134,7 +164,7 @@ export default function CityScreen() {
               <Pressable onPress={() => setBuildOpen(false)} style={styles.sheetClose}><MaterialCommunityIcons name="close" size={22} color={C.onSurface} /></Pressable>
             </View>
             {CITY_BUILDINGS.map((b) => (
-              <Pressable key={b.id} testID={`build-${b.id}`} style={styles.buildRow} onPress={() => { setBuildOpen(false); showToast(`${b.name} placement — coming soon`); }}>
+              <Pressable key={b.id} testID={`build-${b.id}`} style={styles.buildRow} onPress={() => { setBuildOpen(false); setPlacing(b.id); showToast(`Placing ${b.name} — drag on the map`); }}>
                 <View style={styles.buildIcon}><MaterialCommunityIcons name={b.icon as any} size={22} color={C.brand} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.buildName}>{b.name} · {b.size}×{b.size}</Text>
@@ -152,7 +182,69 @@ export default function CityScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Material Factory config / status */}
+      <FactoryDialog
+        city={city}
+        factory={factory ? (city.layout?.buildings.find((b) => b.id === factory.id) ?? null) : null}
+        tribe={player.tribe}
+        player={player}
+        onClose={() => setFactory(null)}
+        onFeed={(feed) => { if (factory) doSetFactoryFeed(city.id, factory.id, feed); }}
+      />
     </View>
+  );
+}
+
+function FactoryDialog({ city, factory, tribe, player, onClose, onFeed }: { city: any; factory: CityBuilding | null; tribe: string; player: any; onClose: () => void; onFeed: (feed: number) => void }) {
+  const material = TRIBE_MATERIAL[tribe as keyof typeof TRIBE_MATERIAL] as GoodType;
+  const meta = CITY_GOODS.find((g) => g.id === material)!;
+  const feed = factory?.feed ?? 0;
+  const woodHave = player.goods.wood ?? 0;
+  const usable = Math.min(feed, woodHave) - (Math.min(feed, woodHave) % 2);
+  return (
+    <Modal visible={!!factory} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View style={styles.dialog} testID="factory-dialog">
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <GameIcon name={meta.icon} size={22} color={meta.color} />
+            <Text style={styles.dialogTitle}>{meta.name} Factory</Text>
+          </View>
+
+          {material === "planks" && (
+            <>
+              <Text style={styles.dialogSub}>Feeds wood in, crafts planks (2 wood → 1 plank) at the start of your turn.</Text>
+              <View style={styles.stepper}>
+                <Pressable testID="factory-feed-minus" onPress={() => onFeed(Math.max(0, feed - 2))} style={styles.stepBtn}><MaterialCommunityIcons name="minus" size={22} color={C.onSurface} /></Pressable>
+                <View style={styles.stepVal}>
+                  <GameIcon name="tree" size={16} color="#7A5230" />
+                  <Text style={styles.stepText} testID="factory-feed-value">{feed}</Text>
+                  <Text style={styles.stepSub}>wood/turn</Text>
+                </View>
+                <Pressable testID="factory-feed-plus" onPress={() => onFeed(feed + 2)} style={styles.stepBtn}><MaterialCommunityIcons name="plus" size={22} color={C.onSurface} /></Pressable>
+              </View>
+              <Text style={styles.factoryOut}>→ {usable / 2} plank{usable / 2 === 1 ? "" : "s"} next turn (uses {usable} of your {woodHave} wood)</Text>
+            </>
+          )}
+          {material === "stone" && <Text style={styles.dialogSub}>Produces +2 stone every turn automatically.</Text>}
+          {material === "sand" && <Text style={styles.dialogSub}>Delivers +5 sand every turn automatically.</Text>}
+          {material === "glass" && (
+            <>
+              <Text style={styles.dialogSub}>Crafts +1 glass each turn. Needs 5 sand + (1 coal or 2 wood).</Text>
+              <View style={styles.costRow}>
+                <View style={styles.costChip}><GameIcon name="grain" size={14} color={(player.goods.sand ?? 0) >= 5 ? "#E8CE8A" : C.error} /><Text style={[styles.costText, (player.goods.sand ?? 0) < 5 && { color: C.error }]}>5 sand</Text></View>
+                <View style={styles.costChip}><GameIcon name="img:coal_ore" size={14} color={(player.goods.coal ?? 0) >= 1 ? "#3A3A3A" : C.onSurfaceSecondary} /><Text style={styles.costText}>1 coal</Text></View>
+                <Text style={styles.dialogSub}>or</Text>
+                <View style={styles.costChip}><GameIcon name="tree" size={14} color={(player.goods.wood ?? 0) >= 2 ? "#7A5230" : C.onSurfaceSecondary} /><Text style={styles.costText}>2 wood</Text></View>
+              </View>
+              {factory?.starved && <Text style={[styles.factoryOut, { color: C.error }]}>⚠ Not enough inputs last turn — stock up on sand + coal/wood.</Text>}
+            </>
+          )}
+
+          <Pressable onPress={onClose} style={styles.secondaryBtn}><Text style={styles.secondaryText}>Close</Text></Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -178,6 +270,7 @@ const styles = StyleSheet.create({
   good: { flexDirection: "row", alignItems: "center", gap: 3 },
   goodValue: { fontWeight: "800", color: C.onSurface, fontSize: 13 },
   toast: { position: "absolute", alignSelf: "center", backgroundColor: C.surfaceInverse, paddingHorizontal: 16, paddingVertical: 8, borderRadius: R.pill },
+  placeHint: { position: "absolute", alignSelf: "center", backgroundColor: C.brand, paddingHorizontal: 16, paddingVertical: 8, borderRadius: R.pill },
   toastText: { color: C.onSurfaceInverse, fontWeight: "700", fontSize: 13 },
   bottomWrap: { position: "absolute", left: 12, right: 12 },
   bar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 10, paddingVertical: 8, borderRadius: R.lg, overflow: "hidden", ...shadow(6) },
@@ -203,4 +296,10 @@ const styles = StyleSheet.create({
   buildIcon: { width: 40, height: 40, borderRadius: R.md, backgroundColor: C.surface, alignItems: "center", justifyContent: "center" },
   buildName: { fontSize: 15, fontWeight: "800", color: C.onSurface },
   buildDesc: { fontSize: 12, fontWeight: "600", color: C.onSurfaceSecondary },
+  stepper: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: SP.md, marginVertical: 6 },
+  stepBtn: { width: 46, height: 46, borderRadius: R.md, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center" },
+  stepVal: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  stepText: { fontSize: 22, fontWeight: "900", color: C.onSurface },
+  stepSub: { fontSize: 12, fontWeight: "700", color: C.onSurfaceSecondary },
+  factoryOut: { fontSize: 13, fontWeight: "700", color: C.brand, marginTop: 2 },
 });

@@ -640,5 +640,117 @@ if (anyWater) {
   ok("upgrade spent 10 stars + 50 planks", g.players[0].stars === sBefore - 10 && g.players[0].goods.planks === pBefore - 50);
 }
 
+
+// ---- City building placement ----
+{
+  let g = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  g.players[0].stars = 200; g.players[0].goods.planks = 10;
+  ok("place house ok at (2,2)", engine.canPlaceCityBuilding(g, 0, c.id, "house", 2, 2).ok);
+  ok("house blocked over citadel center", !engine.canPlaceCityBuilding(g, 0, c.id, "house", 13, 13).ok);
+  ok("house blocked off-map", !engine.canPlaceCityBuilding(g, 0, c.id, "house", 29, 29).ok);
+  const pB = g.players[0].goods.planks;
+  ok("build house deducts 2 planks", engine.placeCityBuilding(g, 0, c.id, "house", 2, 2) && c.layout.buildings.length === 1 && g.players[0].goods.planks === pB - 2);
+  ok("cannot overlap existing house", !engine.canPlaceCityBuilding(g, 0, c.id, "house", 3, 3).ok);
+  g.players[0].goods.planks = 0;
+  ok("house blocked without planks", !engine.canPlaceCityBuilding(g, 0, c.id, "house", 6, 6).ok);
+}
+
+
+// ---- City roads (cosmetic drawing) ----
+{
+  let g = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  ok("road ok at (1,1)", engine.canPlaceCityRoad(g, 0, c.id, 1 * 30 + 1));
+  ok("road blocked under citadel center", !engine.canPlaceCityRoad(g, 0, c.id, 15 * 30 + 15));
+  ok("road blocked off-map", !engine.canPlaceCityRoad(g, 0, c.id, 40 * 30 + 40));
+  const added = engine.drawCityRoads(g, 0, c.id, [1 * 30 + 1, 1 * 30 + 2, 15 * 30 + 15]);
+  ok("drawCityRoads adds 2 valid, skips citadel cell", added === 2 && c.layout.roads.length === 2);
+  ok("cannot redraw existing road", !engine.canPlaceCityRoad(g, 0, c.id, 1 * 30 + 1));
+  // road blocked under a building
+  g.players[0].stars = 200; g.players[0].goods.planks = 10;
+  engine.placeCityBuilding(g, 0, c.id, "house", 5, 5);
+  ok("road blocked under a building", !engine.canPlaceCityRoad(g, 0, c.id, 5 * 30 + 5));
+}
+
+
+// ---- Material Factory production (per tribe) ----
+{
+  // Lesnoi (planks): 2 wood -> 1 plank, feed-limited.
+  let g = generateGame({ tribe: "nature", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  c.layout.buildings.push({ id: "f1", type: "factory", x: 2, y: 2 });
+  g.players[0].goods.wood = 10; g.players[0].goods.planks = 0;
+  engine.setFactoryFeed(g, 0, c.id, "f1", 6);
+  ok("feed set to 6 (even)", c.layout.buildings[0].feed === 6);
+  engine.runCityFactories(g, 0);
+  ok("planks factory: 6 wood -> 3 planks", g.players[0].goods.planks === 3 && g.players[0].goods.wood === 4);
+  // odd feed rounds down to even; capped by stock
+  g.players[0].goods.wood = 3;
+  engine.setFactoryFeed(g, 0, c.id, "f1", 5);
+  engine.runCityFactories(g, 0);
+  ok("planks factory caps at stock (3 wood -> 1 plank)", g.players[0].goods.planks === 4 && g.players[0].goods.wood === 1);
+}
+{
+  // He-he (stone): +2/turn.
+  let g = generateGame({ tribe: "volcanic", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  c.layout.buildings.push({ id: "f1", type: "factory", x: 2, y: 2 });
+  g.players[0].goods.stone = 0;
+  engine.runCityFactories(g, 0);
+  ok("stone factory +2/turn", g.players[0].goods.stone === 2);
+}
+{
+  // Freemen (sand): +5/turn.
+  let g = generateGame({ tribe: "desert", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  c.layout.buildings.push({ id: "f1", type: "factory", x: 2, y: 2 });
+  g.players[0].goods.sand = 0;
+  engine.runCityFactories(g, 0);
+  ok("sand factory +5/turn", g.players[0].goods.sand === 5);
+}
+{
+  // Fishmen (glass): 5 sand + (1 coal or 2 wood) -> 1 glass; starves when short.
+  let g = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  c.layout.buildings.push({ id: "f1", type: "factory", x: 2, y: 2 });
+  g.players[0].goods = { ...g.players[0].goods, sand: 5, coal: 1, wood: 0, glass: 0 };
+  engine.runCityFactories(g, 0);
+  ok("glass factory: 5 sand + 1 coal -> 1 glass", g.players[0].goods.glass === 1 && g.players[0].goods.sand === 0 && g.players[0].goods.coal === 0);
+  ok("glass factory not starved when it ran", c.layout.buildings[0].starved === false);
+  // now short on inputs -> starved, no production
+  g.players[0].goods = { ...g.players[0].goods, sand: 2, coal: 0, wood: 0, glass: 1 };
+  engine.runCityFactories(g, 0);
+  ok("glass factory starves when short (no glass, no consumption)", g.players[0].goods.glass === 1 && g.players[0].goods.sand === 2 && c.layout.buildings[0].starved === true);
+  // prefers coal but falls back to 2 wood
+  g.players[0].goods = { ...g.players[0].goods, sand: 5, coal: 0, wood: 2, glass: 1 };
+  engine.runCityFactories(g, 0);
+  ok("glass factory falls back to 2 wood", g.players[0].goods.glass === 2 && g.players[0].goods.wood === 0 && g.players[0].goods.sand === 0);
+}
+
+
+// ---- Trade Tower (2x trade income) ----
+{
+  let g = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  ok("no trade tower by default", engine.hasTradeTower(g, 0) === false);
+  c.layout.buildings.push({ id: "tt", type: "trade_tower", x: 2, y: 2 });
+  ok("hasTradeTower true after placement", engine.hasTradeTower(g, 0) === true);
+  ok("tradeMultiplier is 2 with a tower", engine.tradeMultiplier(g, 0) === 2);
+  // sell via a pass-and-play buy: seller (0) earns 2x
+  g.players[0].techs = ["trading"];
+  g.units = g.units.filter((u) => !(u.owner === 0 && u.tileId === c.tileId));
+  g.players[0].stars = 200; g.players[0].goods.wood = 20;
+  engine.trainUnit(g, 0, c.id, "merchant");
+  const m = g.units.find((u) => u.owner === 0 && u.type === "merchant");
+  engine.loadMerchant(g, m.id, 0, "wood", 4);
+  engine.setMerchantPrice(g, m.id, 0, 5);
+  g.players[1].stars = 100;
+  const sellerBefore = g.players[0].stars;
+  engine.buyFromMerchant(g, 1, m.id, 0, 2); // buy 2 @5 = 10, tower doubles seller income to 20
+  ok("trade tower doubles seller income (2x)", g.players[0].stars === sellerBefore + 20);
+}
+
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -1,0 +1,35 @@
+{
+  "summary": "Frontend-only regression for Poly World City Screen drag-and-drop building placement (Phase 2). Full flow verified end-to-end at 390x844: Main Menu -> New Game -> Single Player -> Start -> Skip tutorial -> tap capital (195,420) -> Enter the City -> city-screen. Buildings sheet lists all four buildings with correct sizes/costs (House 2x2 · 2 planks, Material Factory 3x3, Trade Tower 4x4 · 100 stars, Park 2x2 · 15 stars + 5 glass). Selecting a building shows the placement hint 'Drag to position · release to place' and mounts the full-screen place-layer (testID place-layer). Drag/ghost interaction WORKS: a red SVG diamond (rgba(220,70,70,0.55)) appears as ghost while dragging; releasing on an invalid cell dismisses placement and fires the 'Placement cancelled' toast (i.e. the commitGhost onCancelPlace path). Citadel-blocked validation CONFIRMED: dragging Trade Tower over the central 6x6 citadel footprint yields a red ghost (fill=rgba(220,70,70,0.55) via document.querySelectorAll('svg polygon')). Affordability validation CONFIRMED indirectly: with a fresh capital player has 0 planks / 0 glass / 6 stars, so House (2 planks), Trade Tower (100 stars) and Park (15 stars + 5 glass) all remain red anywhere on the grid — this matches the reviewer's note that green placement cannot be observed without cheating resources. No green ghost / no successful placement was observed because starting resources are insufficient for every buildable option; this is EXPECTED per the request. Citadel button opens citadel-dialog correctly; Exit (city-exit) returns to the game map and unmounts city-screen. Only benign RN Web deprecation warnings ('shadow*' style props, props.pointerEvents, Image style.resizeMode) — non-blocking, already tracked in previous iterations.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CityScreen · Buildings sheet", "issues": ["Material Factory row shows no visible cost badge because its cost object appears to have no goods entries in CITY_BUILDINGS[factory]; player can still 'select' it as a placeable target. Please verify factory.cost / factory.stars are intended to be zero or add cost chips so users see what it requires (consistent with the other three buildings)."]}
+    ],
+    "react_native_issues": [
+      {"component": "Global styles (theme shadow helper)", "issue": "RN Web console warning: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Reference: /app/frontend/src/theme.ts shadow() helper — reused across app/city.tsx pill/bar/dialog/sheet styles."},
+      {"component": "Image style.resizeMode", "issue": "RN Web console warning: 'Image: style.resizeMode is deprecated. Please use props.resizeMode.' Reference: /app/frontend/src/components/CityMap.tsx (houses_tm Image and citadel Image use resizeMode as prop OK but a nested/other <Image> in the tree still uses style.resizeMode)."},
+      {"component": "props.pointerEvents", "issue": "RN Web console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents.' Reference: /app/frontend/app/city.tsx:59 (placeHint <View pointerEvents=\"none\">), :65 (hudTop pointerEvents=\"box-none\"), :88 (toast), :94 (bottomWrap), and Image pointerEvents in /app/frontend/src/components/CityMap.tsx:145,148,154."}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_14.json"],
+  "action_items": [
+    "(Non-blocking) Verify Material Factory (CITY_BUILDINGS[factory]) has an intended cost/stars value — currently the Buildings sheet renders no cost chip for it, which may confuse users.",
+    "(Non-blocking) Silence RN Web deprecations: migrate shadow() helper to boxShadow, move pointerEvents from prop to style, use props.resizeMode on all <Image>.",
+    "(Enhancement) Consider a keyboard/dev-only 'cheat resources' path (or a demo save slot) so QA can visually verify a GREEN ghost + successful placement + cost deduction; today with a brand-new capital every building is unaffordable so the successful-placement branch (onPlace -> 'X built' toast + building sprite on grid + resource deduction) cannot be exercised from the default flow.",
+    "(No fix required) Drag-and-drop placement + validation (off-map / citadel / overlap / affordability) all functioning per canPlaceCityBuilding in /app/frontend/src/game/engine.ts:164-189."
+  ],
+  "critical_code_review_comments": [
+    "CityMap.tsx placeGesture uses Gesture.Pan(); on web a very small mouse movement (<Pan activation threshold, ~10px) will not activate the pan and no ghost is drawn — user must move noticeably before release. Consider Gesture.Pan().minDistance(0) or a tap-then-drag fallback so a quick click also triggers placement resolution.",
+    "commitGhost() calls onCancelPlace when ghost.ok is false, and the parent shows a 'Placement cancelled' toast — but a red ghost drop is often caused by 'Not enough X' rather than a deliberate cancel. Consider forwarding the reason string from canPlaceCityBuilding (already returned) into a more actionable toast like 'Not enough planks' / 'Blocked by citadel' instead of the generic 'Placement cancelled'.",
+    "The place-layer covers the whole screen while placing (StyleSheet.absoluteFill), meaning pan/pinch of the map is disabled during placement. Acceptable, but there's no obvious way to cancel placement other than dropping on an invalid cell — consider adding a visible Cancel button or a tap-outside-to-cancel affordance."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (skipped)", "frontend": "100% (all requested checks pass)" },
+  "seed_data_creation": "None — fresh single-player game created via New Game flow.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "To reach City Screen at 390x844: menu-new-game -> mode-single -> start-game -> (skip tutorial by tapping Skip text if present) -> mouse.click(195,420) -> click enter-city -> wait for city-screen. Once in city-screen, select a building via city-buildings -> build-{id}; place-layer mounts. Ghost polygon fills are literal rgba strings 'rgba(80,200,110,0.55)' (green/valid) or 'rgba(220,70,70,0.55)' (red/invalid) and can be read via document.querySelectorAll('svg polygon') + getAttribute('fill'). Fresh capital has 0 planks/stone/sand/glass/coal and 6 stars, so no default building is affordable — the ghost stays red everywhere. To observe a GREEN ghost + successful onPlace, the tester needs to seed extra resources on the player (or the main agent needs to grant a dev cheat). Gesture.Pan requires >~10px movement to activate on web; use mouse.move steps >=5 with cumulative delta >20px to reliably trigger the ghost.",
+  "rca_of_issue": "N/A — Phase 2 placement feature functions correctly. Validation (off-map / citadel-overlap / building-overlap / road-overlap / stars / goods) is enforced in engine.ts canPlaceCityBuilding and reflected in the ghost color in CityMap.tsx (onPlace uses the ok flag). Only cosmetic/UX suggestions above."
+}

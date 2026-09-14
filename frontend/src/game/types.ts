@@ -51,6 +51,8 @@ export interface CityBuilding {
   type: CityBuildingType;
   x: number; // top-left cell on the 30×30 city grid
   y: number;
+  feed?: number; // wood fed into a planks (Lesnoi) Material Factory each turn
+  starved?: boolean; // a glass (Fishmen) factory that could not run last turn (short on inputs)
 }
 
 export interface CityLayout {
