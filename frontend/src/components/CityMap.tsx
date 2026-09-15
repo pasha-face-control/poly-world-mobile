@@ -42,9 +42,11 @@ interface Props {
   canRoadAt?: (cell: number) => boolean;
   onDrawRoads?: (cells: number[]) => void;
   onTapBuilding?: (b: CityBuilding) => void;
+  editMode?: "move" | "demolish" | "deleteRoad" | null;
+  onDeleteRoad?: (cell: number) => void;
 }
 
-export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPlace, roadMode, canRoadAt, onDrawRoads, onTapBuilding }: Props) {
+export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPlace, roadMode, canRoadAt, onDrawRoads, onTapBuilding, editMode, onDeleteRoad }: Props) {
   const scale = useSharedValue(0.65);
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
@@ -133,6 +135,10 @@ export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPl
     setStroke([]);
     if (cells.length) onDrawRoads?.(cells);
   };
+  const deleteRoadAt = (px: number, py: number) => {
+    const cell = cellAt(px, py);
+    if (cell != null) onDeleteRoad?.(cell);
+  };
 
   const pan = Gesture.Pan().averageTouches(true).onChange((e) => {
     tx.value += e.changeX; ty.value += e.changeY;
@@ -159,6 +165,9 @@ export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPl
     .onChange((e) => { runOnJS(addRoadCell)(e.x, e.y); })
     .onEnd(() => { runOnJS(commitStroke)(); });
 
+  // Delete-road mode: a tap removes the road under the finger.
+  const deleteRoadGesture = Gesture.Tap().maxDistance(20).onEnd((e) => { runOnJS(deleteRoadAt)(e.x, e.y); });
+
   const animStyle = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }] }));
 
   const board = (
@@ -178,6 +187,13 @@ export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPl
         {buildings.map((b) => (
           <Polygon key={b.id} points={blockPoints(b.x, b.y, CITY_BUILDING_BY_ID[b.type].size)} fill={BUILDING_COLOR[b.type]} stroke="rgba(0,0,0,0.25)" strokeWidth={1} opacity={0.92} />
         ))}
+        {(editMode === "move" || editMode === "demolish") && buildings.map((b) => (
+          <Polygon key={`hl${b.id}`} points={blockPoints(b.x, b.y, CITY_BUILDING_BY_ID[b.type].size)} fill="rgba(80,140,255,0.18)" stroke="#3B82F6" strokeWidth={2} />
+        ))}
+        {editMode === "deleteRoad" && roads.map((r) => {
+          const rx = r % N, ry = Math.floor(r / N);
+          return <Polygon key={`dr${r}`} points={blockPoints(rx, ry, 1)} fill="rgba(220,70,70,0.5)" stroke="#B71C1C" strokeWidth={1} />;
+        })}
         {ghost && placing && (
           <Polygon points={blockPoints(ghost.x, ghost.y, CITY_BUILDING_BY_ID[placing].size)} fill={ghost.ok ? "rgba(80,200,110,0.55)" : "rgba(220,70,70,0.55)"} stroke={ghost.ok ? "#2E7D32" : "#B71C1C"} strokeWidth={2} />
         )}
@@ -187,8 +203,10 @@ export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPl
         const s = CITY_BUILDING_BY_ID[b.type].size;
         const mid = proj(b.x + s / 2, b.y + s / 2);
         if (b.type === "house") {
-          const w = s * 2 * HW * 1.1, h = w * 0.85;
-          return <Image key={`img${b.id}`} source={HOUSE_SPRITE} pointerEvents="none" resizeMode="contain" style={{ position: "absolute", left: mid.x - w / 2, top: mid.y - h * 0.72, width: w, height: h }} />;
+          const w = s * 2 * HW * 1.18;
+          const h = w * (347 / 482);
+          const footBottom = mid.y + s * HH; // front-bottom vertex of the footprint diamond
+          return <Image key={`img${b.id}`} source={HOUSE_SPRITE} pointerEvents="none" resizeMode="contain" style={{ position: "absolute", left: mid.x - w / 2, top: footBottom - h, width: w, height: h }} />;
         }
         return (
           <View key={`ic${b.id}`} pointerEvents="none" style={{ position: "absolute", left: mid.x - 12, top: mid.y - 20 }}>
@@ -200,15 +218,15 @@ export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPl
         );
       })}
 
-      {/* Tappable overlays for factories (config / status) when not placing or drawing roads */}
-      {!placing && !roadMode && buildings.filter((b) => b.type === "factory").map((b) => {
+      {/* Tappable building overlays: factory config normally; any building in move/demolish edit modes */}
+      {!placing && !roadMode && buildings.filter((b) => editMode === "move" || editMode === "demolish" || b.type === "factory").map((b) => {
         const s = CITY_BUILDING_BY_ID[b.type].size;
         const left = proj(b.x, b.y + s).x, right = proj(b.x + s, b.y).x;
         const top = proj(b.x, b.y).y, bottom = proj(b.x + s, b.y + s).y;
         return (
           <Pressable
             key={`tap${b.id}`}
-            testID={`factory-${b.id}`}
+            testID={b.type === "factory" ? `factory-${b.id}` : `bld-${b.id}`}
             onPress={() => onTapBuilding?.(b)}
             style={{ position: "absolute", left, top, width: right - left, height: bottom - top }}
           />
@@ -230,6 +248,11 @@ export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPl
       {roadMode && !placing && (
         <GestureDetector gesture={roadGesture}>
           <View style={StyleSheet.absoluteFill} testID="road-layer" />
+        </GestureDetector>
+      )}
+      {editMode === "deleteRoad" && !placing && (
+        <GestureDetector gesture={deleteRoadGesture}>
+          <View style={StyleSheet.absoluteFill} testID="delete-road-layer" />
         </GestureDetector>
       )}
     </View>

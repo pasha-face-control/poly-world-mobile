@@ -18,12 +18,15 @@ export default function CityScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { cityId } = useLocalSearchParams<{ cityId: string }>();
-  const { state, doUpgradeCitadel, doPlaceCityBuilding, doSetFactoryFeed, doDrawCityRoads } = useGame();
+  const { state, doUpgradeCitadel, doPlaceCityBuilding, doSetFactoryFeed, doDrawCityRoads, doMoveCityBuilding, doDemolishCityBuilding, doRemoveCityRoad } = useGame();
   const [citadelOpen, setCitadelOpen] = useState(false);
   const [buildOpen, setBuildOpen] = useState(false);
   const [placing, setPlacing] = useState<CityBuildingType | null>(null);
   const [roadMode, setRoadMode] = useState(false);
   const [factory, setFactory] = useState<CityBuilding | null>(null);
+  const [editMode, setEditMode] = useState<"move" | "demolish" | "deleteRoad" | null>(null);
+  const [movingId, setMovingId] = useState<string | null>(null);
+  const [editMenuOpen, setEditMenuOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const city = state?.cities.find((c) => c.id === cityId);
@@ -39,6 +42,7 @@ export default function CityScreen() {
 
   const player = state.players[city.owner];
   const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(null), 1600); };
+  const clearModes = () => { setRoadMode(false); setEditMode(null); setMovingId(null); setPlacing(null); };
   const up = nextCitadelUpgrade(city);
   const upOk = canUpgradeCitadel(state, city.owner, city.id);
 
@@ -48,29 +52,49 @@ export default function CityScreen() {
       <CityMap
         city={city}
         placing={placing}
-        canPlaceAt={(t, x, y) => canPlaceCityBuilding(state, city.owner, city.id, t, x, y).ok}
+        canPlaceAt={(t, x, y) => canPlaceCityBuilding(state, city.owner, city.id, t, x, y, movingId ?? undefined).ok}
         onPlace={(x, y) => {
           if (!placing) return;
+          if (movingId) {
+            const check = canPlaceCityBuilding(state, city.owner, city.id, placing, x, y, movingId);
+            if (check.ok && doMoveCityBuilding(city.id, movingId, x, y)) { haptic.notify(); showToast("Building moved"); }
+            else showToast(check.reason ?? "Can't move there");
+            setMovingId(null); setPlacing(null);
+            return;
+          }
           const check = canPlaceCityBuilding(state, city.owner, city.id, placing, x, y);
           if (check.ok && doPlaceCityBuilding(city.id, placing, x, y)) { haptic.notify(); showToast(`${CITY_BUILDINGS.find((b) => b.id === placing)!.name} built`); }
           else showToast(check.reason ?? "Can't build there");
           setPlacing(null);
         }}
-        onCancelPlace={() => setPlacing(null)}
+        onCancelPlace={() => { setPlacing(null); setMovingId(null); }}
         roadMode={roadMode}
         canRoadAt={(cell) => canPlaceCityRoad(state, city.owner, city.id, cell)}
         onDrawRoads={(cells) => { if (doDrawCityRoads(city.id, cells)) haptic.select(); }}
-        onTapBuilding={(b) => { if (b.type === "factory") { haptic.select(); setFactory(b); } }}
+        editMode={editMode}
+        onDeleteRoad={(cell) => { if (doRemoveCityRoad(city.id, cell)) { haptic.select(); showToast("Road removed"); } }}
+        onTapBuilding={(b) => {
+          if (editMode === "move") { haptic.select(); setMovingId(b.id); setPlacing(b.type); setEditMode(null); showToast("Drag to reposition · release to place"); }
+          else if (editMode === "demolish") { if (doDemolishCityBuilding(city.id, b.id)) { haptic.notify(); showToast(`${CITY_BUILDINGS.find((x) => x.id === b.type)?.name ?? "Building"} demolished`); } }
+          else if (b.type === "factory") { haptic.select(); setFactory(b); }
+        }}
       />
 
       {placing && (
         <View pointerEvents="none" style={[styles.placeHint, { top: insets.top + 92 }]}>
-          <Text style={styles.toastText}>Drag to position · release to place</Text>
+          <Text style={styles.toastText}>{movingId ? "Drag to reposition · release to place" : "Drag to position · release to place"}</Text>
         </View>
       )}
       {roadMode && !placing && (
         <View pointerEvents="none" style={[styles.placeHint, { top: insets.top + 92 }]}>
           <Text style={styles.toastText}>Drag to draw roads · tap Roads to finish</Text>
+        </View>
+      )}
+      {editMode && !placing && (
+        <View pointerEvents="none" style={[styles.placeHint, { top: insets.top + 92 }]}>
+          <Text style={styles.toastText}>
+            {editMode === "move" ? "Tap a building to move it" : editMode === "demolish" ? "Tap a building to demolish it" : "Tap a road to remove it"}
+          </Text>
         </View>
       )}
 
@@ -106,12 +130,26 @@ export default function CityScreen() {
       {/* Bottom action bar */}
       <View style={[styles.bottomWrap, { bottom: insets.bottom + 10 }]} pointerEvents="box-none">
         <BlurView intensity={40} tint="light" style={styles.bar}>
-          <BarBtn icon="crown" label="Citadel" testID="city-citadel" onPress={() => { haptic.select(); setRoadMode(false); setCitadelOpen(true); }} />
-          <BarBtn icon="home-group" label="Buildings" testID="city-buildings" onPress={() => { haptic.select(); setRoadMode(false); setBuildOpen(true); }} />
-          <BarBtn icon="road-variant" label={roadMode ? "Done" : "Roads"} testID="city-roads" primary={roadMode} onPress={() => { haptic.select(); setPlacing(null); setRoadMode((v) => !v); showToast(roadMode ? "Roads saved" : "Drag on the map to draw roads"); }} />
-          <BarBtn icon="exit-run" label="Exit" testID="city-exit" primary={!roadMode} onPress={() => router.back()} />
+          <BarBtn icon="crown" label="Citadel" testID="city-citadel" onPress={() => { haptic.select(); clearModes(); setCitadelOpen(true); }} />
+          <BarBtn icon="home-group" label="Buildings" testID="city-buildings" onPress={() => { haptic.select(); clearModes(); setBuildOpen(true); }} />
+          <BarBtn icon="road-variant" label={roadMode ? "Done" : "Roads"} testID="city-roads" primary={roadMode} onPress={() => { haptic.select(); setPlacing(null); setEditMode(null); setMovingId(null); setRoadMode((v) => !v); showToast(roadMode ? "Roads saved" : "Drag on the map to draw roads"); }} />
+          <BarBtn icon="pencil" label={editMode ? "Done" : "Edit"} testID="city-edit" primary={!!editMode} onPress={() => { haptic.select(); if (editMode || movingId) { clearModes(); showToast("Done editing"); } else { setRoadMode(false); setPlacing(null); setEditMenuOpen(true); } }} />
+          <BarBtn icon="exit-run" label="Exit" testID="city-exit" primary={!roadMode && !editMode} onPress={() => router.back()} />
         </BlurView>
       </View>
+
+      {/* Edit menu */}
+      <Modal visible={editMenuOpen} transparent animationType="fade" onRequestClose={() => setEditMenuOpen(false)}>
+        <Pressable style={styles.overlay} onPress={() => setEditMenuOpen(false)}>
+          <View style={styles.dialog} testID="edit-menu">
+            <Text style={styles.dialogTitle}>Edit City</Text>
+            <EditOption icon="cursor-move" title="Move Building" desc="Select a building, then drag it to a new spot." testID="edit-move" onPress={() => { setEditMenuOpen(false); setEditMode("move"); showToast("Tap a building to move it"); }} />
+            <EditOption icon="hammer" title="Demolish" desc="Tap a building to remove it (not the citadel)." testID="edit-demolish" onPress={() => { setEditMenuOpen(false); setEditMode("demolish"); showToast("Tap a building to demolish it"); }} />
+            <EditOption icon="road-variant" title="Delete Road" desc="Tap a road cell to remove it." testID="edit-delete-road" onPress={() => { setEditMenuOpen(false); setEditMode("deleteRoad"); showToast("Tap a road to remove it"); }} />
+            <Pressable onPress={() => setEditMenuOpen(false)} style={styles.secondaryBtn}><Text style={styles.secondaryText}>Cancel</Text></Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Citadel upgrade */}
       <Modal visible={citadelOpen} transparent animationType="fade" onRequestClose={() => setCitadelOpen(false)}>
@@ -257,6 +295,19 @@ function BarBtn({ icon, label, onPress, primary, testID }: { icon: string; label
   );
 }
 
+function EditOption({ icon, title, desc, onPress, testID }: { icon: string; title: string; desc: string; onPress: () => void; testID: string }) {
+  return (
+    <Pressable testID={testID} onPress={onPress} style={styles.buildRow}>
+      <View style={styles.buildIcon}><MaterialCommunityIcons name={icon as any} size={22} color={C.brand} /></View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.buildName}>{title}</Text>
+        <Text style={styles.buildDesc}>{desc}</Text>
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={22} color={C.onSurfaceSecondary} />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#6E8F5E" },
   exitFallback: { position: "absolute", left: 16, backgroundColor: C.surface, paddingHorizontal: 16, paddingVertical: 10, borderRadius: R.pill },
@@ -273,8 +324,8 @@ const styles = StyleSheet.create({
   placeHint: { position: "absolute", alignSelf: "center", backgroundColor: C.brand, paddingHorizontal: 16, paddingVertical: 8, borderRadius: R.pill },
   toastText: { color: C.onSurfaceInverse, fontWeight: "700", fontSize: 13 },
   bottomWrap: { position: "absolute", left: 12, right: 12 },
-  bar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 10, paddingVertical: 8, borderRadius: R.lg, overflow: "hidden", ...shadow(6) },
-  action: { alignItems: "center", gap: 2, paddingHorizontal: 12, paddingVertical: 6, borderRadius: R.md, minWidth: 64 },
+  bar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 6, paddingVertical: 8, borderRadius: R.lg, overflow: "hidden", ...shadow(6) },
+  action: { alignItems: "center", gap: 2, paddingHorizontal: 6, paddingVertical: 6, borderRadius: R.md, minWidth: 54 },
   actionPrimary: { backgroundColor: C.brand },
   actionLabel: { fontSize: 12, fontWeight: "800", color: C.onSurface },
   overlay: { flex: 1, backgroundColor: "rgba(28,28,28,0.6)", alignItems: "center", justifyContent: "center", padding: SP.lg },

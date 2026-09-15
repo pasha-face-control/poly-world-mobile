@@ -20,6 +20,9 @@ import {
   expandTerritory,
   upgradeCitadel,
   placeCityBuilding,
+  moveCityBuilding,
+  demolishCityBuilding,
+  removeCityRoad,
   setFactoryFeed,
   drawCityRoads,
   harvest,
@@ -132,6 +135,9 @@ interface GameContextValue {
   doPlaceCityBuilding: (cityId: string, type: string, x: number, y: number) => boolean;
   doSetFactoryFeed: (cityId: string, buildingId: string, feed: number) => boolean;
   doDrawCityRoads: (cityId: string, cells: number[]) => boolean;
+  doMoveCityBuilding: (cityId: string, buildingId: string, x: number, y: number) => boolean;
+  doDemolishCityBuilding: (cityId: string, buildingId: string) => boolean;
+  doRemoveCityRoad: (cityId: string, cell: number) => boolean;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -308,6 +314,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doPlaceCityBuilding = useCallback((cityId: string, type: string, x: number, y: number) => apply((s) => placeCityBuilding(s, s.currentPlayer, cityId, type, x, y)), [apply]);
   const doSetFactoryFeed = useCallback((cityId: string, buildingId: string, feed: number) => apply((s) => setFactoryFeed(s, s.currentPlayer, cityId, buildingId, feed)), [apply]);
   const doDrawCityRoads = useCallback((cityId: string, cells: number[]) => apply((s) => drawCityRoads(s, s.currentPlayer, cityId, cells) > 0), [apply]);
+  const doMoveCityBuilding = useCallback((cityId: string, buildingId: string, x: number, y: number) => apply((s) => moveCityBuilding(s, s.currentPlayer, cityId, buildingId, x, y)), [apply]);
+  const doDemolishCityBuilding = useCallback((cityId: string, buildingId: string) => apply((s) => demolishCityBuilding(s, s.currentPlayer, cityId, buildingId)), [apply]);
+  const doRemoveCityRoad = useCallback((cityId: string, cell: number) => apply((s) => removeCityRoad(s, s.currentPlayer, cityId, cell)), [apply]);
 
   const endTurn = useCallback(() => {
     if (!state || state.status !== "playing") return;
@@ -373,6 +382,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doPlaceCityBuilding,
         doSetFactoryFeed,
         doDrawCityRoads,
+        doMoveCityBuilding,
+        doDemolishCityBuilding,
+        doRemoveCityRoad,
       }}
     >
       {children}

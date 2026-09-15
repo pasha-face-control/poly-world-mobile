@@ -671,6 +671,30 @@ if (anyWater) {
   g.players[0].stars = 200; g.players[0].goods.planks = 10;
   engine.placeCityBuilding(g, 0, c.id, "house", 5, 5);
   ok("road blocked under a building", !engine.canPlaceCityRoad(g, 0, c.id, 5 * 30 + 5));
+  // remove a road
+  engine.drawCityRoads(g, 0, c.id, [7 * 30 + 7]);
+  const rlen = c.layout.roads.length;
+  ok("removeCityRoad deletes a road", engine.removeCityRoad(g, 0, c.id, 7 * 30 + 7) && c.layout.roads.length === rlen - 1);
+  ok("removeCityRoad no-op on empty cell", !engine.removeCityRoad(g, 0, c.id, 9 * 30 + 9));
+}
+
+
+// ---- Edit: move & demolish buildings ----
+{
+  let g = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  g.players[0].stars = 200; g.players[0].goods.planks = 10;
+  engine.placeCityBuilding(g, 0, c.id, "house", 2, 2);
+  const h = c.layout.buildings[0];
+  ok("move building to empty (4,4)", engine.moveCityBuilding(g, 0, c.id, h.id, 4, 4) && h.x === 4 && h.y === 4);
+  ok("cannot move onto the citadel", !engine.moveCityBuilding(g, 0, c.id, h.id, 13, 13) && h.x === 4);
+  // place a 2nd house, then moving onto it should fail (overlap), but moving self in place ok
+  engine.placeCityBuilding(g, 0, c.id, "house", 8, 8);
+  ok("cannot move onto another building", !engine.moveCityBuilding(g, 0, c.id, h.id, 8, 8));
+  ok("moving a building ignores its own footprint (move in place)", engine.moveCityBuilding(g, 0, c.id, h.id, 4, 4));
+  const before = c.layout.buildings.length;
+  ok("demolish removes the building", engine.demolishCityBuilding(g, 0, c.id, h.id) && c.layout.buildings.length === before - 1);
+  ok("demolish unknown id is a no-op", !engine.demolishCityBuilding(g, 0, c.id, "nope"));
 }
 
 

@@ -162,7 +162,7 @@ function rangesOverlap(a0: number, a1: number, b0: number, b1: number) {
   return a0 < b1 && b0 < a1;
 }
 
-export function canPlaceCityBuilding(state: GameState, player: number, cityId: string, type: string, x: number, y: number): { ok: boolean; reason?: string } {
+export function canPlaceCityBuilding(state: GameState, player: number, cityId: string, type: string, x: number, y: number, ignoreId?: string): { ok: boolean; reason?: string } {
   const city = state.cities.find((c) => c.id === cityId);
   if (!city || city.owner !== player) return { ok: false, reason: "Not your city" };
   const def = CITY_BUILDING_BY_ID[type];
@@ -174,6 +174,7 @@ export function canPlaceCityBuilding(state: GameState, player: number, cityId: s
   if (rangesOverlap(x, x + s, c0, c1) && rangesOverlap(y, y + s, c0, c1)) return { ok: false, reason: "Blocked by citadel" };
   const layout = city.layout ?? { buildings: [], roads: [] };
   for (const b of layout.buildings) {
+    if (ignoreId && b.id === ignoreId) continue;
     const bs = CITY_BUILDING_BY_ID[b.type].size;
     if (rangesOverlap(x, x + s, b.x, b.x + bs) && rangesOverlap(y, y + s, b.y, b.y + bs)) return { ok: false, reason: "Overlaps a building" };
   }
@@ -200,6 +201,35 @@ export function placeCityBuilding(state: GameState, player: number, cityId: stri
   city.layout.buildings.push({ id: `b_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`, type: type as import("./types").CityBuildingType, x, y });
   log(state, `${p.name} built a ${def.name}`);
   return true;
+}
+
+// Move an existing building to a new valid position (no cost).
+export function moveCityBuilding(state: GameState, player: number, cityId: string, buildingId: string, x: number, y: number): boolean {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city || city.owner !== player) return false;
+  const b = (city.layout?.buildings ?? []).find((bb) => bb.id === buildingId);
+  if (!b) return false;
+  if (!canPlaceCityBuilding(state, player, cityId, b.type, x, y, buildingId).ok) return false;
+  b.x = x; b.y = y;
+  return true;
+}
+
+// Demolish a building (removes it; the citadel is not a building so it is safe).
+export function demolishCityBuilding(state: GameState, player: number, cityId: string, buildingId: string): boolean {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city || city.owner !== player || !city.layout) return false;
+  const before = city.layout.buildings.length;
+  city.layout.buildings = city.layout.buildings.filter((b) => b.id !== buildingId);
+  return city.layout.buildings.length < before;
+}
+
+// Remove a single road cell.
+export function removeCityRoad(state: GameState, player: number, cityId: string, cell: number): boolean {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city || city.owner !== player || !city.layout) return false;
+  const before = city.layout.roads.length;
+  city.layout.roads = city.layout.roads.filter((r) => r !== cell);
+  return city.layout.roads.length < before;
 }
 
 // ---------- City roads (cosmetic drawing) ----------
