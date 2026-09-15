@@ -25,7 +25,6 @@ export default function CityScreen() {
   const [roadMode, setRoadMode] = useState(false);
   const [factory, setFactory] = useState<CityBuilding | null>(null);
   const [editMode, setEditMode] = useState<"move" | "demolish" | "deleteRoad" | null>(null);
-  const [movingId, setMovingId] = useState<string | null>(null);
   const [editMenuOpen, setEditMenuOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -42,7 +41,7 @@ export default function CityScreen() {
 
   const player = state.players[city.owner];
   const showToast = (m: string) => { setToast(m); setTimeout(() => setToast(null), 1600); };
-  const clearModes = () => { setRoadMode(false); setEditMode(null); setMovingId(null); setPlacing(null); };
+  const clearModes = () => { setRoadMode(false); setEditMode(null); setPlacing(null); };
   const up = nextCitadelUpgrade(city);
   const upOk = canUpgradeCitadel(state, city.owner, city.id);
 
@@ -52,37 +51,31 @@ export default function CityScreen() {
       <CityMap
         city={city}
         placing={placing}
-        canPlaceAt={(t, x, y) => canPlaceCityBuilding(state, city.owner, city.id, t, x, y, movingId ?? undefined).ok}
+        canPlaceAt={(t, x, y) => canPlaceCityBuilding(state, city.owner, city.id, t, x, y).ok}
         onPlace={(x, y) => {
           if (!placing) return;
-          if (movingId) {
-            const check = canPlaceCityBuilding(state, city.owner, city.id, placing, x, y, movingId);
-            if (check.ok && doMoveCityBuilding(city.id, movingId, x, y)) { haptic.notify(); showToast("Building moved"); }
-            else showToast(check.reason ?? "Can't move there");
-            setMovingId(null); setPlacing(null);
-            return;
-          }
           const check = canPlaceCityBuilding(state, city.owner, city.id, placing, x, y);
           if (check.ok && doPlaceCityBuilding(city.id, placing, x, y)) { haptic.notify(); showToast(`${CITY_BUILDINGS.find((b) => b.id === placing)!.name} built`); }
           else showToast(check.reason ?? "Can't build there");
           setPlacing(null);
         }}
-        onCancelPlace={() => { setPlacing(null); setMovingId(null); }}
+        onCancelPlace={() => setPlacing(null)}
         roadMode={roadMode}
         canRoadAt={(cell) => canPlaceCityRoad(state, city.owner, city.id, cell)}
         onDrawRoads={(cells) => { if (doDrawCityRoads(city.id, cells)) haptic.select(); }}
         editMode={editMode}
         onDeleteRoad={(cell) => { if (doRemoveCityRoad(city.id, cell)) { haptic.select(); showToast("Road removed"); } }}
+        canMoveTo={(id, x, y) => { const b = city.layout?.buildings.find((bb) => bb.id === id); return b ? canPlaceCityBuilding(state, city.owner, city.id, b.type, x, y, id).ok : false; }}
+        onMoveBuilding={(id, x, y) => { if (doMoveCityBuilding(city.id, id, x, y)) { haptic.notify(); showToast("Building moved"); } }}
         onTapBuilding={(b) => {
-          if (editMode === "move") { haptic.select(); setMovingId(b.id); setPlacing(b.type); setEditMode(null); showToast("Drag to reposition · release to place"); }
-          else if (editMode === "demolish") { if (doDemolishCityBuilding(city.id, b.id)) { haptic.notify(); showToast(`${CITY_BUILDINGS.find((x) => x.id === b.type)?.name ?? "Building"} demolished · cost refunded`); } }
+          if (editMode === "demolish") { if (doDemolishCityBuilding(city.id, b.id)) { haptic.notify(); showToast(`${CITY_BUILDINGS.find((x) => x.id === b.type)?.name ?? "Building"} demolished · cost refunded`); } }
           else if (b.type === "factory") { haptic.select(); setFactory(b); }
         }}
       />
 
       {placing && (
         <View pointerEvents="none" style={[styles.placeHint, { top: insets.top + 92 }]}>
-          <Text style={styles.toastText}>{movingId ? "Drag to reposition · release to place" : "Drag to position · release to place"}</Text>
+          <Text style={styles.toastText}>Drag to position · release to place</Text>
         </View>
       )}
       {roadMode && !placing && (
@@ -93,7 +86,7 @@ export default function CityScreen() {
       {editMode && !placing && (
         <View pointerEvents="none" style={[styles.placeHint, { top: insets.top + 92 }]}>
           <Text style={styles.toastText}>
-            {editMode === "move" ? "Tap a building to move it" : editMode === "demolish" ? "Tap a building to demolish it" : "Tap a road to remove it"}
+            {editMode === "move" ? "Drag a building to move it" : editMode === "demolish" ? "Tap a building to demolish it" : "Tap a road to remove it"}
           </Text>
         </View>
       )}
@@ -132,8 +125,8 @@ export default function CityScreen() {
         <BlurView intensity={40} tint="light" style={styles.bar}>
           <BarBtn icon="crown" label="Citadel" testID="city-citadel" onPress={() => { haptic.select(); clearModes(); setCitadelOpen(true); }} />
           <BarBtn icon="home-group" label="Buildings" testID="city-buildings" onPress={() => { haptic.select(); clearModes(); setBuildOpen(true); }} />
-          <BarBtn icon="road-variant" label={roadMode ? "Done" : "Roads"} testID="city-roads" primary={roadMode} onPress={() => { haptic.select(); setPlacing(null); setEditMode(null); setMovingId(null); setRoadMode((v) => !v); showToast(roadMode ? "Roads saved" : "Drag on the map to draw roads"); }} />
-          <BarBtn icon="pencil" label={editMode ? "Done" : "Edit"} testID="city-edit" primary={!!editMode} onPress={() => { haptic.select(); if (editMode || movingId) { clearModes(); showToast("Done editing"); } else { setRoadMode(false); setPlacing(null); setEditMenuOpen(true); } }} />
+          <BarBtn icon="road-variant" label={roadMode ? "Done" : "Roads"} testID="city-roads" primary={roadMode} onPress={() => { haptic.select(); setPlacing(null); setEditMode(null); setRoadMode((v) => !v); showToast(roadMode ? "Roads saved" : "Drag on the map to draw roads"); }} />
+          <BarBtn icon="pencil" label={editMode ? "Done" : "Edit"} testID="city-edit" primary={!!editMode} onPress={() => { haptic.select(); if (editMode) { clearModes(); showToast("Done editing"); } else { setRoadMode(false); setPlacing(null); setEditMenuOpen(true); } }} />
           <BarBtn icon="exit-run" label="Exit" testID="city-exit" primary={!roadMode && !editMode} onPress={() => router.back()} />
         </BlurView>
       </View>
@@ -143,7 +136,7 @@ export default function CityScreen() {
         <Pressable style={styles.overlay} onPress={() => setEditMenuOpen(false)}>
           <View style={styles.dialog} testID="edit-menu">
             <Text style={styles.dialogTitle}>Edit City</Text>
-            <EditOption icon="cursor-move" title="Move Building" desc="Select a building, then drag it to a new spot." testID="edit-move" onPress={() => { setEditMenuOpen(false); setEditMode("move"); showToast("Tap a building to move it"); }} />
+            <EditOption icon="cursor-move" title="Move Building" desc="Drag a building to a new spot." testID="edit-move" onPress={() => { setEditMenuOpen(false); setEditMode("move"); showToast("Drag a building to move it"); }} />
             <EditOption icon="hammer" title="Demolish" desc="Tap a building to remove it (not the citadel)." testID="edit-demolish" onPress={() => { setEditMenuOpen(false); setEditMode("demolish"); showToast("Tap a building to demolish it"); }} />
             <EditOption icon="road-variant" title="Delete Road" desc="Tap a road cell to remove it." testID="edit-delete-road" onPress={() => { setEditMenuOpen(false); setEditMode("deleteRoad"); showToast("Tap a road to remove it"); }} />
             <Pressable onPress={() => setEditMenuOpen(false)} style={styles.secondaryBtn}><Text style={styles.secondaryText}>Cancel</Text></Pressable>
