@@ -722,7 +722,30 @@ export function goodsIncome(state: GameState, player: number): Record<GoodType, 
   return out;
 }
 
-// Bots are buy-only; each round they buy 1 unit from an affordable stocked slot.
+// Per-turn resource flow for the Economy panel, split into Income / Costs / Profit.
+// Income = building production + Material Factory output. Costs = what the player's
+// factories consume each turn (e.g. wood → planks, sand+coal/wood → glass). The flows
+// are measured by replaying a turn's building income + factory run on a clone, so the
+// numbers reflect exactly what the player will gain/spend next turn given current stock.
+export function economyProjection(state: GameState, player: number): { income: Record<string, number>; costs: Record<string, number> } {
+  const base = goodsIncome(state, player); // building production (5 base goods)
+  const clone = clone_(state);
+  const p = clone.players[player];
+  for (const [g, amt] of Object.entries(base)) p.goods[g as GoodType] += amt; // apply this turn's building income first
+  const mid: Record<string, number> = { ...(p.goods as Record<string, number>) };
+  runCityFactories(clone, player);
+  const after = p.goods as Record<string, number>;
+  const income: Record<string, number> = {};
+  const costs: Record<string, number> = {};
+  const goods = ["wood", "iron", "wheat", "meat", "horse", "planks", "stone", "sand", "glass", "coal"] as const;
+  for (const g of goods) {
+    const delta = (after[g] ?? 0) - (mid[g] ?? 0); // factory net for this good
+    income[g] = (base[g as GoodType] ?? 0) + Math.max(0, delta);
+    costs[g] = Math.max(0, -delta);
+  }
+  return { income, costs };
+}
+const clone_ = (s: GameState): GameState => JSON.parse(JSON.stringify(s));
 export function resolveTrades(state: GameState) {
   for (const m of state.units) {
     if (m.type !== "merchant" || !m.cargo) continue;

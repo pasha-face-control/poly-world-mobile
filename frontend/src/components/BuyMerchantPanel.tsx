@@ -3,7 +3,7 @@ import { ScrollView, Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import GameIcon from "@/src/components/GameIcon";
 import { C, R, SP, shadow } from "@/src/theme";
-import { GOODS, TRIBE_BY_ID } from "@/src/game/data";
+import { CITY_GOODS, TRIBE_BY_ID } from "@/src/game/data";
 import { GameState, GoodType, Unit } from "@/src/game/types";
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
   onClose: () => void;
 }
 
-const goodMeta = (id: GoodType) => GOODS.find((g) => g.id === id)!;
+const goodMeta = (id: GoodType) => CITY_GOODS.find((g) => g.id === id)!;
 
 export default function BuyMerchantPanel({ state, merchant, bottomInset, onBuy, onClose }: Props) {
   const buyer = state.players[state.currentPlayer];

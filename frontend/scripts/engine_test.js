@@ -778,5 +778,27 @@ if (anyWater) {
 }
 
 
+// ---- Economy projection (Income / Costs / Profit) ----
+{
+  const engine2 = engine;
+  let g = generateGame({ tribe: "nature", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  c.layout.buildings.push({ id: "f1", type: "factory", x: 2, y: 2 });
+  g.players[0].goods.wood = 20; g.players[0].goods.planks = 0;
+  engine2.setFactoryFeed(g, 0, c.id, "f1", 6);
+  const proj = engine2.economyProjection(g, 0);
+  ok("projection planks income = 3", proj.income.planks === 3);
+  ok("projection wood cost = 6", proj.costs.wood === 6);
+  ok("projection planks profit = 3", proj.income.planks - proj.costs.planks === 3);
+}
+{
+  let g = generateGame({ tribe: "volcanic", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  c.layout.buildings.push({ id: "f1", type: "factory", x: 2, y: 2 });
+  const proj = engine.economyProjection(g, 0);
+  ok("projection stone income 2, no cost", proj.income.stone === 2 && proj.costs.stone === 0);
+}
+
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

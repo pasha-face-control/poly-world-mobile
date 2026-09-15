@@ -1,0 +1,35 @@
+{
+  "summary": "Frontend testing of Poly World (Expo SDK 54, local-only). Reproduced a CRITICAL crash — ReferenceError: GOODS is not defined at EconomyModal.tsx:82 — which made the game unplayable on start (Modal children render even when visible=false). Applied the trivial import fix (added `GOODS` to the import from @/src/game/data). After the fix, verified: (1) game start → skip tutorial → main map loads clean; (2) Economy modal opens and renders the new 3-column table (Resource / Income / Costs / Profit) with a Stars row showing +1 / 0 / +1; (3) Placed a Material Factory in the Lesnoi capital, bumped wood feed to 6/turn, exited to map, reopened Economy — new rows appeared: Wood 0 / -6 / -6 and Planks +3 / 0 / +3, with Profit = Income − Costs correctly computed; (4) End Turn x2 advanced turns with no crash and Economy re-opened cleanly on T3. Secondary items (Merchant 9-good picker, Coal Mine grey chip background) were verified at the code level — TRADE_GOODS = CITY_GOODS \\ coal (9 entries: wood, meat, wheat, iron, horse, planks, stone, sand, glass); coal_mine color is #6E747B (grey). Merchant unit / coal-mountain tile were not reachable in a fresh single-player session and are marked accordingly per spec.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "EconomyModal",
+        "issue": "CRITICAL: ReferenceError: GOODS is not defined at EconomyModal.tsx:82 and :97 — GOODS was used in the Bought/Sold TradeRow loops but only CITY_GOODS was imported. Because it is wrapped in <Modal>, the children still render on mount with visible=false, so the entire GameScreen crashed on start (LogBox red screen immediately after New Game → Single → start-game). Fixed by importing GOODS alongside CITY_GOODS.",
+        "testID": "economy-modal",
+        "priority": "CRITICAL_FIXED"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_19.json"],
+  "action_items": [
+    "No blocking action needed for the primary Economy feature — the missing GOODS import has been added and the 3-column Income/Costs/Profit table renders correctly with factory-driven costs (Wood -6) and outputs (Planks +3) on a Lesnoi capital.",
+    "Optional retest by main agent: try a non-Lesnoi tribe to confirm Stone/Sand/Glass factory outputs appear in the Economy table (code path is identical, so highly likely already working).",
+    "Merchant panel 9-good picker and Coal Mine grey chip could not be reached in a fresh single-player session on turn 1 (no merchant unit, no unlocked mining/coal mountain tile). Code changes are present in data.ts (TRADE_GOODS length = 9, coal_mine color = #6E747B). No functional issue observed; main agent can validate later once tech-gated content becomes reachable."
+  ],
+  "critical_code_review_comments": [
+    "EconomyModal.tsx: children of <Modal> in RN render even when visible=false, so any ReferenceError inside will crash the parent screen on mount, not just when the modal is opened. This was the root cause of the app-wide crash. After the fix, consider guarding heavy sections behind `if (!visible) return null;` at the top of the component to avoid future latent crashes and unnecessary re-renders.",
+    "Deprecation warnings observed on Expo web: shadow* style props, Image style.resizeMode, Image style.tintColor, props.pointerEvents — non-blocking on web but should be migrated to the newer APIs (boxShadow / props.resizeMode / props.tintColor / style.pointerEvents) to future-proof RN 0.76+.",
+    "Package version drift warned by Expo: expo@54.0.35 (expected ~54.0.37) and expo-constants@18.0.13 (expected ~18.0.14). Not causing runtime issues in this session but worth aligning."
+  ],
+  "updated_files": ["/app/frontend/src/components/EconomyModal.tsx"],
+  "success_rate": { "backend": "n/a (no backend)", "frontend": "primary flows 100% after fix" },
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The game is 100% client-side (no backend). Public URL: https://poly-tactics-1.preview.emergentagent.com. Flow to reach Economy panel: menu-new-game → mode-single → start-game → tap 'Skip' (repeat while visible) → hud-economy-btn. To place a factory: tap capital at ~(195,420) → enter-city → city-buildings → build-factory, then mouse.down at (195,300) → drag to (145,380) → mouse.up drops the 3x3 factory. Feed via factory-<id> → factory-feed-plus. Exit via city-exit. Modal children in React Native render regardless of visible prop; be aware when adding heavy JSX inside Modal.",
+  "rca_of_issue": "Root cause: EconomyModal.tsx imported only CITY_GOODS but referenced GOODS.map(...) twice (lines 82 and 97) inside its render tree. Because <Modal> in React Native evaluates its children on mount even when visible=false, the ReferenceError fired during the initial render of GameScreen right after New Game start, producing an uncaught error and LogBox red screen. Reproduction: Home → New Game → Single Player → Start Game → red screen 'GOODS is not defined'. Mitigation: added `GOODS` to the named import from '@/src/game/data'. Verified fix by re-running the full flow: game loads, Economy panel opens with the new 3-column table, factory costs/income are correctly reflected, End Turn x2 stable."
+}

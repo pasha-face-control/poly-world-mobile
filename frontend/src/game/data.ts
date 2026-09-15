@@ -33,6 +33,10 @@ export const CITY_GOODS: { id: GoodType; name: string; icon: string; color: stri
   { id: "coal", name: "Coal", icon: "img:coal_ore", color: "#3A3A3A" },
 ];
 
+// Goods a Merchant / Merchant Ship can carry & trade. Includes the crafted
+// city materials (planks, stone, sand, glass); coal is not tradable.
+export const TRADE_GOODS = CITY_GOODS.filter((g) => g.id !== "coal");
+
 // Modest starting stockpile so goods-costed units are usable before production buildings exist.
 export const START_GOODS: Record<GoodType, number> = { wood: 12, meat: 10, wheat: 6, iron: 8, horse: 2, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0 };
 
@@ -53,7 +57,7 @@ export const BUILDINGS: BuildingDef[] = [
   { id: "wheat_farm", name: "Wheat Farm", icon: "barley", terrain: "grass", tech: "farming", cost: 3, produces: { wheat: 2 }, color: "#E5A93A" },
   { id: "bull_farm", name: "Bull Farm", icon: "cow", terrain: "grass", tech: "bull_farming", cost: 4, produces: { meat: 2 }, color: "#BC4749" },
   { id: "horse_farm", name: "Horse Farm", icon: "horseshoe", terrain: "grass", tech: "horse_farming", cost: 4, produces: { horse: 1 }, color: "#8A5A34" },
-  { id: "coal_mine", name: "Coal Mine", icon: "img:coal_mine", terrain: "mountain", tech: "mining", cost: 4, produces: {}, color: "#3A3A3A", requiresResource: "coal" },
+  { id: "coal_mine", name: "Coal Mine", icon: "img:coal_mine", terrain: "mountain", tech: "mining", cost: 4, produces: {}, color: "#6E747B", requiresResource: "coal" },
   { id: "iron_mine", name: "Iron Mine", icon: "img:mine", terrain: "mountain", tech: "iron_mine", cost: 5, produces: { iron: 2 }, color: "#7F8896", requiresResource: "iron_ore" },
   { id: "gold_mine", name: "Gold Mine", icon: "gold", terrain: "mountain", tech: "gold_mine", cost: 6, produces: { stars: 5 }, color: "#E5A93A", requiresResource: "gold" },
 ];

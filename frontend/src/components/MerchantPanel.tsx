@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import GameIcon from "@/src/components/GameIcon";
 import { C, R, SP, shadow } from "@/src/theme";
-import { GOODS, merchantSlots, slotCapacity } from "@/src/game/data";
+import { TRADE_GOODS, CITY_GOODS, merchantSlots, slotCapacity } from "@/src/game/data";
 import { GameState, GoodType, Unit } from "@/src/game/types";
 
 interface Props {
@@ -15,7 +15,7 @@ interface Props {
   onClose: () => void;
 }
 
-const goodMeta = (id: GoodType) => GOODS.find((g) => g.id === id)!;
+const goodMeta = (id: GoodType) => CITY_GOODS.find((g) => g.id === id)!;
 
 export default function MerchantPanel({ state, unit, bottomInset, onLoad, onSetPrice, onClose }: Props) {
   const player = state.players[state.currentPlayer];
@@ -42,7 +42,7 @@ export default function MerchantPanel({ state, unit, bottomInset, onLoad, onSetP
                 <View key={i} style={styles.slot} testID={`slot-${i}`}>
                   <Text style={styles.slotLabel}>Slot {i + 1} · empty</Text>
                   <View style={styles.pickRow}>
-                    {GOODS.map((g) => {
+                    {TRADE_GOODS.map((g) => {
                       const disabled = (player.goods[g.id] ?? 0) <= 0;
                       return (
                         <Pressable
@@ -109,8 +109,8 @@ const styles = StyleSheet.create({
   close: { marginLeft: "auto", padding: 6, backgroundColor: C.surfaceSecondary, borderRadius: R.pill },
   slot: { backgroundColor: C.surfaceSecondary, borderRadius: R.md, padding: 10, gap: 8 },
   slotLabel: { fontSize: 12, fontWeight: "800", color: C.onSurfaceSecondary },
-  pickRow: { flexDirection: "row", gap: 6, justifyContent: "space-between" },
-  pick: { flex: 1, alignItems: "center", gap: 2, backgroundColor: C.surfaceTertiary, borderRadius: R.sm, paddingVertical: 8 },
+  pickRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  pick: { width: "18%", flexGrow: 1, alignItems: "center", gap: 2, backgroundColor: C.surfaceTertiary, borderRadius: R.sm, paddingVertical: 8 },
   pickQty: { fontSize: 10, fontWeight: "800", color: C.onSurfaceSecondary },
   slotTop: { flexDirection: "row", alignItems: "center", gap: 8 },
   goodName: { fontSize: 14, fontWeight: "800", color: C.onSurface, minWidth: 46 },

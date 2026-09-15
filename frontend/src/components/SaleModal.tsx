@@ -2,7 +2,7 @@ import React from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import GameIcon from "@/src/components/GameIcon";
-import { GOODS } from "@/src/game/data";
+import { CITY_GOODS } from "@/src/game/data";
 import { GoodType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
 
@@ -27,7 +27,7 @@ export default function SaleModal({ sale, onClose }: Props) {
 
           <View style={styles.rows}>
             {entries.map(([good, qty]) => {
-              const def = GOODS.find((g) => g.id === good);
+              const def = CITY_GOODS.find((g) => g.id === good);
               return (
                 <View key={good} style={styles.row} testID={`sale-row-${good}`}>
                   <View style={[styles.goodIcon, { backgroundColor: def?.color ?? C.brand }]}>
