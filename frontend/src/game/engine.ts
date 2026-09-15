@@ -215,12 +215,20 @@ export function moveCityBuilding(state: GameState, player: number, cityId: strin
 }
 
 // Demolish a building (removes it; the citadel is not a building so it is safe).
+// Refunds the full build cost (stars + goods) so players can experiment freely.
 export function demolishCityBuilding(state: GameState, player: number, cityId: string, buildingId: string): boolean {
   const city = state.cities.find((c) => c.id === cityId);
   if (!city || city.owner !== player || !city.layout) return false;
-  const before = city.layout.buildings.length;
+  const target = city.layout.buildings.find((b) => b.id === buildingId);
+  if (!target) return false;
   city.layout.buildings = city.layout.buildings.filter((b) => b.id !== buildingId);
-  return city.layout.buildings.length < before;
+  const def = CITY_BUILDING_BY_ID[target.type];
+  if (def) {
+    const p = state.players[player];
+    p.stars += def.stars ?? 0;
+    for (const [g, n] of Object.entries(def.cost)) p.goods[g as GoodType] += n as number;
+  }
+  return true;
 }
 
 // Remove a single road cell.

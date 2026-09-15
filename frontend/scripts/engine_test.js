@@ -693,7 +693,9 @@ if (anyWater) {
   ok("cannot move onto another building", !engine.moveCityBuilding(g, 0, c.id, h.id, 8, 8));
   ok("moving a building ignores its own footprint (move in place)", engine.moveCityBuilding(g, 0, c.id, h.id, 4, 4));
   const before = c.layout.buildings.length;
+  const planksBefore = g.players[0].goods.planks;
   ok("demolish removes the building", engine.demolishCityBuilding(g, 0, c.id, h.id) && c.layout.buildings.length === before - 1);
+  ok("demolish refunds the full build cost (2 planks)", g.players[0].goods.planks === planksBefore + 2);
   ok("demolish unknown id is a no-op", !engine.demolishCityBuilding(g, 0, c.id, "nope"));
 }
 

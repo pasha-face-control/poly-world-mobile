@@ -75,7 +75,7 @@ export default function CityScreen() {
         onDeleteRoad={(cell) => { if (doRemoveCityRoad(city.id, cell)) { haptic.select(); showToast("Road removed"); } }}
         onTapBuilding={(b) => {
           if (editMode === "move") { haptic.select(); setMovingId(b.id); setPlacing(b.type); setEditMode(null); showToast("Drag to reposition · release to place"); }
-          else if (editMode === "demolish") { if (doDemolishCityBuilding(city.id, b.id)) { haptic.notify(); showToast(`${CITY_BUILDINGS.find((x) => x.id === b.type)?.name ?? "Building"} demolished`); } }
+          else if (editMode === "demolish") { if (doDemolishCityBuilding(city.id, b.id)) { haptic.notify(); showToast(`${CITY_BUILDINGS.find((x) => x.id === b.type)?.name ?? "Building"} demolished · cost refunded`); } }
           else if (b.type === "factory") { haptic.select(); setFactory(b); }
         }}
       />
