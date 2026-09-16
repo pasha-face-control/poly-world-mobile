@@ -28,13 +28,14 @@ const CITY_SPRITE: Record<string, number> = {
   sand_quarry: require("../../assets/images/city/sand_quarry_tm.png"),
   glass_factory: require("../../assets/images/city/glass_factory_tm.png"),
   trade_tower: require("../../assets/images/city/trade_tower_tm.png"),
+  park: require("../../assets/images/city/park_tm.png"),
 };
 // height / width of each sprite PNG (hardcoded — Image.resolveAssetSource is unreliable on web).
-const SPRITE_ASPECT: Record<string, number> = { houses: 0.7199, sawmill: 0.5166, stone_quarry: 0.5063, sand_quarry: 0.5094, glass_factory: 0.6639, trade_tower: 2.5809 };
+const SPRITE_ASPECT: Record<string, number> = { houses: 0.7199, sawmill: 0.5166, stone_quarry: 0.5063, sand_quarry: 0.5094, glass_factory: 0.6639, trade_tower: 2.5809, park: 0.8732 };
 // A tribe's Material Factory shows its own unique building sprite.
 const FACTORY_SPRITE_BY_TRIBE: Record<string, string> = { nature: "sawmill", volcanic: "stone_quarry", desert: "sand_quarry", snow: "glass_factory" };
 // Width of a sprite as a multiple of its footprint diamond width.
-const SPRITE_SCALE: Record<string, number> = { house: 1.0, factory: 1.2, trade_tower: 0.64 };
+const SPRITE_SCALE: Record<string, number> = { house: 1.0, factory: 1.2, trade_tower: 0.64, park: 1.08 };
 const BUILDING_COLOR: Record<string, string> = { house: "#C98A4B", factory: "#8A8F98", trade_tower: "#C7A24B", park: "#5FA85F" };
 
 function proj(x: number, y: number) {
@@ -106,8 +107,9 @@ export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onC
   const spriteKeyFor = (type: CityBuildingType): string | null => {
     if (type === "house") return "houses";
     if (type === "trade_tower") return "trade_tower";
+    if (type === "park") return "park";
     if (type === "factory") return FACTORY_SPRITE_BY_TRIBE[tribe] ?? "sawmill";
-    return null; // park has no model yet — icon fallback
+    return null; // no other building types
   };
   const spriteFor = (type: CityBuildingType): number | null => {
     const key = spriteKeyFor(type);

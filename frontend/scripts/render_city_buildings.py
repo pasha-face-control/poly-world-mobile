@@ -14,7 +14,7 @@ from PIL import Image
 
 BASE = "/tmp/model"
 ASSETS = os.path.join(os.path.dirname(__file__), "..", "assets", "images", "city")
-MODELS = ["sawmill_tm", "stone_quarry_tm", "sand_quarry_tm", "glass_factory_tm", "trade_tower_tm"]
+MODELS = ["sawmill_tm", "stone_quarry_tm", "sand_quarry_tm", "glass_factory_tm", "trade_tower_tm", "park_tm"]
 NEUTRAL = np.array([0.62, 0.6, 0.56])
 
 COMP = {5120: ("b", 1), 5121: ("B", 1), 5122: ("h", 2), 5123: ("H", 2), 5125: ("I", 4), 5126: ("f", 4)}
