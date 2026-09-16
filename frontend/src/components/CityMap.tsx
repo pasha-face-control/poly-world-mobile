@@ -5,7 +5,7 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from "react-nativ
 import Svg, { Line, Polygon } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { CITADEL_SIZE, CITY_BUILDING_BY_ID, CITY_GRID, citadelAssetKey } from "@/src/game/data";
-import { City, CityBuilding, CityBuildingType } from "@/src/game/types";
+import { City, CityBuilding, CityBuildingType, TribeId } from "@/src/game/types";
 import { C } from "@/src/theme";
 
 const HW = 20;
@@ -21,9 +21,21 @@ const CITADEL_SPRITES: Record<string, number> = {
   citadel_10_tm: require("../../assets/images/city/citadel_10_tm.png"),
   citadel_15_tm: require("../../assets/images/city/citadel_15_tm.png"),
 };
-const HOUSE_SPRITE = require("../../assets/images/city/houses_tm.png");
+const CITY_SPRITE: Record<string, number> = {
+  houses: require("../../assets/images/city/houses_tm.png"),
+  sawmill: require("../../assets/images/city/sawmill_tm.png"),
+  stone_quarry: require("../../assets/images/city/stone_quarry_tm.png"),
+  sand_quarry: require("../../assets/images/city/sand_quarry_tm.png"),
+  glass_factory: require("../../assets/images/city/glass_factory_tm.png"),
+  trade_tower: require("../../assets/images/city/trade_tower_tm.png"),
+};
+// height / width of each sprite PNG (hardcoded — Image.resolveAssetSource is unreliable on web).
+const SPRITE_ASPECT: Record<string, number> = { houses: 0.7199, sawmill: 0.5166, stone_quarry: 0.5063, sand_quarry: 0.5094, glass_factory: 0.6639, trade_tower: 2.5809 };
+// A tribe's Material Factory shows its own unique building sprite.
+const FACTORY_SPRITE_BY_TRIBE: Record<string, string> = { nature: "sawmill", volcanic: "stone_quarry", desert: "sand_quarry", snow: "glass_factory" };
+// Width of a sprite as a multiple of its footprint diamond width.
+const SPRITE_SCALE: Record<string, number> = { house: 1.0, factory: 1.2, trade_tower: 0.64 };
 const BUILDING_COLOR: Record<string, string> = { house: "#C98A4B", factory: "#8A8F98", trade_tower: "#C7A24B", park: "#5FA85F" };
-const FACTORY_H = 32; // isometric extrusion height (px) for the factory building
 
 function proj(x: number, y: number) {
   return { x: (x - y) * HW + OX, y: (x + y) * HH + HH };
@@ -35,6 +47,7 @@ function blockPoints(x: number, y: number, s: number) {
 
 interface Props {
   city: City;
+  tribe: TribeId;
   placing?: CityBuildingType | null;
   canPlaceAt?: (type: CityBuildingType, x: number, y: number) => boolean;
   onPlace?: (x: number, y: number) => void;
@@ -49,7 +62,7 @@ interface Props {
   onMoveBuilding?: (buildingId: string, x: number, y: number) => void;
 }
 
-export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPlace, roadMode, canRoadAt, onDrawRoads, onTapBuilding, editMode, onDeleteRoad, canMoveTo, onMoveBuilding }: Props) {
+export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onCancelPlace, roadMode, canRoadAt, onDrawRoads, onTapBuilding, editMode, onDeleteRoad, canMoveTo, onMoveBuilding }: Props) {
   const scale = useSharedValue(0.65);
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
@@ -88,6 +101,28 @@ export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPl
 
   const buildings = city.layout?.buildings ?? [];
   const roads = city.layout?.roads ?? [];
+
+  // Sprite + on-screen rectangle for a placed building (bottom-anchored to its footprint).
+  const spriteKeyFor = (type: CityBuildingType): string | null => {
+    if (type === "house") return "houses";
+    if (type === "trade_tower") return "trade_tower";
+    if (type === "factory") return FACTORY_SPRITE_BY_TRIBE[tribe] ?? "sawmill";
+    return null; // park has no model yet — icon fallback
+  };
+  const spriteFor = (type: CityBuildingType): number | null => {
+    const key = spriteKeyFor(type);
+    return key ? CITY_SPRITE[key] : null;
+  };
+  const rectFor = (type: CityBuildingType, x: number, y: number) => {
+    const s = CITY_BUILDING_BY_ID[type].size;
+    const mid = proj(x + s / 2, y + s / 2);
+    const footBottom = mid.y + s * HH; // front-bottom vertex of the footprint diamond
+    const key = spriteKeyFor(type);
+    if (key == null) return { src: null as number | null, left: mid.x - 12, top: mid.y - 20, w: 24, h: 24, footBottom, mid };
+    const w = s * 2 * HW * (SPRITE_SCALE[type] ?? 1);
+    const h = w * SPRITE_ASPECT[key];
+    return { src: CITY_SPRITE[key], left: mid.x - w / 2, top: footBottom - h, w, h, footBottom, mid };
+  };
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -147,28 +182,16 @@ export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPl
   };
 
   // Move mode: pick up the building under the finger and drag it (single gesture, no tap needed).
-  const cellFor = (bxx: number, byy: number) => {
-    const X = (bxx - OX) / HW, Y = (byy - HH) / HH;
-    return { cx: Math.floor((X + Y) / 2), cy: Math.floor((Y - X) / 2) };
-  };
-  const inFootprint = (b: CityBuilding, c: { cx: number; cy: number }) => {
-    const s = CITY_BUILDING_BY_ID[b.type].size;
-    return c.cx >= b.x && c.cx < b.x + s && c.cy >= b.y && c.cy < b.y + s;
-  };
+  // Hit-test against each building's on-screen sprite rectangle so tall sprites (towers) can be
+  // grabbed anywhere on their body, not just the ground footprint.
   const buildingAt = (px: number, py: number): CityBuilding | null => {
     const bx = (px - tx.value) / scale.value, by = (py - ty.value) / scale.value;
+    let hit: CityBuilding | null = null;
     for (const b of buildings) {
-      // Base-plane hit for every building.
-      if (inFootprint(b, cellFor(bx, by))) return b;
-      // The factory box is raised by FACTORY_H, so a press on its roof/icon maps to a
-      // ground cell above the footprint — probe downward to catch those grabs too.
-      if (b.type === "factory") {
-        for (const dy of [FACTORY_H, FACTORY_H + 14, FACTORY_H * 0.5]) {
-          if (inFootprint(b, cellFor(bx, by + dy))) return b;
-        }
-      }
+      const r = rectFor(b.type, b.x, b.y);
+      if (bx >= r.left && bx <= r.left + r.w && by >= r.top && by <= r.footBottom) hit = b; // topmost wins
     }
-    return null;
+    return hit;
   };
   const moveBegin = (px: number, py: number) => {
     const b = buildingAt(px, py);
@@ -180,8 +203,7 @@ export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPl
     const b = moveRef.current;
     if (!b) return;
     const s = CITY_BUILDING_BY_ID[b.type].size;
-    const elev = b.type === "factory" ? FACTORY_H : 0; // keep the footprint under the visual grab point
-    const bx = (px - tx.value) / scale.value, by = (py - ty.value) / scale.value + elev;
+    const bx = (px - tx.value) / scale.value, by = (py - ty.value) / scale.value;
     const u = (bx - OX) / HW, v = (by - HH) / HH;
     const gx = Math.max(0, Math.min(N - s, Math.round((u + v) / 2 - s / 2)));
     const gy = Math.max(0, Math.min(N - s, Math.round((v - u) / 2 - s / 2)));
@@ -232,24 +254,6 @@ export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPl
 
   const animStyle = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }] }));
 
-  // Draw the factory as a simple isometric building block (roof + two side faces).
-  const factoryBox = (b: { id: string; type: CityBuildingType; x: number; y: number }, opacity = 1) => {
-    const s = CITY_BUILDING_BY_ID[b.type].size;
-    const inset = 0.55;
-    const x0 = b.x + inset, y0 = b.y + inset, x1 = b.x + s - inset, y1 = b.y + s - inset;
-    const A = proj(x0, y0), Bp = proj(x1, y0), Cp = proj(x1, y1), D = proj(x0, y1);
-    const top = `${A.x},${A.y - FACTORY_H} ${Bp.x},${Bp.y - FACTORY_H} ${Cp.x},${Cp.y - FACTORY_H} ${D.x},${D.y - FACTORY_H}`;
-    const leftFace = `${D.x},${D.y} ${Cp.x},${Cp.y} ${Cp.x},${Cp.y - FACTORY_H} ${D.x},${D.y - FACTORY_H}`;
-    const rightFace = `${Cp.x},${Cp.y} ${Bp.x},${Bp.y} ${Bp.x},${Bp.y - FACTORY_H} ${Cp.x},${Cp.y - FACTORY_H}`;
-    return (
-      <React.Fragment key={`fb${b.id}`}>
-        <Polygon points={leftFace} fill="#6E747B" opacity={opacity} />
-        <Polygon points={rightFace} fill="#565C63" opacity={opacity} />
-        <Polygon points={top} fill="#AEB6BE" stroke="rgba(0,0,0,0.2)" strokeWidth={1} opacity={opacity} />
-      </React.Fragment>
-    );
-  };
-
   const board = (
     <Animated.View style={[{ width: BOARD_W, height: BOARD_H, transformOrigin: "top left" }, animStyle]}>
       <Svg width={BOARD_W} height={BOARD_H}>
@@ -264,10 +268,9 @@ export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPl
           const rx = r % N, ry = Math.floor(r / N);
           return <Polygon key={`s${r}`} points={blockPoints(rx, ry, 1)} fill="rgba(138,123,92,0.7)" stroke="#fff" strokeWidth={1} />;
         })}
-        {buildings.map((b) => (
+        {buildings.filter((b) => spriteFor(b.type) == null).map((b) => (
           <Polygon key={b.id} points={blockPoints(b.x, b.y, CITY_BUILDING_BY_ID[b.type].size)} fill={BUILDING_COLOR[b.type]} stroke="rgba(0,0,0,0.25)" strokeWidth={1} opacity={0.92} />
         ))}
-        {buildings.filter((b) => b.type === "factory").map((b) => factoryBox(b, moveGhost?.id === b.id ? 0.3 : 1))}
         {(editMode === "move" || editMode === "demolish") && buildings.map((b) => (
           <Polygon key={`hl${b.id}`} points={blockPoints(b.x, b.y, CITY_BUILDING_BY_ID[b.type].size)} fill="rgba(80,140,255,0.18)" stroke="#3B82F6" strokeWidth={2} />
         ))}
@@ -279,45 +282,46 @@ export default function CityMap({ city, placing, canPlaceAt, onPlace, onCancelPl
           <Polygon points={blockPoints(ghost.x, ghost.y, CITY_BUILDING_BY_ID[placing].size)} fill={ghost.ok ? "rgba(80,200,110,0.55)" : "rgba(220,70,70,0.55)"} stroke={ghost.ok ? "#2E7D32" : "#B71C1C"} strokeWidth={2} />
         )}
         {moveGhost && (
-          <>
-            <Polygon points={blockPoints(moveGhost.x, moveGhost.y, CITY_BUILDING_BY_ID[moveGhost.type].size)} fill={moveGhost.ok ? "rgba(80,200,110,0.4)" : "rgba(220,70,70,0.4)"} stroke={moveGhost.ok ? "#2E7D32" : "#B71C1C"} strokeWidth={2} />
-            {moveGhost.type === "factory" && factoryBox({ id: "ghost", type: "factory", x: moveGhost.x, y: moveGhost.y }, 0.85)}
-          </>
+          <Polygon points={blockPoints(moveGhost.x, moveGhost.y, CITY_BUILDING_BY_ID[moveGhost.type].size)} fill={moveGhost.ok ? "rgba(80,200,110,0.4)" : "rgba(220,70,70,0.4)"} stroke={moveGhost.ok ? "#2E7D32" : "#B71C1C"} strokeWidth={2} />
         )}
       </Svg>
 
       {buildings.map((b) => {
-        const s = CITY_BUILDING_BY_ID[b.type].size;
-        const mid = proj(b.x + s / 2, b.y + s / 2);
         const moving = moveGhost?.id === b.id;
-        if (b.type === "house") {
-          const w = s * 2 * HW; // match the 2×2 footprint width
-          const h = w * (347 / 482);
-          const footBottom = mid.y + s * HH; // front-bottom vertex of the footprint diamond
-          return <Image key={`img${b.id}`} source={HOUSE_SPRITE} pointerEvents="none" resizeMode="contain" style={{ position: "absolute", left: mid.x - w / 2, top: footBottom - h, width: w, height: h, opacity: moving ? 0.3 : 1 }} />;
+        const r = rectFor(b.type, b.x, b.y);
+        if (r.src != null) {
+          return (
+            <React.Fragment key={`img${b.id}`}>
+              <Image source={r.src} pointerEvents="none" resizeMode="contain" style={{ position: "absolute", left: r.left, top: r.top, width: r.w, height: r.h, opacity: moving ? 0.3 : 1 }} />
+              {b.type === "factory" && b.starved && (
+                <View pointerEvents="none" style={{ position: "absolute", left: r.mid.x - 9, top: r.footBottom - r.h - 4 }}>
+                  <View style={styles.warnBadge}><MaterialCommunityIcons name="alert" size={12} color="#fff" /></View>
+                </View>
+              )}
+            </React.Fragment>
+          );
         }
-        const topOff = b.type === "factory" ? FACTORY_H + 12 : 20;
         return (
-          <View key={`ic${b.id}`} pointerEvents="none" style={{ position: "absolute", left: mid.x - 12, top: mid.y - topOff, opacity: moving ? 0.3 : 1 }}>
+          <View key={`ic${b.id}`} pointerEvents="none" style={{ position: "absolute", left: r.left, top: r.mid.y - 20, opacity: moving ? 0.3 : 1 }}>
             <MaterialCommunityIcons name={CITY_BUILDING_BY_ID[b.type].icon as any} size={24} color="#fff" />
-            {b.type === "factory" && b.starved && (
-              <View style={styles.warnBadge}><MaterialCommunityIcons name="alert" size={12} color="#fff" /></View>
-            )}
           </View>
         );
       })}
 
+      {moveGhost && spriteFor(moveGhost.type) != null && (() => {
+        const r = rectFor(moveGhost.type, moveGhost.x, moveGhost.y);
+        return <Image source={r.src!} pointerEvents="none" resizeMode="contain" style={{ position: "absolute", left: r.left, top: r.top, width: r.w, height: r.h, opacity: 0.85 }} />;
+      })()}
+
       {/* Tappable overlays: factory config (no edit mode) or demolish selection */}
       {!placing && !roadMode && editMode !== "move" && editMode !== "deleteRoad" && buildings.filter((b) => editMode === "demolish" || b.type === "factory").map((b) => {
-        const s = CITY_BUILDING_BY_ID[b.type].size;
-        const left = proj(b.x, b.y + s).x, right = proj(b.x + s, b.y).x;
-        const top = proj(b.x, b.y).y, bottom = proj(b.x + s, b.y + s).y;
+        const r = rectFor(b.type, b.x, b.y);
         return (
           <Pressable
             key={`tap${b.id}`}
             testID={b.type === "factory" ? `factory-${b.id}` : `bld-${b.id}`}
             onPress={() => onTapBuilding?.(b)}
-            style={{ position: "absolute", left, top, width: right - left, height: bottom - top }}
+            style={{ position: "absolute", left: r.left, top: r.top, width: r.w, height: r.footBottom - r.top }}
           />
         );
       })}

@@ -50,6 +50,7 @@ export default function CityScreen() {
       <StatusBar style="dark" />
       <CityMap
         city={city}
+        tribe={player.tribe}
         placing={placing}
         canPlaceAt={(t, x, y) => canPlaceCityBuilding(state, city.owner, city.id, t, x, y).ok}
         onPlace={(x, y) => {
