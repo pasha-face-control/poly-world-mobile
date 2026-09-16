@@ -21,7 +21,7 @@ import {
   techCost,
   trainUnit,
 } from "./engine";
-import { RESOURCE_DEFS, UNIT_DEFS } from "./data";
+import { RESOURCE_DEFS, TRIBE_MATERIAL, UNIT_DEFS } from "./data";
 import { Difficulty, GameState, GoodType, Unit, UnitType } from "./types";
 import { neighbors, unitAt } from "./grid";
 
@@ -108,6 +108,12 @@ export function runAiTurn(state: GameState, player: number) {
   const cfg = DIFF[state.difficulty] ?? DIFF.normal;
   state.players[player].stars += cfg.bonusStars; // difficulty handicap
 
+  // Peaceful bots stay trade-focused until the human attacks them: capped tiny militia,
+  // no city annexation, and their units garrison at home (they never roam to surround
+  // the player). Being attacked sets `provoked`, which lifts all of these restraints.
+  const restrained = state.difficulty === "peaceful" && !state.players[player].provoked;
+  const MILITARY_CAP: Partial<Record<UnitType, number>> = { catapult: 1, rider: 1, warrior: 3 };
+
   const terr = ownedTerritory(state, player);
   const coastal = isCoastal(state, terr);
 
@@ -144,12 +150,26 @@ export function runAiTurn(state: GameState, player: number) {
 
   // 3. Train units in empty cities.
   const buildOrder: UnitType[] = ["chivalry", "swordsmen", "catapult", "armored_rider", "pikemen", "rider", "archer", "beefeater", "warrior"];
-  for (const c of state.cities.filter((c) => c.owner === player)) {
-    if (unitAt(state, c.tileId)) continue;
-    for (const type of buildOrder) {
-      const def = UNIT_DEFS[type];
-      const hasTech = !def.requires || state.players[player].techs.includes(def.requires);
-      if (hasTech && state.players[player].stars >= def.cost) {
+  // Restrained peaceful bots keep only a tiny militia: 1 catapult, 1 rider, 3 warriors — nothing else.
+  const restrainedOrder: UnitType[] = ["catapult", "rider", "warrior"];
+  // Trade-focused peaceful bots secure a merchant BEFORE any militia (a lone city can only
+  // hold one unit at a time, so building warriors first would starve trade).
+  const needMerchantFirst = restrained
+    && state.players[player].techs.includes("trading")
+    && !state.units.some((u) => u.owner === player && u.type === "merchant");
+  if (!needMerchantFirst) {
+    for (const c of state.cities.filter((c) => c.owner === player)) {
+      if (unitAt(state, c.tileId)) continue;
+      const order = restrained ? restrainedOrder : buildOrder;
+      for (const type of order) {
+        const def = UNIT_DEFS[type];
+        const hasTech = !def.requires || state.players[player].techs.includes(def.requires);
+        if (!hasTech || state.players[player].stars < def.cost) continue;
+        if (restrained) {
+          const cap = MILITARY_CAP[type] ?? 0;
+          const have = state.units.filter((u) => u.owner === player && u.type === type).length;
+          if (have >= cap) continue; // militia cap reached for this type
+        }
         trainUnit(state, player, c.id, type);
         break;
       }
@@ -170,6 +190,11 @@ export function runAiTurn(state: GameState, player: number) {
 
   // 3c. Trading: keep one stocked merchant for sale so rivals can buy from it.
   if (state.players[player].techs.includes("trading")) {
+    // Peaceful bots run a "factory": they generate their tribe's material each turn so the
+    // human can buy the resources they can't produce themselves.
+    if (state.difficulty === "peaceful") {
+      state.players[player].goods[TRIBE_MATERIAL[state.players[player].tribe]] += 4;
+    }
     let merchants = state.units.filter((u) => u.owner === player && u.type === "merchant");
     if (merchants.length === 0 && state.players[player].stars >= UNIT_DEFS.merchant.cost) {
       for (const c of state.cities.filter((c) => c.owner === player)) {
@@ -178,13 +203,18 @@ export function runAiTurn(state: GameState, player: number) {
       }
       merchants = state.units.filter((u) => u.owner === player && u.type === "merchant");
     }
+    // Sellable goods include the crafted materials (planks/stone/sand/glass) so the player
+    // can buy what their own tribe can't make. The bot's own material is listed first so it
+    // always claims a slot; coal is never traded.
+    const material = TRIBE_MATERIAL[state.players[player].tribe];
+    const sellable = [material, ...(["wood", "meat", "wheat", "iron", "horse", "planks", "stone", "sand", "glass"] as GoodType[]).filter((g) => g !== material)];
     for (const m of merchants) {
       if (!m.cargo) continue;
       // Fill empty slots from surplus goods; price each at 3.
       for (let i = 0; i < m.cargo.length; i++) {
         const slot = m.cargo[i];
         if (slot.good) continue;
-        const g = (["wood", "meat", "wheat", "iron", "horse"] as GoodType[]).find((gd) => state.players[player].goods[gd] > 3);
+        const g = sellable.find((gd) => state.players[player].goods[gd] > 3);
         if (!g) break;
         loadMerchant(state, m.id, i, g, Math.min(8, state.players[player].goods[g] - 1));
         setMerchantPrice(state, m.id, i, 3);
@@ -205,7 +235,8 @@ export function runAiTurn(state: GameState, player: number) {
   }
 
   // 3e. Annexation: a wealthy bot peacefully buys a weak, undefended, nearby rival city.
-  {
+  // Restrained peaceful bots never annex — they stay trade-focused, not map-grabbing.
+  if (!restrained) {
     const myStars = state.players[player].stars;
     const candidate = state.cities
       .filter((c) => c.owner !== player)
@@ -234,6 +265,20 @@ export function runAiTurn(state: GameState, player: number) {
   }
 
   // 4. Move & attack each unit (merchants stay put and trade).
+  // Restrained peaceful bots don't roam toward villages/players — but they DO step off
+  // their own city tile into home territory so the city can keep producing (and so a
+  // merchant can be trained). They never advance on the player.
+  if (restrained) {
+    const own = ownedTerritory(state, player);
+    for (const u of state.units.filter((x) => x.owner === player)) {
+      if (u.moved || u.boat) continue;
+      const onCity = state.cities.some((c) => c.owner === player && c.tileId === u.tileId);
+      if (!onCity) continue; // only shuffle units that are blocking a city
+      const spot = reachableTiles(state, u).find((r) => own.has(r) && !state.cities.some((c) => c.tileId === r) && !unitAt(state, r));
+      if (spot != null) moveUnit(state, u.id, spot);
+    }
+    return;
+  }
   const myUnits = state.units.filter((u) => u.owner === player);
 
   // Embark units already sitting on a port when their nearest objective is across the water.

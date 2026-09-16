@@ -800,5 +800,47 @@ if (anyWater) {
 }
 
 
+// ---- Peaceful AI: capped militia, trades tribe material, garrisons at home ----
+{
+  const ai = require("../src/game/ai.ts");
+  const { newUnit } = require("../src/game/factory.ts");
+  let g = generateGame({ tribe: "nature", opponents: 1, mapSize: 16, mapType: "continents", passAndPlay: false, seed: 7 });
+  g.difficulty = "peaceful";
+  const bot = 1;
+  g.players[bot].techs = ["organisation", "roads", "construction", "trading"]; // trade-capable
+  g.players[bot].stars = 500;
+  g.players[bot].provoked = false;
+  // Run several peaceful bot turns.
+  for (let i = 0; i < 12; i++) ai.runAiTurn(g, bot);
+  const mil = g.units.filter((u) => u.owner === bot && u.type !== "merchant");
+  const warriors = mil.filter((u) => u.type === "warrior").length;
+  const riders = mil.filter((u) => u.type === "rider").length;
+  const catapults = mil.filter((u) => u.type === "catapult").length;
+  const others = mil.filter((u) => !["warrior", "rider", "catapult"].includes(u.type)).length;
+  ok("peaceful bot warriors <= 3", warriors <= 3);
+  ok("peaceful bot riders <= 1", riders <= 1);
+  ok("peaceful bot catapults <= 1", catapults <= 1);
+  ok("peaceful bot trains no other military", others === 0);
+  // The bot generated & stocked its own tribe material for sale.
+  const { TRIBE_MATERIAL } = require("../src/game/data.ts");
+  const mat = TRIBE_MATERIAL[g.players[bot].tribe];
+  const merch = g.units.find((u) => u.owner === bot && u.type === "merchant");
+  const sellsMat = !!merch && (merch.cargo ?? []).some((s) => s.good === mat && s.qty > 0);
+  ok("peaceful bot sells its tribe material", sellsMat);
+}
+{
+  // Provoked peaceful bot is no longer capped (can train non-militia units like archers).
+  const ai = require("../src/game/ai.ts");
+  let g = generateGame({ tribe: "nature", opponents: 1, mapSize: 16, mapType: "continents", passAndPlay: false, seed: 7 });
+  g.difficulty = "peaceful";
+  g.players[1].techs = ["forest_exploration", "hunting"]; // can train an archer
+  g.players[1].stars = 500;
+  g.players[1].provoked = true; // player attacked this bot
+  for (let i = 0; i < 4; i++) ai.runAiTurn(g, 1);
+  const mil = g.units.filter((u) => u.owner === 1 && u.type !== "merchant");
+  ok("provoked peaceful bot lifts militia caps (trains an archer)", mil.some((u) => u.type === "archer"));
+}
+
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

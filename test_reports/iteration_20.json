@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only smoke of Poly World (Expo SDK 54, 100% client-side) focused on the three amendments in this iteration: (1) PEACEFUL bot AI, (2) Economy 'Per turn' full-resource table, (3) coal-mine pickaxe icon. All primary acceptance checks PASS. Flow executed: main-menu -> menu-new-game -> mode-single -> difficulty-peaceful (picker was present on the Setup screen) -> start-game -> Skip tutorial. HUD hud-turn advanced cleanly T1 -> T2 -> T3 -> T4 -> T5 -> T6 -> T7 across 6 End Turn taps and T7 -> T8 after an additional End Turn following an Economy panel open/close, i.e. the new peaceful AI (runAiTurn: militia cap, merchant-first, tribe-material factories, home-only shuffle) executes each round with zero console errors, zero pageerrors and no red LogBox. The Economy modal (hud-economy-btn -> economy-modal) opens and closes cleanly and its 'Per turn' section now renders a full 4-column table with header 'Resource / Income / Costs / Profit' followed by 11 rows: Stars (+1/0/+1) plus Wood, Meat, Wheat, Iron, Horse, Planks, Stone, Sand, Glass and Coal, each shown even at zero. Coal row present as required. Coal-mine grey/white-pickaxe chip is code-verified (data.ts: coal_mine color = #6E747B, icon 'img:coal_mine') but not reachable in a fresh turn-1 Peaceful game (Coal Mine is mountain+mining-tech gated) so this is marked 'not reachable in-session' per the request's best-effort clause. General regression checks pass: opening/closing Economy between turns is stable, End Turn continues to advance after modal interactions, and the map/HUD remain responsive.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "shadow* style props", "issue": "Deprecation warning: 'shadow*' style props are deprecated. Use 'boxShadow'. Non-blocking on web. Occurs across shadow(n) helper in /app/frontend/src/theme.ts and callers."},
+      {"component": "expo-image / Image", "issue": "Deprecation warnings: Image style.resizeMode and style.tintColor are deprecated (use props.resizeMode / props.tintColor). Non-blocking."},
+      {"component": "pointerEvents prop", "issue": "Deprecation warning: props.pointerEvents is deprecated; use style.pointerEvents. Non-blocking."}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_20.json"],
+  "action_items": [
+    "No action required for this iteration's amendments — PEACEFUL AI runs cleanly, Economy 'Per turn' shows all 11 rows including Coal, and coal-mine chip is code-correct (grey #6E747B + img:coal_mine).",
+    "(Optional / carry-over) Migrate the deprecated web-only style props (shadow* -> boxShadow, Image style.resizeMode/tintColor -> props.*, props.pointerEvents -> style.pointerEvents) to silence Expo web warnings and future-proof RN 0.76+. Same warnings were noted in iteration_19; still present."
+  ],
+  "critical_code_review_comments": [
+    "EconomyModal.tsx now short-circuits with `if (!visible) return null;` at the top (line 12), which resolves the latent 'Modal children evaluated when visible=false' crash class flagged in iteration_19. Good.",
+    "TRADE_GOODS is derived as CITY_GOODS.filter(g => g.id !== 'coal') in data.ts and CITY_GOODS is used for the flowGoods list in the 'Per turn' section — coal is correctly included in Per turn but excluded from Bought/Sold, which matches the amendment spec.",
+    "coal_mine BuildingDef (data.ts:60) uses color '#6E747B' (grey) with icon 'img:coal_mine'; the white-pickaxe recolor lives in the PNG asset, so it cannot be verified via code inspection — will need visual confirmation once a mountain+mining tile is reachable."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (no backend)", "frontend": "100% of tested primary flows"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Public URL: https://poly-tactics-1.preview.emergentagent.com. 100% client-side, no backend. To reach a Peaceful game: menu-new-game -> mode-single -> difficulty-peaceful -> start-game -> tap 'Skip' while visible. Economy panel: hud-economy-btn -> economy-modal; 'Per turn' now renders 11 rows (Stars + 10 CITY_GOODS including Coal) with columns Resource/Income/Costs/Profit. Coal-Mine chip is only reachable after unlocking mining tech AND settling near a mountain-with-coal tile — not achievable in a fresh turn-1 session, so treat coal-icon visual as an out-of-session check. End Turn (action-end-turn) runs the new peaceful runAiTurn each round; 7 consecutive taps verified stable in this run.",
+  "rca_of_issue": "n/a — no bug reproduced this iteration."
+}

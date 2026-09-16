@@ -14,8 +14,8 @@ export default function EconomyModal({ state, visible, onClose }: { state: GameS
   const perTurnStars = starIncome(state, player.index);
   const { income, costs } = economyProjection(state, player.index);
   const eco = player.economy ?? { bought: {}, sold: {} };
-  // Only list goods that actually flow this turn (plus always-relevant base goods hidden when zero).
-  const flowGoods = CITY_GOODS.filter((g) => (income[g.id] ?? 0) > 0 || (costs[g.id] ?? 0) > 0);
+  // Show every resource, even when its income/cost is 0.
+  const flowGoods = CITY_GOODS;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
