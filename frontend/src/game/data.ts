@@ -348,21 +348,42 @@ export function citadelAssetKey(stage: number): string {
   return `citadel_${s}_tm`;
 }
 
-export interface CitadelUpgradeDef { toStage: number; stars: number; cost: Partial<Record<GoodType, number>> }
+export interface CitadelUpgradeDef { toStage: number; stars: number; cost: Partial<Record<GoodType, number>>; requiresLevel: number }
 export const CITADEL_UPGRADES: CitadelUpgradeDef[] = [
-  { toStage: 5, stars: 10, cost: { planks: 50 } },
-  { toStage: 10, stars: 30, cost: { stone: 150, planks: 25 } },
-  { toStage: 15, stars: 40, cost: { stone: 100, glass: 10, planks: 40 } },
+  { toStage: 5, stars: 10, cost: { planks: 50 }, requiresLevel: 4 },
+  { toStage: 10, stars: 30, cost: { stone: 150, planks: 25 }, requiresLevel: 9 },
+  { toStage: 15, stars: 40, cost: { stone: 100, glass: 10, planks: 40 }, requiresLevel: 14 },
 ];
 
 export interface CityBuildingDef { id: CityBuildingType; name: string; icon: string; size: number; stars: number; cost: Partial<Record<GoodType, number>>; desc: string }
 export const CITY_BUILDINGS: CityBuildingDef[] = [
-  { id: "house", name: "House", icon: "home", size: 2, stars: 0, cost: { planks: 2 }, desc: "A home for your citizens." },
+  { id: "house", name: "House", icon: "home", size: 2, stars: 5, cost: { planks: 8 }, desc: "Connect it to the citadel by road for +2 population and +1★/turn." },
   { id: "factory", name: "Material Factory", icon: "factory", size: 3, stars: 0, cost: {}, desc: "Produces your tribe's unique material." },
   { id: "trade_tower", name: "Trade Tower", icon: "bank", size: 4, stars: 100, cost: {}, desc: "Doubles income from trade." },
   { id: "park", name: "Park", icon: "tree", size: 2, stars: 15, cost: { glass: 5 }, desc: "A green retreat for the city." },
 ];
 export const CITY_BUILDING_BY_ID: Record<string, CityBuildingDef> = Object.fromEntries(CITY_BUILDINGS.map((b) => [b.id, b]));
+
+// A tribe's Material Factory footprint: Lesnoi sawmill & Fishmen glass factory are 3×3;
+// He-he stone quarry & Freemen sand quarry are 4×4.
+export const FACTORY_SIZE_BY_TRIBE: Record<string, number> = { nature: 3, snow: 3, volcanic: 4, desert: 4 };
+export function buildingSize(type: CityBuildingType, tribe: string): number {
+  if (type === "factory") return FACTORY_SIZE_BY_TRIBE[tribe] ?? 3;
+  return CITY_BUILDING_BY_ID[type].size;
+}
+
+// Max number of each building a city may hold at a given citadel stage (15 = unlimited).
+export const BUILDING_LIMITS: Record<number, Partial<Record<CityBuildingType, number>>> = {
+  1: { house: 1, factory: 1, trade_tower: 0, park: 0 },
+  5: { house: 4, factory: 2, trade_tower: 1, park: 2 },
+  10: { house: 8, factory: 2, trade_tower: 2, park: 4 },
+  15: {},
+};
+export function buildingLimit(stage: number, type: CityBuildingType): number {
+  const eff = CITADEL_STAGES.filter((x) => x <= (stage || 1)).pop() ?? 1;
+  if (eff >= 15) return Infinity;
+  return BUILDING_LIMITS[eff]?.[type] ?? 0;
+}
 
 // Each tribe's Material Factory makes a different resource.
 export const TRIBE_MATERIAL: Record<TribeId, GoodType> = { nature: "planks", desert: "sand", volcanic: "stone", snow: "glass" };

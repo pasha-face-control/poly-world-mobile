@@ -8,7 +8,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import CityMap from "@/src/components/CityMap";
 import GameIcon from "@/src/components/GameIcon";
 import { useGame } from "@/src/game/store";
-import { nextCitadelUpgrade, canUpgradeCitadel, canPlaceCityBuilding, canPlaceCityRoad } from "@/src/game/engine";
+import { nextCitadelUpgrade, canUpgradeCitadel, canPlaceCityBuilding, canPlaceCityRoad, cityStarIncome } from "@/src/game/engine";
 import { CITY_GOODS, CITY_BUILDINGS, TRIBE_MATERIAL } from "@/src/game/data";
 import { CityBuilding, CityBuildingType, GoodType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
@@ -96,8 +96,12 @@ export default function CityScreen() {
       <View style={[styles.hudTop, { top: insets.top + 8 }]} pointerEvents="box-none">
         <BlurView intensity={40} tint="light" style={styles.pill}>
           <MaterialCommunityIcons name="star-four-points" size={16} color={C.warning} />
-          <Text style={styles.pillValue} testID="city-income">+{city.production}</Text>
+          <Text style={styles.pillValue} testID="city-income">+{cityStarIncome(city)}</Text>
           <Text style={styles.pillSub}>/turn</Text>
+          <View style={styles.pillDivider} />
+          <MaterialCommunityIcons name="account-group" size={16} color={C.brand} />
+          <Text style={styles.pillValue} testID="city-population">{city.population}</Text>
+          <Text style={styles.pillSub}>pop</Text>
         </BlurView>
         <BlurView intensity={40} tint="light" style={styles.goodsPill}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.goodsRow}>
@@ -310,6 +314,7 @@ const styles = StyleSheet.create({
   pill: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 7, borderRadius: R.pill, overflow: "hidden", ...shadow(3) },
   pillValue: { fontWeight: "900", color: C.onSurface, fontSize: 15 },
   pillSub: { fontWeight: "700", color: C.onSurfaceSecondary, fontSize: 11 },
+  pillDivider: { width: 1, height: 16, backgroundColor: C.borderStrong, marginHorizontal: 4 },
   goodsPill: { borderRadius: R.pill, overflow: "hidden", ...shadow(3) },
   goodsRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 12, paddingVertical: 7 },
   good: { flexDirection: "row", alignItems: "center", gap: 3 },

@@ -53,6 +53,7 @@ export interface CityBuilding {
   y: number;
   feed?: number; // wood fed into a planks (Lesnoi) Material Factory each turn
   starved?: boolean; // a glass (Fishmen) factory that could not run last turn (short on inputs)
+  connected?: boolean; // a house that has been road-connected to the citadel (one-time +2 pop granted)
 }
 
 export interface CityLayout {

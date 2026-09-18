@@ -634,6 +634,8 @@ if (anyWater) {
   g.players[0].stars = 5; g.players[0].goods.planks = 10;
   ok("citadel upgrade blocked without resources", !engine.canUpgradeCitadel(g, 0, c.id).ok);
   g.players[0].stars = 100; g.players[0].goods.planks = 60;
+  ok("citadel upgrade blocked below city level 4", !engine.canUpgradeCitadel(g, 0, c.id).ok);
+  c.level = 4;
   ok("citadel upgrade ok", engine.canUpgradeCitadel(g, 0, c.id).ok);
   const sBefore = g.players[0].stars, pBefore = g.players[0].goods.planks;
   ok("upgrade to stage 5", engine.upgradeCitadel(g, 0, c.id) && c.citadelStage === 5);
@@ -645,15 +647,14 @@ if (anyWater) {
 {
   let g = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
   const c = g.cities.find((ci) => ci.owner === 0);
-  g.players[0].stars = 200; g.players[0].goods.planks = 10;
+  g.players[0].stars = 200; g.players[0].goods.planks = 40;
   ok("place house ok at (2,2)", engine.canPlaceCityBuilding(g, 0, c.id, "house", 2, 2).ok);
   ok("house blocked over citadel center", !engine.canPlaceCityBuilding(g, 0, c.id, "house", 13, 13).ok);
   ok("house blocked off-map", !engine.canPlaceCityBuilding(g, 0, c.id, "house", 29, 29).ok);
   const pB = g.players[0].goods.planks;
-  ok("build house deducts 2 planks", engine.placeCityBuilding(g, 0, c.id, "house", 2, 2) && c.layout.buildings.length === 1 && g.players[0].goods.planks === pB - 2);
+  ok("build house deducts 8 planks + 5 stars", engine.placeCityBuilding(g, 0, c.id, "house", 2, 2) && c.layout.buildings.length === 1 && g.players[0].goods.planks === pB - 8);
+  ok("house limit 1 at stage 1 blocks a 2nd house", !engine.canPlaceCityBuilding(g, 0, c.id, "house", 6, 6).ok);
   ok("cannot overlap existing house", !engine.canPlaceCityBuilding(g, 0, c.id, "house", 3, 3).ok);
-  g.players[0].goods.planks = 0;
-  ok("house blocked without planks", !engine.canPlaceCityBuilding(g, 0, c.id, "house", 6, 6).ok);
 }
 
 
@@ -683,7 +684,8 @@ if (anyWater) {
 {
   let g = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
   const c = g.cities.find((ci) => ci.owner === 0);
-  g.players[0].stars = 200; g.players[0].goods.planks = 10;
+  c.citadelStage = 10; // higher building limits so a 2nd house is allowed
+  g.players[0].stars = 200; g.players[0].goods.planks = 60;
   engine.placeCityBuilding(g, 0, c.id, "house", 2, 2);
   const h = c.layout.buildings[0];
   ok("move building to empty (4,4)", engine.moveCityBuilding(g, 0, c.id, h.id, 4, 4) && h.x === 4 && h.y === 4);
@@ -695,7 +697,7 @@ if (anyWater) {
   const before = c.layout.buildings.length;
   const planksBefore = g.players[0].goods.planks;
   ok("demolish removes the building", engine.demolishCityBuilding(g, 0, c.id, h.id) && c.layout.buildings.length === before - 1);
-  ok("demolish refunds the full build cost (2 planks)", g.players[0].goods.planks === planksBefore + 2);
+  ok("demolish refunds the full build cost (8 planks)", g.players[0].goods.planks === planksBefore + 8);
   ok("demolish unknown id is a no-op", !engine.demolishCityBuilding(g, 0, c.id, "nope"));
 }
 
@@ -839,6 +841,54 @@ if (anyWater) {
   for (let i = 0; i < 4; i++) ai.runAiTurn(g, 1);
   const mil = g.units.filter((u) => u.owner === 1 && u.type !== "merchant");
   ok("provoked peaceful bot lifts militia caps (trains an archer)", mil.some((u) => u.type === "archer"));
+}
+
+
+// ---- New: house road-connection bonus, building limits, per-tribe factory sizes ----
+{
+  let g = generateGame({ tribe: "nature", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  c.citadelStage = 10; g.players[0].stars = 500; g.players[0].goods.planks = 200;
+  // Citadel occupies cells [12,18). Place a house at (9,13) (cells x9-10) and connect via a road at (11,13).
+  engine.placeCityBuilding(g, 0, c.id, "house", 9, 13);
+  const h = c.layout.buildings[0];
+  c.population = 0; c.level = 20; // high level so +2 pop won't cross a level threshold
+  const popBefore = c.population;
+  ok("house not connected without a road", engine.connectedHouseCount(c) === 0 && !h.connected);
+  engine.drawCityRoads(g, 0, c.id, [13 * 30 + 11]); // x=11 sits between the house (x10) and citadel (x12)
+  ok("house connects via road", engine.connectedHouseCount(c) === 1 && h.connected === true);
+  ok("connecting grants +2 population", c.population === popBefore + 2);
+  ok("connected house adds +1 to city star income", engine.cityStarIncome(c) === c.production + 1);
+  const popAfter = c.population;
+  engine.drawCityRoads(g, 0, c.id, [13 * 30 + 11]); // idempotent — no duplicate road/bonus
+  ok("reconnect does not re-grant population", c.population === popAfter);
+}
+{
+  // Building limits by citadel stage.
+  let g = generateGame({ tribe: "nature", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  g.players[0].stars = 999; g.players[0].goods = { ...g.players[0].goods, planks: 999, glass: 999 };
+  c.citadelStage = 1;
+  ok("stage 1: trade tower locked", !engine.canPlaceCityBuilding(g, 0, c.id, "trade_tower", 1, 1).ok);
+  ok("stage 1: park locked", !engine.canPlaceCityBuilding(g, 0, c.id, "park", 1, 1).ok);
+  engine.placeCityBuilding(g, 0, c.id, "house", 1, 1);
+  ok("stage 1: 2nd house over limit", !engine.canPlaceCityBuilding(g, 0, c.id, "house", 4, 4).ok);
+  c.citadelStage = 5;
+  ok("stage 5: 2nd house allowed", engine.canPlaceCityBuilding(g, 0, c.id, "house", 4, 4).ok);
+  ok("stage 5: park unlocked", engine.canPlaceCityBuilding(g, 0, c.id, "park", 20, 1).ok);
+}
+{
+  // Per-tribe factory footprint: quarries are 4×4, sawmill/glass are 3×3.
+  const { buildingSize } = require("../src/game/data.ts");
+  ok("nature factory (sawmill) is 3", buildingSize("factory", "nature") === 3);
+  ok("snow factory (glass) is 3", buildingSize("factory", "snow") === 3);
+  ok("volcanic factory (stone quarry) is 4", buildingSize("factory", "volcanic") === 4);
+  ok("desert factory (sand quarry) is 4", buildingSize("factory", "desert") === 4);
+  // A 4×4 quarry must fit within the map (footprint respected).
+  let g = generateGame({ tribe: "desert", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
+  const c = g.cities.find((ci) => ci.owner === 0);
+  ok("4x4 quarry off-map at (27,27)", !engine.canPlaceCityBuilding(g, 0, c.id, "factory", 27, 27).ok);
+  ok("4x4 quarry ok at (1,1)", engine.canPlaceCityBuilding(g, 0, c.id, "factory", 1, 1).ok);
 }
 
 

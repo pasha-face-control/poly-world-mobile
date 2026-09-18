@@ -4,7 +4,7 @@ import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import Svg, { Line, Polygon } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { CITADEL_SIZE, CITY_BUILDING_BY_ID, CITY_GRID, citadelAssetKey } from "@/src/game/data";
+import { CITADEL_SIZE, CITY_BUILDING_BY_ID, CITY_GRID, buildingSize, citadelAssetKey } from "@/src/game/data";
 import { City, CityBuilding, CityBuildingType, TribeId } from "@/src/game/types";
 import { C } from "@/src/theme";
 
@@ -116,7 +116,7 @@ export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onC
     return key ? CITY_SPRITE[key] : null;
   };
   const rectFor = (type: CityBuildingType, x: number, y: number) => {
-    const s = CITY_BUILDING_BY_ID[type].size;
+    const s = buildingSize(type, tribe);
     const mid = proj(x + s / 2, y + s / 2);
     const footBottom = mid.y + s * HH; // front-bottom vertex of the footprint diamond
     const key = spriteKeyFor(type);
@@ -138,7 +138,7 @@ export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onC
 
   const updateGhost = (cx: number, cy: number) => {
     if (!placing) return;
-    const s = CITY_BUILDING_BY_ID[placing].size;
+    const s = buildingSize(placing, tribe);
     const gx = Math.max(0, Math.min(N - s, Math.round(cx - s / 2)));
     const gy = Math.max(0, Math.min(N - s, Math.round(cy - s / 2)));
     const ok = canPlaceAt ? canPlaceAt(placing, gx, gy) : true;
@@ -204,7 +204,7 @@ export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onC
   const moveUpdate = (px: number, py: number) => {
     const b = moveRef.current;
     if (!b) return;
-    const s = CITY_BUILDING_BY_ID[b.type].size;
+    const s = buildingSize(b.type, tribe);
     const bx = (px - tx.value) / scale.value, by = (py - ty.value) / scale.value;
     const u = (bx - OX) / HW, v = (by - HH) / HH;
     const gx = Math.max(0, Math.min(N - s, Math.round((u + v) / 2 - s / 2)));
@@ -271,20 +271,20 @@ export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onC
           return <Polygon key={`s${r}`} points={blockPoints(rx, ry, 1)} fill="rgba(138,123,92,0.7)" stroke="#fff" strokeWidth={1} />;
         })}
         {buildings.filter((b) => spriteFor(b.type) == null).map((b) => (
-          <Polygon key={b.id} points={blockPoints(b.x, b.y, CITY_BUILDING_BY_ID[b.type].size)} fill={BUILDING_COLOR[b.type]} stroke="rgba(0,0,0,0.25)" strokeWidth={1} opacity={0.92} />
+          <Polygon key={b.id} points={blockPoints(b.x, b.y, buildingSize(b.type, tribe))} fill={BUILDING_COLOR[b.type]} stroke="rgba(0,0,0,0.25)" strokeWidth={1} opacity={0.92} />
         ))}
         {(editMode === "move" || editMode === "demolish") && buildings.map((b) => (
-          <Polygon key={`hl${b.id}`} points={blockPoints(b.x, b.y, CITY_BUILDING_BY_ID[b.type].size)} fill="rgba(80,140,255,0.18)" stroke="#3B82F6" strokeWidth={2} />
+          <Polygon key={`hl${b.id}`} points={blockPoints(b.x, b.y, buildingSize(b.type, tribe))} fill="rgba(80,140,255,0.18)" stroke="#3B82F6" strokeWidth={2} />
         ))}
         {editMode === "deleteRoad" && roads.map((r) => {
           const rx = r % N, ry = Math.floor(r / N);
           return <Polygon key={`dr${r}`} points={blockPoints(rx, ry, 1)} fill="rgba(220,70,70,0.5)" stroke="#B71C1C" strokeWidth={1} />;
         })}
         {ghost && placing && (
-          <Polygon points={blockPoints(ghost.x, ghost.y, CITY_BUILDING_BY_ID[placing].size)} fill={ghost.ok ? "rgba(80,200,110,0.55)" : "rgba(220,70,70,0.55)"} stroke={ghost.ok ? "#2E7D32" : "#B71C1C"} strokeWidth={2} />
+          <Polygon points={blockPoints(ghost.x, ghost.y, buildingSize(placing, tribe))} fill={ghost.ok ? "rgba(80,200,110,0.55)" : "rgba(220,70,70,0.55)"} stroke={ghost.ok ? "#2E7D32" : "#B71C1C"} strokeWidth={2} />
         )}
         {moveGhost && (
-          <Polygon points={blockPoints(moveGhost.x, moveGhost.y, CITY_BUILDING_BY_ID[moveGhost.type].size)} fill={moveGhost.ok ? "rgba(80,200,110,0.4)" : "rgba(220,70,70,0.4)"} stroke={moveGhost.ok ? "#2E7D32" : "#B71C1C"} strokeWidth={2} />
+          <Polygon points={blockPoints(moveGhost.x, moveGhost.y, buildingSize(moveGhost.type, tribe))} fill={moveGhost.ok ? "rgba(80,200,110,0.4)" : "rgba(220,70,70,0.4)"} stroke={moveGhost.ok ? "#2E7D32" : "#B71C1C"} strokeWidth={2} />
         )}
       </Svg>
 

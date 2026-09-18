@@ -3,9 +3,10 @@ import {
   BUILDINGS,
   BUILDING_BY_ID,
   BUILDING_POP,
-  CITADEL_UPGRADES,
-  CITADEL_SIZE,
+  CITADEL_UPGRADES,  CITADEL_SIZE,
   CITY_BUILDING_BY_ID,
+  buildingSize,
+  buildingLimit,
   CITY_GRID,
   TRIBE_MATERIAL,
   INFRA_BY_ID,
@@ -137,6 +138,7 @@ export function canUpgradeCitadel(state: GameState, player: number, cityId: stri
   if (!city || city.owner !== player) return { ok: false, reason: "Not your city" };
   const up = nextCitadelUpgrade(city);
   if (!up) return { ok: false, reason: "Citadel fully upgraded" };
+  if (city.level < up.requiresLevel) return { ok: false, reason: `Requires city level ${up.requiresLevel}` };
   const p = state.players[player];
   if (p.stars < up.stars) return { ok: false, reason: "Not enough stars" };
   for (const [g, need] of Object.entries(up.cost)) {
@@ -158,6 +160,47 @@ export function upgradeCitadel(state: GameState, player: number, cityId: string)
 }
 
 // ---------- City-builder building placement ----------
+// Houses road-connected to the citadel: BFS over road cells seeded from cells adjacent to
+// the citadel footprint; a house counts if its footprint touches a connected road cell.
+export function cityConnectedHouseIds(city: City): Set<string> {
+  const G = CITY_GRID;
+  const roads = new Set(city.layout?.roads ?? []);
+  const c0 = (G - CITADEL_SIZE) / 2, c1 = c0 + CITADEL_SIZE;
+  const inCit = (x: number, y: number) => x >= c0 && x < c1 && y >= c0 && y < c1;
+  const NB = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const seen = new Set<number>(); const q: number[] = [];
+  for (const r of roads) {
+    const x = r % G, y = Math.floor(r / G);
+    if (NB.some(([dx, dy]) => inCit(x + dx, y + dy))) { seen.add(r); q.push(r); }
+  }
+  while (q.length) {
+    const r = q.pop()!; const x = r % G, y = Math.floor(r / G);
+    for (const [dx, dy] of NB) { const nc = (y + dy) * G + (x + dx); if (roads.has(nc) && !seen.has(nc)) { seen.add(nc); q.push(nc); } }
+  }
+  const ids = new Set<string>();
+  for (const h of (city.layout?.buildings ?? []).filter((b) => b.type === "house")) {
+    const s = 2; let conn = false;
+    for (let x = h.x; x < h.x + s && !conn; x++) for (let y = h.y; y < h.y + s && !conn; y++) {
+      for (const [dx, dy] of NB) { const nx = x + dx, ny = y + dy; if ((nx < h.x || nx >= h.x + s || ny < h.y || ny >= h.y + s) && seen.has(ny * G + nx)) { conn = true; break; } }
+    }
+    if (conn) ids.add(h.id);
+  }
+  return ids;
+}
+export const connectedHouseCount = (city: City): number => cityConnectedHouseIds(city).size;
+// A city's star output per turn = base production + 1 per road-connected house.
+export const cityStarIncome = (city: City): number => city.production + connectedHouseCount(city);
+
+// Grant the one-time +2 population bonus to any house newly connected to the citadel.
+export function reconcileCityConnections(state: GameState, cityId: string) {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city) return;
+  const connected = cityConnectedHouseIds(city);
+  for (const h of (city.layout?.buildings ?? []).filter((b) => b.type === "house")) {
+    if (connected.has(h.id) && !h.connected) { h.connected = true; addPopulation(state, city, 2); }
+  }
+}
+
 function rangesOverlap(a0: number, a1: number, b0: number, b1: number) {
   return a0 < b1 && b0 < a1;
 }
@@ -167,7 +210,7 @@ export function canPlaceCityBuilding(state: GameState, player: number, cityId: s
   if (!city || city.owner !== player) return { ok: false, reason: "Not your city" };
   const def = CITY_BUILDING_BY_ID[type];
   if (!def) return { ok: false, reason: "Unknown building" };
-  const s = def.size;
+  const s = buildingSize(type as import("./types").CityBuildingType, state.players[player].tribe);
   if (x < 0 || y < 0 || x + s > CITY_GRID || y + s > CITY_GRID) return { ok: false, reason: "Off the map" };
   // Keep clear of the centred citadel footprint.
   const c0 = (CITY_GRID - CITADEL_SIZE) / 2, c1 = c0 + CITADEL_SIZE;
@@ -175,13 +218,17 @@ export function canPlaceCityBuilding(state: GameState, player: number, cityId: s
   const layout = city.layout ?? { buildings: [], roads: [] };
   for (const b of layout.buildings) {
     if (ignoreId && b.id === ignoreId) continue;
-    const bs = CITY_BUILDING_BY_ID[b.type].size;
+    const bs = buildingSize(b.type, state.players[player].tribe);
     if (rangesOverlap(x, x + s, b.x, b.x + bs) && rangesOverlap(y, y + s, b.y, b.y + bs)) return { ok: false, reason: "Overlaps a building" };
   }
   for (const r of layout.roads) {
     const rx = r % CITY_GRID, ry = Math.floor(r / CITY_GRID);
     if (rx >= x && rx < x + s && ry >= y && ry < y + s) return { ok: false, reason: "Overlaps a road" };
   }
+  // Building limit for the current citadel stage.
+  const limit = buildingLimit(city.citadelStage ?? 1, type as import("./types").CityBuildingType);
+  const have = layout.buildings.filter((b) => b.type === type && b.id !== ignoreId).length;
+  if (have >= limit) return { ok: false, reason: limit === 0 ? "Upgrade citadel to unlock" : "Building limit reached — upgrade citadel" };
   const p = state.players[player];
   if (p.stars < def.stars) return { ok: false, reason: "Not enough stars" };
   for (const [g, need] of Object.entries(def.cost)) {
@@ -200,6 +247,7 @@ export function placeCityBuilding(state: GameState, player: number, cityId: stri
   for (const [g, need] of Object.entries(def.cost)) p.goods[g as GoodType] -= need as number;
   city.layout.buildings.push({ id: `b_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`, type: type as import("./types").CityBuildingType, x, y });
   log(state, `${p.name} built a ${def.name}`);
+  reconcileCityConnections(state, cityId);
   return true;
 }
 
@@ -211,6 +259,7 @@ export function moveCityBuilding(state: GameState, player: number, cityId: strin
   if (!b) return false;
   if (!canPlaceCityBuilding(state, player, cityId, b.type, x, y, buildingId).ok) return false;
   b.x = x; b.y = y;
+  reconcileCityConnections(state, cityId);
   return true;
 }
 
@@ -237,6 +286,7 @@ export function removeCityRoad(state: GameState, player: number, cityId: string,
   if (!city || city.owner !== player || !city.layout) return false;
   const before = city.layout.roads.length;
   city.layout.roads = city.layout.roads.filter((r) => r !== cell);
+  reconcileCityConnections(state, cityId);
   return city.layout.roads.length < before;
 }
 
@@ -251,7 +301,7 @@ export function canPlaceCityRoad(state: GameState, player: number, cityId: strin
   const layout = city.layout ?? { buildings: [], roads: [] };
   if (layout.roads.includes(cell)) return false;
   for (const b of layout.buildings) {
-    const bs = CITY_BUILDING_BY_ID[b.type].size;
+    const bs = buildingSize(b.type, state.players[player].tribe);
     if (x >= b.x && x < b.x + bs && y >= b.y && y < b.y + bs) return false; // under a building
   }
   return true;
@@ -266,6 +316,7 @@ export function drawCityRoads(state: GameState, player: number, cityId: string, 
   for (const cell of cells) {
     if (canPlaceCityRoad(state, player, cityId, cell)) { city.layout.roads.push(cell); added += 1; }
   }
+  reconcileCityConnections(state, cityId);
   return added;
 }
 
@@ -770,7 +821,7 @@ export function resolveTrades(state: GameState) {
 // ---------- Economy income (turn start) ----------
 // Stars a player gains at the start of each of their turns (cities + star-producing buildings).
 export function starIncome(state: GameState, player: number): number {
-  let income = state.cities.filter((c) => c.owner === player).reduce((s, c) => s + c.production, 0);
+  let income = state.cities.filter((c) => c.owner === player).reduce((s, c) => s + cityStarIncome(c), 0);
   for (const tile of state.tiles) {
     if (!tile.building) continue;
     const city = cityControllingTile(state, tile.id);
@@ -783,7 +834,7 @@ export function starIncome(state: GameState, player: number): number {
 }
 
 export function startPlayerTurn(state: GameState, player: number) {
-  const income = state.cities.filter((c) => c.owner === player).reduce((s, c) => s + c.production, 0);
+  const income = state.cities.filter((c) => c.owner === player).reduce((s, c) => s + cityStarIncome(c), 0);
   state.players[player].stars += income;
   // Building production for tiles the player's cities control.
   for (const tile of state.tiles) {
