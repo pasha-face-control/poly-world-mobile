@@ -35,7 +35,7 @@ const SPRITE_ASPECT: Record<string, number> = { houses: 0.7199, sawmill: 0.5166,
 // A tribe's Material Factory shows its own unique building sprite.
 const FACTORY_SPRITE_BY_TRIBE: Record<string, string> = { nature: "sawmill", volcanic: "stone_quarry", desert: "sand_quarry", snow: "glass_factory" };
 // Width of a sprite as a multiple of its footprint diamond width.
-const SPRITE_SCALE: Record<string, number> = { house: 1.0, factory: 1.2, trade_tower: 0.64, park: 1.08 };
+const SPRITE_SCALE: Record<string, number> = { house: 1.0, factory: 1.0, trade_tower: 0.64, park: 1.08 };
 const BUILDING_COLOR: Record<string, string> = { house: "#C98A4B", factory: "#8A8F98", trade_tower: "#C7A24B", park: "#5FA85F" };
 
 function proj(x: number, y: number) {
