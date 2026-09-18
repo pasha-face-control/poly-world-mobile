@@ -264,13 +264,36 @@ export function runAiTurn(state: GameState, player: number) {
     if (bestTile != null) expandTerritory(state, player, bestTile);
   }
 
-  // 4. Move & attack each unit (merchants stay put and trade).
-  // Restrained peaceful bots don't roam toward villages/players — but they DO step off
-  // their own city tile into home territory so the city can keep producing (and so a
-  // merchant can be trained). They never advance on the player.
+  // 4. Move & attack each unit.
+  // Restrained peaceful bots don't roam toward villages/players, BUT every bot walks one
+  // Merchant to the human's capital as soon as possible so the player can trade with it
+  // (buying only needs the merchant's tile to be explored — parking beside the capital
+  // brings it into the player's vision). Other units just step off their own city tile so
+  // the city keeps producing; they never advance on the player.
   if (restrained) {
     const own = ownedTerritory(state, player);
-    for (const u of state.units.filter((x) => x.owner === player)) {
+    const humanCap = state.cities.find((c) => c.owner === 0 && c.isCapital);
+    if (humanCap) {
+      const capTile = state.tiles[humanCap.tileId];
+      for (const m of state.units.filter((u) => u.owner === player && u.type === "merchant")) {
+        if (m.moved) continue;
+        if (chebyshev(state.tiles[m.tileId], capTile) <= 1) continue; // parked beside the capital — stay and trade
+        const reach = reachableTiles(state, m);
+        if (!reach.length) {
+          // Blocked by water: put out to sea if this bot can (trade port + overseas trading).
+          if (!m.boat) embark(state, m.id);
+          continue;
+        }
+        let best: number | null = null;
+        let bestD = chebyshev(state.tiles[m.tileId], capTile); // only move if it gets us closer
+        for (const r of reach) {
+          const d = chebyshev(state.tiles[r], capTile);
+          if (d < bestD) { bestD = d; best = r; }
+        }
+        if (best != null) moveUnit(state, m.id, best);
+      }
+    }
+    for (const u of state.units.filter((x) => x.owner === player && x.type !== "merchant")) {
       if (u.moved || u.boat) continue;
       const onCity = state.cities.some((c) => c.owner === player && c.tileId === u.tileId);
       if (!onCity) continue; // only shuffle units that are blocking a city
