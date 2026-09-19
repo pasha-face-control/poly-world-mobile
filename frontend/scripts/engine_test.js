@@ -869,6 +869,25 @@ if (anyWater) {
   ok("provoked peaceful bot lifts militia caps (trains an archer)", mil.some((u) => u.type === "archer"));
 }
 
+{
+  // Villages must be at least 3 cells apart from each other across generated maps.
+  const grid = require("../src/game/grid.ts");
+  let minGap = Infinity, total = 0;
+  for (const seed of [1, 2, 3, 7, 11]) {
+    for (const mapType of ["pangea", "continents"]) {
+      const g = generateGame({ tribe: "nature", opponents: 2, mapSize: 16, mapType, passAndPlay: false, seed });
+      const vills = g.tiles.filter((t) => t.isVillage);
+      total += vills.length;
+      for (let a = 0; a < vills.length; a++)
+        for (let b = a + 1; b < vills.length; b++)
+          minGap = Math.min(minGap, grid.chebyshev(vills[a], vills[b]));
+    }
+  }
+  ok("maps actually place villages", total > 0);
+  ok("villages are at least 3 cells apart", minGap >= 3);
+}
+
+
 
 // ---- New: house road-connection bonus, building limits, per-tribe factory sizes ----
 {
