@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { Image, LayoutChangeEvent, Pressable, StyleSheet, View } from "react-native";
+import { Image, LayoutChangeEvent, StyleSheet, View } from "react-native";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import Svg, { Line, Polygon } from "react-native-svg";
@@ -219,6 +219,14 @@ export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onC
     if (g && g.ok) onMoveBuilding?.(g.id, g.x, g.y);
   };
 
+  // Select/demolish a building by tapping it. Uses the same manual screen→board transform as
+  // move mode (buildingAt) so hit-testing stays correct under pan/zoom — a native <Pressable>
+  // placed inside the scaled/translated Reanimated board mis-registers touches on device.
+  const selectAt = (px: number, py: number) => {
+    const b = buildingAt(px, py);
+    if (b) onTapBuilding?.(b);
+  };
+
   const pan = Gesture.Pan().averageTouches(true).onChange((e) => {
     tx.value += e.changeX; ty.value += e.changeY;
   });
@@ -229,6 +237,14 @@ export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onC
     tx.value = cxp - bx * ns; ty.value = cyp - by * ns; scale.value = ns;
   });
   const mapGesture = Gesture.Simultaneous(pan, pinch);
+
+  // In normal (select) and demolish modes, a still tap selects/demolishes a building while a
+  // drag still pans/zooms. This runs on a full-screen overlay (viewport coords) — the same
+  // proven transform move mode uses — because a native tap target inside the scaled/translated
+  // Reanimated board mis-registers touches on device.
+  const selectable = !placing && !roadMode && editMode !== "move" && editMode !== "deleteRoad";
+  const tapSelect = Gesture.Tap().maxDistance(16).onEnd((e) => { runOnJS(selectAt)(e.x, e.y); });
+  const selectGesture = Gesture.Race(tapSelect, mapGesture);
 
   // While placing, a full-screen drag moves the ghost and drops it on release.
   const placeGesture = Gesture.Pan()
@@ -315,18 +331,7 @@ export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onC
         return <Image source={r.src!} pointerEvents="none" resizeMode="contain" style={{ position: "absolute", left: r.left, top: r.top, width: r.w, height: r.h, opacity: 0.85 }} />;
       })()}
 
-      {/* Tappable overlays: factory config (no edit mode) or demolish selection */}
-      {!placing && !roadMode && editMode !== "move" && editMode !== "deleteRoad" && buildings.filter((b) => editMode === "demolish" || b.type === "factory").map((b) => {
-        const r = rectFor(b.type, b.x, b.y);
-        return (
-          <Pressable
-            key={`tap${b.id}`}
-            testID={b.type === "factory" ? `factory-${b.id}` : `bld-${b.id}`}
-            onPress={() => onTapBuilding?.(b)}
-            style={{ position: "absolute", left: r.left, top: r.top, width: r.w, height: r.footBottom - r.top }}
-          />
-        );
-      })}
+      {/* Selection & demolish taps are handled by the board's tap gesture (transform-aware). */}
 
       <Image source={CITADEL_SPRITES[stageKey]} pointerEvents="none" resizeMode="contain" style={{ position: "absolute", left: baseBottom.x - citW * 0.499, top: baseBottom.y - citH * 0.971, width: citW, height: citH }} />
     </Animated.View>
@@ -335,6 +340,11 @@ export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onC
   return (
     <View style={styles.viewport} onLayout={onLayout} testID="city-map">
       <GestureDetector gesture={mapGesture}>{board}</GestureDetector>
+      {selectable && (
+        <GestureDetector gesture={selectGesture}>
+          <View style={StyleSheet.absoluteFill} testID="select-layer" />
+        </GestureDetector>
+      )}
       {placing && (
         <GestureDetector gesture={placeGesture}>
           <View style={StyleSheet.absoluteFill} testID="place-layer" />
