@@ -165,30 +165,34 @@ export function runAiTurn(state: GameState, player: number) {
 
   // 1. Research when affordable (peaceful/hard prefer the trade line; coastal bots invest in sailing).
   const avail = availableTechs(state, player);
-  if (avail.length) {
+  // Every peaceful bot is fast-tracked down the trade line (one tech/turn, subsidised if broke)
+  // so they ALL reliably reach `trading` within a few turns and can send a merchant to the
+  // player — their tiny home economy would otherwise never afford it. Applies until they trade.
+  const needTrading = restrained && !state.players[player].techs.includes("trading");
+  if (needTrading) {
+    const next = TRADE_LINE.find((id) => avail.includes(id));
+    if (next) {
+      const cost = techCost(state, player, next);
+      if (state.players[player].stars < cost) state.players[player].stars = cost; // trade subsidy
+      research(state, player, next);
+    }
+  } else if (avail.length) {
     const affordable = avail
       .map((id) => ({ id, cost: techCost(state, player, id) }))
       .filter((t) => t.cost <= state.players[player].stars)
       .sort((a, b) => a.cost - b.cost);
-    if (affordable.length) {
-      let pick: { id: string; cost: number } | null = null;
-      // Every peaceful bot beelines the trade line (deterministically, saving stars if the next
-      // trade tech isn't affordable yet) so they ALL reach `trading` and can send a merchant ASAP.
-      const needTrading = restrained && !state.players[player].techs.includes("trading");
-      if (needTrading) pick = affordable.find((a) => TRADE_LINE.includes(a.id)) ?? null;
-      if (!pick && Math.random() < cfg.research) {
-        pick = affordable[0];
-        if (cfg.preferTrade) {
-          const t = affordable.find((a) => TRADE_LINE.includes(a.id));
-          if (t) pick = t;
-        }
-        // Coastal bots frequently prioritise the naval line so the seas stay active.
-        if (coastal) {
-          const nav = affordable.find((a) => NAVAL_LINE.includes(a.id));
-          if (nav && Math.random() < 0.6) pick = nav;
-        }
+    if (affordable.length && Math.random() < cfg.research) {
+      let pick = affordable[0];
+      if (cfg.preferTrade) {
+        const t = affordable.find((a) => TRADE_LINE.includes(a.id));
+        if (t) pick = t;
       }
-      if (pick) research(state, player, pick.id);
+      // Coastal bots frequently prioritise the naval line so the seas stay active.
+      if (coastal) {
+        const nav = affordable.find((a) => NAVAL_LINE.includes(a.id));
+        if (nav && Math.random() < 0.6) pick = nav;
+      }
+      research(state, player, pick.id);
     }
   }
 
@@ -249,12 +253,18 @@ export function runAiTurn(state: GameState, player: number) {
       state.players[player].goods[TRIBE_MATERIAL[state.players[player].tribe]] += 4;
     }
     let merchants = state.units.filter((u) => u.owner === player && u.type === "merchant");
-    if (merchants.length === 0 && state.players[player].stars >= UNIT_DEFS.merchant.cost) {
-      for (const c of state.cities.filter((c) => c.owner === player)) {
-        if (unitAt(state, c.tileId)) continue;
-        if (trainUnit(state, player, c.id, "merchant")) break;
+    if (merchants.length === 0) {
+      // Subsidise a peaceful bot's FIRST merchant so it ships out the turn after `trading` lands.
+      if (restrained && state.players[player].stars < UNIT_DEFS.merchant.cost) {
+        state.players[player].stars = UNIT_DEFS.merchant.cost;
       }
-      merchants = state.units.filter((u) => u.owner === player && u.type === "merchant");
+      if (state.players[player].stars >= UNIT_DEFS.merchant.cost) {
+        for (const c of state.cities.filter((c) => c.owner === player)) {
+          if (unitAt(state, c.tileId)) continue;
+          if (trainUnit(state, player, c.id, "merchant")) break;
+        }
+        merchants = state.units.filter((u) => u.owner === player && u.type === "merchant");
+      }
     }
     // Sellable goods include the crafted materials (planks/stone/sand/glass) so the player
     // can buy what their own tribe can't make. The bot's own material is listed first so it
