@@ -188,8 +188,10 @@ export function cityConnectedHouseIds(city: City): Set<string> {
   return ids;
 }
 export const connectedHouseCount = (city: City): number => cityConnectedHouseIds(city).size;
-// A city's star output per turn = base production + 1 per road-connected house.
-export const cityStarIncome = (city: City): number => city.production + connectedHouseCount(city);
+// Parks each add +5 stars per turn to their city.
+export const cityParkStars = (city: City): number => (city.layout?.buildings ?? []).filter((b) => b.type === "park").length * 5;
+// A city's star output per turn = base production + 1 per road-connected house + 5 per park.
+export const cityStarIncome = (city: City): number => city.production + connectedHouseCount(city) + cityParkStars(city);
 
 // Grant the one-time +2 population bonus to any house newly connected to the citadel.
 export function reconcileCityConnections(state: GameState, cityId: string) {
@@ -321,11 +323,14 @@ export function drawCityRoads(state: GameState, player: number, cityId: string, 
 }
 
 // ---------- Material Factories (per-city, tribe-specific) ----------
-// Whether a player owns at least one Trade Tower (doubles their trade income).
-export function hasTradeTower(state: GameState, player: number): boolean {
-  return state.cities.some((c) => c.owner === player && (c.layout?.buildings ?? []).some((b) => b.type === "trade_tower"));
+// Total Trade Towers a player owns across all their cities.
+export function tradeTowerCount(state: GameState, player: number): number {
+  return state.cities
+    .filter((c) => c.owner === player)
+    .reduce((n, c) => n + (c.layout?.buildings ?? []).filter((b) => b.type === "trade_tower").length, 0);
 }
-export const tradeMultiplier = (state: GameState, player: number): number => (hasTradeTower(state, player) ? 2 : 1);
+// Each Trade Tower doubles trade income, so multiple towers stack multiplicatively (2^towers).
+export const tradeMultiplier = (state: GameState, player: number): number => Math.pow(2, tradeTowerCount(state, player));
 
 // Sets how much wood a Lesnoi planks factory consumes each turn (2 wood → 1 plank).
 export function setFactoryFeed(state: GameState, player: number, cityId: string, buildingId: string, feed: number): boolean {

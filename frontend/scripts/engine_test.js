@@ -761,10 +761,13 @@ if (anyWater) {
 {
   let g = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 4 });
   const c = g.cities.find((ci) => ci.owner === 0);
-  ok("no trade tower by default", engine.hasTradeTower(g, 0) === false);
+  ok("no trade tower by default", engine.tradeTowerCount(g, 0) === 0 && engine.tradeMultiplier(g, 0) === 1);
   c.layout.buildings.push({ id: "tt", type: "trade_tower", x: 2, y: 2 });
-  ok("hasTradeTower true after placement", engine.hasTradeTower(g, 0) === true);
-  ok("tradeMultiplier is 2 with a tower", engine.tradeMultiplier(g, 0) === 2);
+  ok("tradeTowerCount 1 after placement", engine.tradeTowerCount(g, 0) === 1);
+  ok("tradeMultiplier is 2 with one tower", engine.tradeMultiplier(g, 0) === 2);
+  c.layout.buildings.push({ id: "tt2", type: "trade_tower", x: 8, y: 8 });
+  ok("two towers stack to 4x", engine.tradeTowerCount(g, 0) === 2 && engine.tradeMultiplier(g, 0) === 4);
+  c.layout.buildings = c.layout.buildings.filter((b) => b.id !== "tt2");
   // sell via a pass-and-play buy: seller (0) earns 2x
   g.players[0].techs = ["trading"];
   g.units = g.units.filter((u) => !(u.owner === 0 && u.tileId === c.tileId));
@@ -934,6 +937,13 @@ if (anyWater) {
   ok("house connects via road", engine.connectedHouseCount(c) === 1 && h.connected === true);
   ok("connecting grants +2 population", c.population === popBefore + 2);
   ok("connected house adds +1 to city star income", engine.cityStarIncome(c) === c.production + 1);
+  // Parks add +5 stars/turn each.
+  const beforePark = engine.cityStarIncome(c);
+  c.layout.buildings.push({ id: "pk1", type: "park", x: 0, y: 0 });
+  ok("one park adds +5 stars/turn", engine.cityStarIncome(c) === beforePark + 5);
+  c.layout.buildings.push({ id: "pk2", type: "park", x: 3, y: 3 });
+  ok("two parks add +10 stars/turn", engine.cityStarIncome(c) === beforePark + 10);
+  c.layout.buildings = c.layout.buildings.filter((b) => b.type !== "park");
   const popAfter = c.population;
   engine.drawCityRoads(g, 0, c.id, [13 * 30 + 11]); // idempotent — no duplicate road/bonus
   ok("reconnect does not re-grant population", c.population === popAfter);

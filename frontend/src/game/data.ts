@@ -359,8 +359,8 @@ export interface CityBuildingDef { id: CityBuildingType; name: string; icon: str
 export const CITY_BUILDINGS: CityBuildingDef[] = [
   { id: "house", name: "House", icon: "home", size: 2, stars: 5, cost: { planks: 8 }, desc: "Connect it to the citadel by road for +2 population and +1★/turn." },
   { id: "factory", name: "Material Factory", icon: "factory", size: 3, stars: 0, cost: {}, desc: "Produces your tribe's unique material." },
-  { id: "trade_tower", name: "Trade Tower", icon: "bank", size: 4, stars: 100, cost: {}, desc: "Doubles income from trade." },
-  { id: "park", name: "Park", icon: "tree", size: 2, stars: 15, cost: { glass: 5 }, desc: "A green retreat for the city." },
+  { id: "trade_tower", name: "Trade Tower", icon: "bank", size: 4, stars: 100, cost: { glass: 320 }, desc: "Doubles income from trade (stacks per tower)." },
+  { id: "park", name: "Park", icon: "tree", size: 2, stars: 15, cost: { glass: 5 }, desc: "+5 stars per turn." },
 ];
 export const CITY_BUILDING_BY_ID: Record<string, CityBuildingDef> = Object.fromEntries(CITY_BUILDINGS.map((b) => [b.id, b]));
 
