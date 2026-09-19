@@ -857,6 +857,36 @@ if (anyWater) {
 }
 
 {
+  // With MULTIPLE peaceful bots, EVERY bot must reach `trading`, train a merchant, and send
+  // it to the human capital — not just one. (Regression: bots stalled without the trade tech.)
+  const ai = require("../src/game/ai.ts");
+  const grid = require("../src/game/grid.ts");
+  let g = generateGame({ tribe: "nature", opponents: 3, mapSize: 16, mapType: "continents", passAndPlay: false, seed: 5 });
+  g.difficulty = "peaceful";
+  const bots = [1, 2, 3];
+  bots.forEach((p) => { g.players[p].provoked = false; });
+  const humanCap = g.cities.find((c) => c.owner === 0 && c.isCapital);
+  for (let i = 0; i < 80; i++) {
+    for (const p of bots) {
+      g.players[p].stars += 10; // mimic per-turn city income (harness skips produce())
+      g.units.filter((u) => u.owner === p).forEach((u) => { u.moved = false; u.attacked = false; });
+      ai.runAiTurn(g, p);
+    }
+  }
+  let allHave = true, allParked = true, allSingle = true;
+  for (const p of bots) {
+    const ms = g.units.filter((u) => u.owner === p && u.type === "merchant");
+    if (ms.length !== 1) { allHave = ms.length >= 1 ? allHave : false; allSingle = false; }
+    if (ms.length === 0) allHave = false;
+    if (!ms.some((m) => grid.chebyshev(g.tiles[m.tileId], g.tiles[humanCap.tileId]) <= 1)) allParked = false;
+  }
+  ok("every peaceful bot trains a merchant", allHave);
+  ok("every peaceful bot keeps exactly one merchant", allSingle);
+  ok("every peaceful bot's merchant parks beside the human capital", allParked);
+}
+
+
+{
   // Provoked peaceful bot is no longer capped (can train non-militia units like archers).
   const ai = require("../src/game/ai.ts");
   let g = generateGame({ tribe: "nature", opponents: 1, mapSize: 16, mapType: "continents", passAndPlay: false, seed: 7 });

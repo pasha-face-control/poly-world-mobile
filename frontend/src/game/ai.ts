@@ -170,18 +170,25 @@ export function runAiTurn(state: GameState, player: number) {
       .map((id) => ({ id, cost: techCost(state, player, id) }))
       .filter((t) => t.cost <= state.players[player].stars)
       .sort((a, b) => a.cost - b.cost);
-    if (affordable.length && Math.random() < cfg.research) {
-      let pick = affordable[0];
-      if (cfg.preferTrade) {
-        const t = affordable.find((a) => TRADE_LINE.includes(a.id));
-        if (t) pick = t;
+    if (affordable.length) {
+      let pick: { id: string; cost: number } | null = null;
+      // Every peaceful bot beelines the trade line (deterministically, saving stars if the next
+      // trade tech isn't affordable yet) so they ALL reach `trading` and can send a merchant ASAP.
+      const needTrading = restrained && !state.players[player].techs.includes("trading");
+      if (needTrading) pick = affordable.find((a) => TRADE_LINE.includes(a.id)) ?? null;
+      if (!pick && Math.random() < cfg.research) {
+        pick = affordable[0];
+        if (cfg.preferTrade) {
+          const t = affordable.find((a) => TRADE_LINE.includes(a.id));
+          if (t) pick = t;
+        }
+        // Coastal bots frequently prioritise the naval line so the seas stay active.
+        if (coastal) {
+          const nav = affordable.find((a) => NAVAL_LINE.includes(a.id));
+          if (nav && Math.random() < 0.6) pick = nav;
+        }
       }
-      // Coastal bots frequently prioritise the naval line so the seas stay active.
-      if (coastal) {
-        const nav = affordable.find((a) => NAVAL_LINE.includes(a.id));
-        if (nav && Math.random() < 0.6) pick = nav;
-      }
-      research(state, player, pick.id);
+      if (pick) research(state, player, pick.id);
     }
   }
 
@@ -199,9 +206,9 @@ export function runAiTurn(state: GameState, player: number) {
   // Restrained peaceful bots keep only a tiny militia: 1 catapult, 1 rider, 3 warriors — nothing else.
   const restrainedOrder: UnitType[] = ["catapult", "rider", "warrior"];
   // Trade-focused peaceful bots secure a merchant BEFORE any militia (a lone city can only
-  // hold one unit at a time, so building warriors first would starve trade).
+  // hold one unit at a time, so building warriors first would starve trade — and while they
+  // still lack the `trading` tech they save their stars to research it faster).
   const needMerchantFirst = restrained
-    && state.players[player].techs.includes("trading")
     && !state.units.some((u) => u.owner === player && u.type === "merchant");
   if (!needMerchantFirst) {
     for (const c of state.cities.filter((c) => c.owner === player)) {
