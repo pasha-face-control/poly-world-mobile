@@ -832,23 +832,27 @@ if (anyWater) {
 }
 {
   // Peaceful bots walk one merchant to the human's capital so the player can trade ASAP.
+  // The caravan must reliably PARK adjacent to the capital even across water/mountains.
   const ai = require("../src/game/ai.ts");
   const grid = require("../src/game/grid.ts");
-  let g = generateGame({ tribe: "nature", opponents: 1, mapSize: 11, mapType: "pangea", passAndPlay: false, seed: 7 });
-  g.difficulty = "peaceful";
-  g.players[1].techs = ["organisation", "roads", "construction", "trading"];
-  g.players[1].stars = 500;
-  g.players[1].provoked = false;
-  const humanCap = g.cities.find((c) => c.owner === 0 && c.isCapital);
-  const botCity = g.cities.find((c) => c.owner === 1);
-  const startDist = grid.chebyshev(g.tiles[botCity.tileId], g.tiles[humanCap.tileId]);
-  for (let i = 0; i < 30; i++) ai.runAiTurn(g, 1);
-  const merch = g.units.find((u) => u.owner === 1 && u.type === "merchant");
-  ok("peaceful bot trains a merchant", !!merch);
-  if (merch) {
-    const dist = grid.chebyshev(g.tiles[merch.tileId], g.tiles[humanCap.tileId]);
-    ok("peaceful bot merchant heads to the human capital", dist <= 1 || dist < startDist);
-    ok("peaceful bot keeps exactly one merchant", g.units.filter((u) => u.owner === 1 && u.type === "merchant").length === 1);
+  for (const mapType of ["pangea", "continents"]) {
+    let g = generateGame({ tribe: "nature", opponents: 1, mapSize: 12, mapType, passAndPlay: false, seed: 7 });
+    g.difficulty = "peaceful";
+    g.players[1].techs = ["organisation", "roads", "construction", "trading"];
+    g.players[1].stars = 500;
+    g.players[1].provoked = false;
+    const humanCap = g.cities.find((c) => c.owner === 0 && c.isCapital);
+    for (let i = 0; i < 40; i++) {
+      g.units.filter((u) => u.owner === 1).forEach((u) => { u.moved = false; u.attacked = false; }); // simulate turn start (startPlayerTurn)
+      ai.runAiTurn(g, 1);
+    }
+    const merch = g.units.find((u) => u.owner === 1 && u.type === "merchant");
+    ok(`peaceful bot trains a merchant (${mapType})`, !!merch);
+    if (merch) {
+      const dist = grid.chebyshev(g.tiles[merch.tileId], g.tiles[humanCap.tileId]);
+      ok(`peaceful bot merchant parks beside the human capital (${mapType})`, dist <= 1);
+      ok(`peaceful bot keeps exactly one merchant (${mapType})`, g.units.filter((u) => u.owner === 1 && u.type === "merchant").length === 1);
+    }
   }
 }
 

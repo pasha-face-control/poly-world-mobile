@@ -83,7 +83,7 @@ export function hasDiscovered(state: GameState, player: number, tileId: number):
 }
 
 // Refresh fog after an action: closed games track per-player; otherwise reveal for the human (0).
-function refreshFog(state: GameState, actor: number) {
+export function refreshFog(state: GameState, actor: number) {
   if (state.closed) {
     revealFor(state, actor);
     applyFogForPlayer(state, state.currentPlayer);

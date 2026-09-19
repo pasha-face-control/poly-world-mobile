@@ -16,12 +16,13 @@ import {
   loadMerchant,
   moveUnit,
   reachableTiles,
+  refreshFog,
   research,
   setMerchantPrice,
   techCost,
   trainUnit,
 } from "./engine";
-import { RESOURCE_DEFS, TRIBE_MATERIAL, UNIT_DEFS } from "./data";
+import { RESOURCE_DEFS, TRIBE_MATERIAL, UNIT_DEFS, unitStats } from "./data";
 import { Difficulty, GameState, GoodType, Unit, UnitType } from "./types";
 import { neighbors, unitAt } from "./grid";
 
@@ -103,6 +104,51 @@ function tryAttack(state: GameState, unit: Unit): boolean {
   }
   return attackUnit(state, unit.id, target);
 }
+
+// A peaceful bot's trade caravan travels cross-country to the human's capital so the
+// player can buy from it (buying only needs the merchant's tile to be explored, which is
+// always true right beside a city). Normal move rules — climbing for mountains, ports for
+// water — are far too restrictive for a map-spanning trade run, so the caravan may cross
+// ANY terrain (it shows as a ship over water) and only has to avoid tiles held by another
+// unit. It parks on a free tile adjacent to the capital and then stays put to trade.
+function stepMerchantToward(state: GameState, m: Unit, capitalTileId: number): void {
+  if (chebyshev(state.tiles[m.tileId], state.tiles[capitalTileId]) <= 1) return; // already parked
+  // Breadth-first search toward the capital, routing around tiles occupied by other units.
+  const prev: Record<number, number> = {};
+  const seen = new Set<number>([m.tileId]);
+  const queue: number[] = [m.tileId];
+  let reached = false;
+  while (queue.length) {
+    const cur = queue.shift()!;
+    if (cur === capitalTileId) { reached = true; break; }
+    for (const n of neighbors(state, cur)) {
+      if (seen.has(n)) continue;
+      const occ = unitAt(state, n);
+      if (occ && occ.id !== m.id && n !== capitalTileId) continue; // can't pass through a unit
+      seen.add(n);
+      prev[n] = cur;
+      queue.push(n);
+    }
+  }
+  if (!reached) return;
+  // Rebuild the path [firstStep, ..., capital], then drop the capital so we stop beside it.
+  const path: number[] = [];
+  for (let t = capitalTileId; t !== m.tileId; t = prev[t]) path.push(t);
+  path.reverse();
+  path.pop();
+  // Advance several tiles per turn so the caravan actually reaches the player in good time.
+  const range = Math.max(3, unitStats(m).move);
+  let stepped = 0;
+  for (const next of path) {
+    if (stepped >= range) break;
+    if (unitAt(state, next)) break; // never stack onto another unit
+    m.tileId = next;
+    m.boat = state.tiles[next].terrain === "water" ? "sailing" : null; // ship on water, cart on land
+    stepped++;
+  }
+  if (stepped > 0) { m.moved = true; refreshFog(state, m.owner); }
+}
+
 
 export function runAiTurn(state: GameState, player: number) {
   const cfg = DIFF[state.difficulty] ?? DIFF.normal;
@@ -274,23 +320,9 @@ export function runAiTurn(state: GameState, player: number) {
     const own = ownedTerritory(state, player);
     const humanCap = state.cities.find((c) => c.owner === 0 && c.isCapital);
     if (humanCap) {
-      const capTile = state.tiles[humanCap.tileId];
       for (const m of state.units.filter((u) => u.owner === player && u.type === "merchant")) {
         if (m.moved) continue;
-        if (chebyshev(state.tiles[m.tileId], capTile) <= 1) continue; // parked beside the capital — stay and trade
-        const reach = reachableTiles(state, m);
-        if (!reach.length) {
-          // Blocked by water: put out to sea if this bot can (trade port + overseas trading).
-          if (!m.boat) embark(state, m.id);
-          continue;
-        }
-        let best: number | null = null;
-        let bestD = chebyshev(state.tiles[m.tileId], capTile); // only move if it gets us closer
-        for (const r of reach) {
-          const d = chebyshev(state.tiles[r], capTile);
-          if (d < bestD) { bestD = d; best = r; }
-        }
-        if (best != null) moveUnit(state, m.id, best);
+        stepMerchantToward(state, m, humanCap.tileId);
       }
     }
     for (const u of state.units.filter((x) => x.owner === player && x.type !== "merchant")) {
