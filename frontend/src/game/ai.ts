@@ -287,11 +287,11 @@ export function runAiTurn(state: GameState, player: number) {
 
   // 3d. Seafaring: coastal bots build a port so units can put out to sea.
   if (coastal && state.players[player].techs.includes("sailing")) {
-    const hasPort = state.tiles.some((t) => t.port && neighbors(state, t.id).some((n) => terr.has(n) && state.tiles[n].terrain !== "water"));
+    const hasPort = state.tiles.some((t) => t.port && terr.has(t.id));
     if (!hasPort) {
       for (const t of state.tiles) {
         if (t.terrain !== "water" || t.port) continue;
-        if (!neighbors(state, t.id).some((n) => terr.has(n) && state.tiles[n].terrain !== "water")) continue;
+        if (!terr.has(t.id)) continue; // ports may only be built on the bot's own sea cells
         if (doInfra(state, player, t.id, "port")) break;
       }
     }

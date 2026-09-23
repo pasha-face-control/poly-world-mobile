@@ -304,11 +304,13 @@ export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onC
         )}
       </Svg>
 
-      {buildings.map((b) => {
-        const moving = moveGhost?.id === b.id;
-        const r = rectFor(b.type, b.x, b.y);
-        if (r.src != null) {
-          return (
+      {/* Buildings and the citadel share one depth-sorted (back-to-front) draw pass so that
+          structures nearer the camera correctly occlude those behind them (painter's algorithm). */}
+      {(() => {
+        const items: { depth: number; node: React.ReactNode }[] = buildings.map((b) => {
+          const moving = moveGhost?.id === b.id;
+          const r = rectFor(b.type, b.x, b.y);
+          const node = r.src != null ? (
             <React.Fragment key={`img${b.id}`}>
               <Image source={r.src} pointerEvents="none" resizeMode="contain" style={{ position: "absolute", left: r.left, top: r.top, width: r.w, height: r.h, opacity: moving ? 0.3 : 1 }} />
               {b.type === "factory" && b.starved && (
@@ -317,14 +319,20 @@ export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onC
                 </View>
               )}
             </React.Fragment>
+          ) : (
+            <View key={`ic${b.id}`} pointerEvents="none" style={{ position: "absolute", left: r.left, top: r.mid.y - 20, opacity: moving ? 0.3 : 1 }}>
+              <MaterialCommunityIcons name={CITY_BUILDING_BY_ID[b.type].icon as any} size={24} color="#fff" />
+            </View>
           );
-        }
-        return (
-          <View key={`ic${b.id}`} pointerEvents="none" style={{ position: "absolute", left: r.left, top: r.mid.y - 20, opacity: moving ? 0.3 : 1 }}>
-            <MaterialCommunityIcons name={CITY_BUILDING_BY_ID[b.type].icon as any} size={24} color="#fff" />
-          </View>
-        );
-      })}
+          return { depth: r.footBottom, node };
+        });
+        items.push({
+          depth: baseBottom.y,
+          node: <Image key="citadel" source={CITADEL_SPRITES[stageKey]} pointerEvents="none" resizeMode="contain" style={{ position: "absolute", left: baseBottom.x - citW * 0.499, top: baseBottom.y - citH * 0.971, width: citW, height: citH }} />,
+        });
+        items.sort((a, b) => a.depth - b.depth);
+        return items.map((it) => it.node);
+      })()}
 
       {moveGhost && spriteFor(moveGhost.type) != null && (() => {
         const r = rectFor(moveGhost.type, moveGhost.x, moveGhost.y);
@@ -332,8 +340,6 @@ export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onC
       })()}
 
       {/* Selection & demolish taps are handled by the board's tap gesture (transform-aware). */}
-
-      <Image source={CITADEL_SPRITES[stageKey]} pointerEvents="none" resizeMode="contain" style={{ position: "absolute", left: baseBottom.x - citW * 0.499, top: baseBottom.y - citH * 0.971, width: citW, height: citH }} />
     </Animated.View>
   );
 

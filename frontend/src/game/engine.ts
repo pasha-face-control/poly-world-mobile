@@ -541,14 +541,12 @@ export function canInfra(state: GameState, player: number, tileId: number, infra
   } else if (infraId === "port") {
     if (tile.terrain !== "water") return { ok: false, reason: "Needs water" };
     if (tile.port) return { ok: false, reason: "Already a port" };
-    // must border land in one of your cities' territory
-    const adjOwned = neighbors(state, tileId).some((n) => state.tiles[n].terrain !== "water" && owningCityForTile(state, player, n));
-    if (!adjOwned) return { ok: false, reason: "Must border your land" };
+    // The water tile must be inside your own territory (buy the sea cell first to expand there).
+    if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };
   } else if (infraId === "trade_port") {
     if (tile.terrain !== "water") return { ok: false, reason: "Needs water" };
     if (tile.tradePort) return { ok: false, reason: "Already a trade port" };
-    const adjOwned = neighbors(state, tileId).some((n) => state.tiles[n].terrain !== "water" && owningCityForTile(state, player, n));
-    if (!adjOwned) return { ok: false, reason: "Must border your land" };
+    if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };
   } else if (infraId === "burn_forest") {
     if (tile.terrain !== "forest") return { ok: false, reason: "Needs forest" };
     if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };

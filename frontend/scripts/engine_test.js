@@ -128,16 +128,29 @@ if (forestAdj) {
 } else { console.log("SKIP burn (no forest adj)"); }
 
 // ---- Naval: build port + embark + upgrade ----
-// find a water tile adjacent to owned land in the capital's territory (try seeds until coastal)
+// Ports may only be built on a water tile inside the city's own territory.
 let portTile = null;
 const capTerr = [cap.tileId, ...engine.neighbors(s, cap.tileId)];
-for (const t of s.tiles) {
-  if (t.terrain !== "water" || t.port) continue;
-  const adj = engine.neighbors(s, t.id);
-  if (adj.some((n) => s.tiles[n].terrain !== "water" && capTerr.includes(n))) { portTile = t; break; }
+// Prefer a sea cell already in the capital's territory; otherwise buy (own) a bordering one.
+for (const id of capTerr) { if (s.tiles[id].terrain === "water" && !s.tiles[id].port) { portTile = s.tiles[id]; break; } }
+if (!portTile) {
+  for (const t of s.tiles) {
+    if (t.terrain !== "water" || t.port) continue;
+    if (engine.neighbors(s, t.id).some((n) => capTerr.includes(n))) {
+      if (!cap.expandedTiles) cap.expandedTiles = [];
+      cap.expandedTiles.push(t.id); // own the sea cell so a port can be built
+      portTile = t; break;
+    }
+  }
 }
 if (portTile) {
   if (!player.techs.includes("sailing")) player.techs.push("sailing");
+  // Ports are restricted to owned sea cells: a water tile outside territory is rejected.
+  const outsideWater = s.tiles.find((t) => t.terrain === "water" && !t.port && !capTerr.includes(t.id) && !(cap.expandedTiles ?? []).includes(t.id));
+  if (outsideWater) {
+    player.stars = 50; player.goods.wood = 40;
+    ok("port blocked on unowned sea cell", !engine.canInfra(s, P, outsideWater.id, "port").ok);
+  }
   // Wood-cost enforcement: port needs 10★ + 12 wood
   player.stars = 50; player.goods.wood = 5;
   ok("main port blocked without enough wood", !engine.canInfra(s, P, portTile.id, "port").ok);
@@ -176,11 +189,18 @@ if (portTile) {
 // ---- Trade Port: distinct build + merchant-only embark + wood cost (8★ + 10 wood) ----
 {
   let tpTile = null;
-  const capTerr2 = [cap.tileId, ...engine.neighbors(s, cap.tileId)];
-  for (const t of s.tiles) {
-    if (t.terrain !== "water" || t.port || t.tradePort) continue;
-    const adj = engine.neighbors(s, t.id);
-    if (adj.some((n) => s.tiles[n].terrain !== "water" && capTerr2.includes(n))) { tpTile = t; break; }
+  const capTerr2 = [cap.tileId, ...engine.neighbors(s, cap.tileId), ...(cap.expandedTiles ?? [])];
+  // Trade ports (like ports) may only sit on a sea cell inside the city's territory.
+  for (const id of capTerr2) { if (s.tiles[id].terrain === "water" && !s.tiles[id].port && !s.tiles[id].tradePort) { tpTile = s.tiles[id]; break; } }
+  if (!tpTile) {
+    for (const t of s.tiles) {
+      if (t.terrain !== "water" || t.port || t.tradePort) continue;
+      if (engine.neighbors(s, t.id).some((n) => capTerr2.includes(n))) {
+        if (!cap.expandedTiles) cap.expandedTiles = [];
+        cap.expandedTiles.push(t.id);
+        tpTile = t; break;
+      }
+    }
   }
   if (tpTile) {
     if (!player.techs.includes("trading_overseas")) player.techs.push("trading_overseas");
