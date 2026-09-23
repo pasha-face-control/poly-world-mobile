@@ -374,10 +374,15 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     const from = state.tiles[moveAnim.fromTileId];
     const to = state.tiles[moveAnim.toTileId];
     if (!unit || !from || !to) return;
+    // Match the static placement: units sit low on a mountain's near slope (see unitBaseY).
+    const fLift = from.terrain === "mountain" ? MH * 0.3 : 0;
+    const tLift = to.terrain === "mountain" ? MH * 0.3 : 0;
     const [fvx, fvy] = toView(from.x, from.y);
-    const [fx, fy] = project(fvx, fvy);
+    const [fx, fy0] = project(fvx, fvy);
+    const fy = fy0 - fLift;
     const [tvx, tvy] = toView(to.x, to.y);
-    const [txp, typ] = project(tvx, tvy);
+    const [txp, typ0] = project(tvx, tvy);
+    const typ = typ0 - tLift;
     animPos.current = { x: txp, y: typ };
     animOffX.value = fx - txp;
     animOffY.value = fy - typ;
@@ -582,6 +587,9 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     // 3D pieces (drawn in depth order with terrain)
     const tokLift = t.terrain === "mountain" ? HH + MH * 0.55 : 0;
     const surfY = cy - tokLift;
+    // Units on a mountain stand low on the near slope (over the tile's tappable diamond) instead
+    // of perched on the peak, so players tap the cell they actually see.
+    const unitSurfY = t.terrain === "mountain" ? cy - MH * 0.3 : surfY;
     const city = t.cityId ? state.cities.find((c) => c.id === t.cityId) : undefined;
     const unit = state.units.find((u) => u.tileId === t.id);
     if (t.port && !city) drawDock(terrainShapes, cx, surfY, k);
@@ -589,8 +597,8 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     if (city) drawCity(terrainShapes, cx, surfY, playerColor(state, city.owner), city.isCapital, k);
     else if (t.isVillage) drawCity(terrainShapes, cx, surfY, t.claimBy != null ? playerColor(state, t.claimBy) : C.borderStrong, false, k);
     if (unit && !city && unit.id !== animUnit?.id) {
-      if (unit.boat) { if (!BOAT_SPRITES[unit.boat]) drawBoat(terrainShapes, cx, surfY, playerColor(state, unit.owner), unit.boat, k); }
-      else if (!MODEL_SPRITES[unit.type]) drawUnit(terrainShapes, cx, surfY, playerColor(state, unit.owner), k);
+      if (unit.boat) { if (!BOAT_SPRITES[unit.boat]) drawBoat(terrainShapes, cx, unitSurfY, playerColor(state, unit.owner), unit.boat, k); }
+      else if (!MODEL_SPRITES[unit.type]) drawUnit(terrainShapes, cx, unitSurfY, playerColor(state, unit.owner), k);
     } else if (!city && t.resource === "animal" && !t.building) drawBull(terrainShapes, cx - 4, surfY, k);
   }
 
@@ -608,6 +616,8 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
             const [cx, cy] = project(vx, vy);
             const lift = t.terrain === "mountain" ? HH + MH * 0.55 : 0;
             const baseY = cy - lift;
+            // Units sit low on a mountain's near slope (over the tappable diamond), not on the peak.
+            const unitBaseY = t.terrain === "mountain" ? cy - MH * 0.3 : baseY;
             const unit = state.units.find((u) => u.tileId === t.id);
             const city = t.cityId ? state.cities.find((c) => c.id === t.cityId) : undefined;
             const pc = unit ? playerColor(state, unit.owner) : "#000";
@@ -664,7 +674,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                         <Image
                           source={src}
                           pointerEvents="none"
-                          style={{ position: "absolute", left: cx - sz.w / 2, top: baseY + 6 - sz.h, width: sz.w, height: sz.h, transform: [{ scaleX: flip }] }}
+                          style={{ position: "absolute", left: cx - sz.w / 2, top: unitBaseY + 6 - sz.h, width: sz.w, height: sz.h, transform: [{ scaleX: flip }] }}
                           resizeMode="contain"
                         />
                       );
@@ -673,7 +683,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                       <Image
                         source={modelSprite(state, unit.owner, unit.type)!}
                         pointerEvents="none"
-                        style={{ position: "absolute", left: cx - 40, top: baseY - 54, width: 80, height: 66 }}
+                        style={{ position: "absolute", left: cx - 40, top: unitBaseY - 54, width: 80, height: 66 }}
                         resizeMode="contain"
                       />
                     )}
@@ -682,14 +692,14 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                         name={(unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon) as any}
                         size={17}
                         color="#FFFFFF"
-                        style={{ position: "absolute", left: cx - 8.5, top: (!unit.boat && MODEL_SPRITES[unit.type] ? baseY - 66 : baseY - 24) }}
+                        style={{ position: "absolute", left: cx - 8.5, top: (!unit.boat && MODEL_SPRITES[unit.type] ? unitBaseY - 66 : unitBaseY - 24) }}
                       />
                     )}
-                    <View style={[styles.hpBarBg, { left: cx - 14, top: baseY + 5 }]}>
+                    <View style={[styles.hpBarBg, { left: cx - 14, top: unitBaseY + 5 }]}>
                       <View style={[styles.hpBar, { width: `${Math.max(0, (unit.hp / unit.maxHp) * 100)}%` }]} />
                     </View>
-                    {unit.moved && unit.attacked && <View style={[styles.doneDot, { left: cx + 9, top: baseY - 30 }]} />}
-                    {selectedTileId === t.id && <View style={[styles.selRing, { left: cx - 6, top: baseY - 40, borderColor: pc }]} />}
+                    {unit.moved && unit.attacked && <View style={[styles.doneDot, { left: cx + 9, top: unitBaseY - 30 }]} />}
+                    {selectedTileId === t.id && <View style={[styles.selRing, { left: cx - 6, top: unitBaseY - 40, borderColor: pc }]} />}
                   </>
                 )}
               </React.Fragment>
