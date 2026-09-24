@@ -11,6 +11,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from mpl_toolkits.mplot3d import proj3d
 from PIL import Image
 
 BASE = "/tmp/model"
@@ -99,19 +100,48 @@ def draw(R, cols, hasc, L):
     except Exception:
         pass
     fig.canvas.draw()
-    w, h = fig.canvas.get_width_height()
-    argb = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8).reshape(h, w, 4)
-    plt.close(fig)
-    return Image.fromarray(argb.copy(), "RGBA")
+    return fig, ax
+
+
+def footprint_px(ax, fig, R):
+    """Pixel bounds (top-left origin) of the model's GROUND plot (low-z XY extent),
+    so the sprite can be scaled/anchored on the tile by its footprint, not its full box."""
+    flat = R.reshape(-1, 3)
+    zmax = float(flat[:, 2].max()) or 1.0
+    ground = flat[flat[:, 2] <= 0.12 * zmax]
+    if len(ground) < 4:
+        ground = flat
+    x0, x1 = ground[:, 0].min(), ground[:, 0].max()
+    y0, y1 = ground[:, 1].min(), ground[:, 1].max()
+    corners = np.array([[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y1, 0]], float)
+    xs, ys, _ = proj3d.proj_transform(corners[:, 0], corners[:, 1], corners[:, 2], ax.get_proj())
+    disp = ax.transData.transform(np.column_stack([xs, ys]))  # display px, origin bottom-left
+    H = fig.canvas.get_width_height()[1]
+    px = disp[:, 0]; py = H - disp[:, 1]  # to top-left origin
+    return px.min(), px.max(), py.min(), py.max()
+
 
 
 os.makedirs(ASSETS, exist_ok=True)
+meta = {}
 for name in MODELS:
     R, cols, hasc = load(name)
     flat = R.reshape(-1, 3)
     L = max(2 * np.abs(flat[:, :2]).max(), flat[:, 2].max()) * 1.05
-    print(f"{name}: tris={len(R)} L={L:.2f} blank={100*np.mean([is_blank(c) for c in cols]):.0f}% z={flat[:,2].max():.2f} xy={np.abs(flat[:,:2]).max():.2f}")
-    im = draw(R, cols, hasc, L)
-    bb = im.getbbox()
+    fig, ax = draw(R, cols, hasc, L)
+    fx0, fx1, fy0, fy1 = footprint_px(ax, fig, R)
+    w, h = fig.canvas.get_width_height()
+    argb = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8).reshape(h, w, 4)
+    plt.close(fig)
+    im = Image.fromarray(argb.copy(), "RGBA")
+    bb = im.getbbox()  # (left, upper, right, lower)
     im.crop(bb).save(os.path.join(ASSETS, name + ".png"))
+    cw, ch = bb[2] - bb[0], bb[3] - bb[1]
+    # Footprint bounds relative to the CROPPED sprite, as fractions of its width/height.
+    footW = (fx1 - fx0) / cw
+    fcx = ((fx0 + fx1) / 2 - bb[0]) / cw   # footprint centre x (fraction of sprite width)
+    fcy = ((fy0 + fy1) / 2 - bb[1]) / ch   # footprint centre y (fraction of sprite height)
+    meta[name] = {"w": cw, "h": ch, "footW": round(footW, 4), "fcx": round(fcx, 4), "fcy": round(fcy, 4)}
+    print(f"{name}: crop={cw}x{ch} footW={footW:.3f} fcx={fcx:.3f} fcy={fcy:.3f}")
+json.dump(meta, open(os.path.join(ASSETS, "meta.json"), "w"), indent=1)
 print("done")

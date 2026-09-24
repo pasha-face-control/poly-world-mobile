@@ -124,8 +124,13 @@ const FARM_SPRITES: Record<string, number> = {
   bull_farm: require("../../assets/images/farms/bullfarm.png"),
   horse_farm: require("../../assets/images/farms/horse_farm.png"),
 };
-const FARM_ASPECT: Record<string, number> = { wheat_farm: 0.556, bull_farm: 0.5104, horse_farm: 0.5073 };
-const FARM_W = 86; // farm sprite width on a world tile
+// Per-model footprint metadata (fractions of the sprite) so each farm's ground plot maps to
+// exactly one cell: footW = footprint width / sprite width; fcx/fcy = footprint centre.
+const FARM_META: Record<string, { w: number; h: number; footW: number; fcx: number; fcy: number }> = {
+  wheat_farm: require("../../assets/images/farms/meta.json").wheat_farm,
+  bull_farm: require("../../assets/images/farms/meta.json").bullfarm,
+  horse_farm: require("../../assets/images/farms/meta.json").horse_farm,
+};
 
 interface Props {
   state: GameState;
@@ -642,14 +647,19 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                   <MaterialCommunityIcons name="pine-tree" size={26} color="#CBD6AE" style={{ position: "absolute", left: cx - 13, top: baseY - 24 }} />
                 )}
                 {t.building && !city && !unit && (
-                  FARM_SPRITES[t.building] ? (
-                    <Image
-                      source={FARM_SPRITES[t.building]}
-                      pointerEvents="none"
-                      style={{ position: "absolute", left: cx - FARM_W / 2, top: cy + HH - FARM_W * FARM_ASPECT[t.building], width: FARM_W, height: FARM_W * FARM_ASPECT[t.building] }}
-                      resizeMode="contain"
-                    />
-                  ) : (
+                  FARM_SPRITES[t.building] && FARM_META[t.building] ? (() => {
+                    const m = FARM_META[t.building];
+                    const sc = (2 * HW) / (m.footW * m.w); // scale so the footprint == one cell wide
+                    const sw = m.w * sc, sh = m.h * sc;
+                    return (
+                      <Image
+                        source={FARM_SPRITES[t.building]}
+                        pointerEvents="none"
+                        style={{ position: "absolute", left: cx - m.fcx * sw, top: cy - m.fcy * sh, width: sw, height: sh }}
+                        resizeMode="contain"
+                      />
+                    );
+                  })() : (
                     <View style={[styles.building, { left: cx - 15, top: baseY - 30, backgroundColor: BUILDING_BY_ID[t.building]?.color ?? C.brand }]}>
                       <GameIcon name={BUILDING_BY_ID[t.building]?.icon ?? "home"} size={18} color="#fff" />
                     </View>
