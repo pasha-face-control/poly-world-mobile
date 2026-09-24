@@ -118,6 +118,14 @@ const HW = TILE / 2;
 const HH = TILE / 4;
 const PAD = TILE * 1.4;
 const MH = 46; // mountain pyramid height
+// World-map farm plots: pre-rendered isometric 3D sprites (replace the plain icon badge).
+const FARM_SPRITES: Record<string, number> = {
+  wheat_farm: require("../../assets/images/farms/wheat_farm.png"),
+  bull_farm: require("../../assets/images/farms/bullfarm.png"),
+  horse_farm: require("../../assets/images/farms/horse_farm.png"),
+};
+const FARM_ASPECT: Record<string, number> = { wheat_farm: 0.556, bull_farm: 0.5104, horse_farm: 0.5073 };
+const FARM_W = 86; // farm sprite width on a world tile
 
 interface Props {
   state: GameState;
@@ -634,9 +642,18 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                   <MaterialCommunityIcons name="pine-tree" size={26} color="#CBD6AE" style={{ position: "absolute", left: cx - 13, top: baseY - 24 }} />
                 )}
                 {t.building && !city && !unit && (
-                  <View style={[styles.building, { left: cx - 15, top: baseY - 30, backgroundColor: BUILDING_BY_ID[t.building]?.color ?? C.brand }]}>
-                    <GameIcon name={BUILDING_BY_ID[t.building]?.icon ?? "home"} size={18} color="#fff" />
-                  </View>
+                  FARM_SPRITES[t.building] ? (
+                    <Image
+                      source={FARM_SPRITES[t.building]}
+                      pointerEvents="none"
+                      style={{ position: "absolute", left: cx - FARM_W / 2, top: cy + HH - FARM_W * FARM_ASPECT[t.building], width: FARM_W, height: FARM_W * FARM_ASPECT[t.building] }}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <View style={[styles.building, { left: cx - 15, top: baseY - 30, backgroundColor: BUILDING_BY_ID[t.building]?.color ?? C.brand }]}>
+                      <GameIcon name={BUILDING_BY_ID[t.building]?.icon ?? "home"} size={18} color="#fff" />
+                    </View>
+                  )
                 )}
                 {t.resource && t.resource !== "animal" && !city && !unit && !t.building && (
                   <View style={[styles.resourceBadge, { left: cx + 6, top: baseY - 16 }]}>
