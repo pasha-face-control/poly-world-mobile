@@ -17,6 +17,9 @@ from PIL import Image
 BASE = "/tmp/model"
 ASSETS = os.path.join(os.path.dirname(__file__), "..", "assets", "images", "farms")
 MODELS = ["wheat_farm", "horse_farm", "bullfarm"]
+# A few models have a big soil/ground quad that occludes their sparse detail geometry from the
+# top-down iso view; paint the whole plot its signature colour so it reads correctly.
+FIELD_COLOR = {"wheat_farm": [1.0, 0.78, 0.12]}
 NEUTRAL = np.array([0.62, 0.6, 0.56])
 
 COMP = {5120: ("b", 1), 5121: ("B", 1), 5122: ("h", 2), 5123: ("H", 2), 5125: ("I", 4), 5126: ("f", 4)}
@@ -78,21 +81,11 @@ def is_blank(c):
     return bool(np.all(np.abs(c - 0.8) < 0.03))
 
 
-def draw(R, cols, hasc, L):
-    polys = []; fc = []
-    for t, c, h in zip(R, cols, hasc):
-        n = np.cross(t[1] - t[0], t[2] - t[0]); ln = np.linalg.norm(n)
-        base = NEUTRAL if (not h or is_blank(c)) else c
-        b = 0.6 if ln == 0 else 0.55 + 0.45 * max(0.0, float(np.dot(n / ln, LIGHT)))
-        polys.append(t); fc.append(np.clip(base * b, 0, 1).tolist() + [1.0])
-    fig = plt.figure(figsize=(5, 5), dpi=120); fig.patch.set_alpha(0.0)
-    ax = fig.add_axes([0, 0, 1, 1], projection="3d"); ax.patch.set_alpha(0.0)
-    try:
-        ax.set_facecolor((0, 0, 0, 0))
-        for pane in (ax.xaxis, ax.yaxis, ax.zaxis): pane.set_pane_color((0, 0, 0, 0))
-    except Exception:
-        pass
-    ax.add_collection3d(Poly3DCollection(polys, facecolors=fc, edgecolors=(0, 0, 0, 0.15), linewidths=0.15))
+def project(R, L):
+    """Return per-vertex pixel coords (top-left origin) + depth, plus the axes/fig for the
+    footprint helper. Uses matplotlib ONLY for the ortho iso projection matrix."""
+    fig = plt.figure(figsize=(5, 5), dpi=120)
+    ax = fig.add_axes([0, 0, 1, 1], projection="3d")
     ax.set_xlim(-L / 2, L / 2); ax.set_ylim(-L / 2, L / 2); ax.set_zlim(0, L)
     ax.set_box_aspect((1, 1, 1)); ax.view_init(elev=30, azim=-45); ax.set_axis_off()
     try:
@@ -100,12 +93,65 @@ def draw(R, cols, hasc, L):
     except Exception:
         pass
     fig.canvas.draw()
-    return fig, ax
+    M = ax.get_proj()
+    W, H = fig.canvas.get_width_height()
+    V = R.reshape(-1, 3)
+    xs, ys, zs = proj3d.proj_transform(V[:, 0], V[:, 1], V[:, 2], M)
+    disp = ax.transData.transform(np.column_stack([xs, ys]))
+    px = disp[:, 0]; py = H - disp[:, 1]  # top-left origin
+    P = np.column_stack([px, py]).reshape(-1, 3, 2)
+    Z = zs.reshape(-1, 3)
+    return P, Z, W, H, ax, fig
 
 
-def footprint_px(ax, fig, R):
-    """Pixel bounds (top-left origin) of the model's GROUND plot (low-z XY extent),
-    so the sprite can be scaled/anchored on the tile by its footprint, not its full box."""
+def tri_colors(R, cols, hasc, override=None):
+    n = np.cross(R[:, 1] - R[:, 0], R[:, 2] - R[:, 0])
+    ln = np.linalg.norm(n, axis=1); ln[ln == 0] = 1.0
+    bright = 0.68 + 0.32 * np.abs((n / ln[:, None]) @ LIGHT)  # |n·light|: winding-independent
+    if override is not None:
+        base = np.tile(np.array(override, float), (len(cols), 1))
+    else:
+        blank = np.array([(not h) or is_blank(c) for c, h in zip(cols, hasc)])
+        base = np.where(blank[:, None], NEUTRAL, np.array(cols))
+    rgb = np.clip(base * bright[:, None], 0, 1)
+    return (rgb * 255).astype(np.uint8)
+
+
+def rasterize(P, Z, rgb, W, H):
+    """Flat-shaded triangle rasteriser with a real z-buffer (nearer = larger projected z)."""
+    img = np.zeros((H, W, 4), np.uint8)
+    zbuf = np.full((H, W), -np.inf)
+    for i in range(len(P)):
+        (x0, y0), (x1, y1), (x2, y2) = P[i]
+        minx = int(np.floor(min(x0, x1, x2))); maxx = int(np.ceil(max(x0, x1, x2)))
+        miny = int(np.floor(min(y0, y1, y2))); maxy = int(np.ceil(max(y0, y1, y2)))
+        minx = max(minx, 0); miny = max(miny, 0); maxx = min(maxx, W - 1); maxy = min(maxy, H - 1)
+        if minx > maxx or miny > maxy:
+            continue
+        denom = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2)
+        if denom == 0:
+            continue
+        gx, gy = np.meshgrid(np.arange(minx, maxx + 1), np.arange(miny, maxy + 1))
+        a = ((y1 - y2) * (gx - x2) + (x2 - x1) * (gy - y2)) / denom
+        b = ((y2 - y0) * (gx - x2) + (x0 - x2) * (gy - y2)) / denom
+        c = 1 - a - b
+        inside = (a >= -1e-6) & (b >= -1e-6) & (c >= -1e-6)
+        if not inside.any():
+            continue
+        z0, z1, z2 = Z[i]
+        z = a * z0 + b * z1 + c * z2
+        sub = zbuf[miny:maxy + 1, minx:maxx + 1]
+        upd = inside & (z > sub)
+        if not upd.any():
+            continue
+        sub[upd] = z[upd]
+        blk = img[miny:maxy + 1, minx:maxx + 1]
+        blk[upd, 0] = rgb[i, 0]; blk[upd, 1] = rgb[i, 1]; blk[upd, 2] = rgb[i, 2]; blk[upd, 3] = 255
+    return img
+
+
+def footprint_px(ax, H, R):
+    """Pixel bounds (top-left origin) of the model's GROUND plot (low-z XY extent)."""
     flat = R.reshape(-1, 3)
     zmax = float(flat[:, 2].max()) or 1.0
     ground = flat[flat[:, 2] <= 0.12 * zmax]
@@ -115,11 +161,9 @@ def footprint_px(ax, fig, R):
     y0, y1 = ground[:, 1].min(), ground[:, 1].max()
     corners = np.array([[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y1, 0]], float)
     xs, ys, _ = proj3d.proj_transform(corners[:, 0], corners[:, 1], corners[:, 2], ax.get_proj())
-    disp = ax.transData.transform(np.column_stack([xs, ys]))  # display px, origin bottom-left
-    H = fig.canvas.get_width_height()[1]
-    px = disp[:, 0]; py = H - disp[:, 1]  # to top-left origin
+    disp = ax.transData.transform(np.column_stack([xs, ys]))
+    px = disp[:, 0]; py = H - disp[:, 1]
     return px.min(), px.max(), py.min(), py.max()
-
 
 
 os.makedirs(ASSETS, exist_ok=True)
@@ -128,19 +172,18 @@ for name in MODELS:
     R, cols, hasc = load(name)
     flat = R.reshape(-1, 3)
     L = max(2 * np.abs(flat[:, :2]).max(), flat[:, 2].max()) * 1.05
-    fig, ax = draw(R, cols, hasc, L)
-    fx0, fx1, fy0, fy1 = footprint_px(ax, fig, R)
-    w, h = fig.canvas.get_width_height()
-    argb = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8).reshape(h, w, 4)
+    P, Z, W, H, ax, fig = project(R, L)
+    rgb = tri_colors(R, cols, hasc, FIELD_COLOR.get(name))
+    img = rasterize(P, Z, rgb, W, H)
+    fx0, fx1, fy0, fy1 = footprint_px(ax, H, R)
     plt.close(fig)
-    im = Image.fromarray(argb.copy(), "RGBA")
+    im = Image.fromarray(img, "RGBA")
     bb = im.getbbox()  # (left, upper, right, lower)
     im.crop(bb).save(os.path.join(ASSETS, name + ".png"))
     cw, ch = bb[2] - bb[0], bb[3] - bb[1]
-    # Footprint bounds relative to the CROPPED sprite, as fractions of its width/height.
     footW = (fx1 - fx0) / cw
-    fcx = ((fx0 + fx1) / 2 - bb[0]) / cw   # footprint centre x (fraction of sprite width)
-    fcy = ((fy0 + fy1) / 2 - bb[1]) / ch   # footprint centre y (fraction of sprite height)
+    fcx = ((fx0 + fx1) / 2 - bb[0]) / cw
+    fcy = ((fy0 + fy1) / 2 - bb[1]) / ch
     meta[name] = {"w": cw, "h": ch, "footW": round(footW, 4), "fcx": round(fcx, 4), "fcy": round(fcy, 4)}
     print(f"{name}: crop={cw}x{ch} footW={footW:.3f} fcx={fcx:.3f} fcy={fcy:.3f}")
 json.dump(meta, open(os.path.join(ASSETS, "meta.json"), "w"), indent=1)
