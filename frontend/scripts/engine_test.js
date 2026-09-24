@@ -518,6 +518,13 @@ if (anyWater) {
   const ring = (r) => g.tiles.filter((t) => Math.max(Math.abs(t.x - ct.x), Math.abs(t.y - ct.y)) === r).map((t) => t.id);
   const r2 = ring(2), r3 = ring(3);
 
+  // Fog gate: a tier-2 tile that has NOT been discovered cannot be bought.
+  const fogTile = r2[0];
+  g.tiles[fogTile].explored = false;
+  ok("undiscovered (fogged) tile is NOT buyable", engine.expansionOptionForTile(g, 0, fogTile) === null);
+  // Once discovered (scouted), the same tiles become buyable — simulate exploration.
+  for (const tid of [...r2, ...r3]) g.tiles[tid].explored = true;
+
   const r2buyable = r2.filter((tid) => engine.expansionOptionForTile(g, 0, tid));
   ok("tier 2 tiles are buyable at 5 stars", r2buyable.length > 0 && r2buyable.every((tid) => { const o = engine.expansionOptionForTile(g, 0, tid); return o.cost === 5 && o.tier === 2; }));
   ok("tier 3 tiles are LOCKED until tier 2 is fully bought", r3.every((tid) => engine.expansionOptionForTile(g, 0, tid) === null));

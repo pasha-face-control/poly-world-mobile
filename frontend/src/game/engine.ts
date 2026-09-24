@@ -439,6 +439,7 @@ export function expansionOptionForTile(
   tileId: number,
 ): { cityId: string; tier: number; cost: number } | null {
   if (cityControllingTile(state, tileId)) return null; // already owned by some city
+  if (!hasDiscovered(state, player, tileId)) return null; // can't buy a fogged/undiscovered cell
   const tile = state.tiles[tileId];
   let best: { cityId: string; tier: number; cost: number } | null = null;
   for (const c of state.cities) {
