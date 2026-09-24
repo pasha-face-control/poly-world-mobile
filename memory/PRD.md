@@ -112,6 +112,9 @@ Build a game similar to The Battle of Polytopia. Client-side, local persistence.
 - Merchant & Merchant Ship trading: 4/8 inventory slots, load goods, set prices, trade sign for other players; bots buy-only, can't attack merchants.
 - Ore-site research (coal/iron/gold) revealing mine sites.
 
+## Engine verification
+- **Farm sprites fixed (depth bug)** — the previous `render_farms.py` used matplotlib's projection matrix for per-pixel depth, which is NOT a reliable camera distance, so the large flat green ground quad drew OVER the barn/fences/animals (farms looked like an empty green diamond). Rewrote `scripts/render_farms.py` to drop matplotlib entirely and use a SELF-COMPUTED orthographic isometric camera (manual right/up/forward basis, ELEV=30/AZIM=-45); depth = `vertex·cam` (larger = nearer) feeds the existing z-buffer rasteriser. Removed the flat `FIELD_COLOR` wheat override (raw per-vertex colours now used) so the golden wheat field + soil border render like the reference. Full plot kept (green pasture + white fence + barn + animals) at a 1×1 cell footprint. Re-generated `assets/images/farms/{wheat_farm,horse_farm,bullfarm}.png` + `meta.json` (footW≈0.998, centred) — `GameMap.tsx` FARM_SPRITES/FARM_META unchanged. Verified: horse & bull farms now show barn+fence+animals matching the user's reference images; wheat shows the golden field. `node scripts/engine_test.js` still 200/200; app boots to menu.
+
 ## Backlog / Next
 - Build the goods economy + resource top-bar (foundation for buildings, unit costs, trading).
 - Then buildings & per-turn production, then naval + upgrades, then merchant trading UI.

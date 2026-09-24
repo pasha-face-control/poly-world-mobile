@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
-"""Render the world-map farm models (wheat/horse/bull) to 2D isometric sprites,
-matching the unit/building pipeline (ortho, elev=30, azim=-45). Vertex colours
-(COLOR_0) are kept as-is. Unlike city buildings, the ground field/base IS kept so
-each farm reads as a little plot sitting on the grass tile.
-Output: assets/images/farms/<name>.png
+"""Render the world-map farm models (wheat/horse/bull) to 2D isometric sprites.
+
+Unlike the older version, this uses a SELF-COMPUTED orthographic isometric camera
+(manual right/up/forward basis) so per-pixel depth is a real camera distance. That
+fixes the bug where matplotlib's projection "z" was not a reliable depth, letting the
+big flat green ground quad draw OVER the barn / fences / animals.
+
+The whole plot (green pasture + white fence + barn + animals) is kept so each farm
+reads exactly like the reference renders. Per-vertex colours (COLOR_0) are used as-is.
+Output: assets/images/farms/<name>.png  + meta.json (footprint fractions for 1x1 grid).
 """
 import os, json, struct
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from mpl_toolkits.mplot3d import proj3d
 from PIL import Image
 
 BASE = "/tmp/model"
 ASSETS = os.path.join(os.path.dirname(__file__), "..", "assets", "images", "farms")
 MODELS = ["wheat_farm", "horse_farm", "bullfarm"]
-# A few models have a big soil/ground quad that occludes their sparse detail geometry from the
-# top-down iso view; paint the whole plot its signature colour so it reads correctly.
-FIELD_COLOR = {"wheat_farm": [1.0, 0.78, 0.12]}
-NEUTRAL = np.array([0.62, 0.6, 0.56])
+
+ELEV, AZIM = 30.0, -45.0          # match the rest of the sprite pipeline (2:1 iso)
+PAD = 8                            # px padding around the model
+TARGET = 560                      # target longest screen dimension (px)
 
 COMP = {5120: ("b", 1), 5121: ("B", 1), 5122: ("h", 2), 5123: ("H", 2), 5125: ("I", 4), 5126: ("f", 4)}
 NUM = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}
@@ -52,7 +52,7 @@ def load(name):
         if "scale" in node: S = np.eye(4); S[0, 0], S[1, 1], S[2, 2] = node["scale"]; M = M @ S
         return M
 
-    tris = []; cols = []; hasc = []
+    tris = []; cols = []
     sc = d.get("scenes", [{}])[d.get("scene", 0)]
 
     def walk(ni, par):
@@ -64,61 +64,44 @@ def load(name):
                 col = acc(p["attributes"]["COLOR_0"])[:, :3] if has else np.ones((len(pos), 3))
                 wp = (wm @ np.column_stack([pos, np.ones(len(pos))]).T).T[:, :3]
                 idx = acc(p["indices"]).astype(int).ravel()
-                for f in range(0, len(idx), 3):
-                    a, b, c = idx[f], idx[f + 1], idx[f + 2]
-                    tris.append(wp[[a, b, c]]); cols.append(col[[a, b, c]].mean(0)); hasc.append(has)
+                a = idx[0::3]; b = idx[1::3]; c = idx[2::3]
+                n = min(len(a), len(b), len(c))
+                t = np.stack([wp[a[:n]], wp[b[:n]], wp[c[:n]]], axis=1)     # (F,3,3)
+                cc = (col[a[:n]] + col[b[:n]] + col[c[:n]]) / 3.0            # (F,3)
+                tris.append(t); cols.append(cc)
         for ch in node.get("children", []): walk(ch, wm)
 
     for ni in sc.get("nodes", []): walk(ni, np.eye(4))
-    tris = np.array(tris); cols = np.array(cols); hasc = np.array(hasc)
-    R = np.column_stack([tris.reshape(-1, 3)[:, 0], tris.reshape(-1, 3)[:, 2], tris.reshape(-1, 3)[:, 1]]).reshape(tris.shape)
-    mn = R.reshape(-1, 3).min(0); mx = R.reshape(-1, 3).max(0)
-    R[:, :, 0] -= (mn[0] + mx[0]) / 2; R[:, :, 1] -= (mn[1] + mx[1]) / 2; R[:, :, 2] -= mn[2]
-    return R, cols, hasc
+    tris = np.concatenate(tris, 0); cols = np.concatenate(cols, 0)
+    # gltf is Y-up; convert to Z-up (newX=x, newY=z, newZ=y) then rest on z=0
+    R = np.stack([tris[:, :, 0], tris[:, :, 2], tris[:, :, 1]], axis=2)
+    flat = R.reshape(-1, 3)
+    mn = flat.min(0); mx = flat.max(0)
+    R[:, :, 0] -= (mn[0] + mx[0]) / 2
+    R[:, :, 1] -= (mn[1] + mx[1]) / 2
+    R[:, :, 2] -= mn[2]
+    return R, cols
 
 
-def is_blank(c):
-    return bool(np.all(np.abs(c - 0.8) < 0.03))
+def camera_basis():
+    er, ar = np.radians(ELEV), np.radians(AZIM)
+    cam = np.array([np.cos(er) * np.cos(ar), np.cos(er) * np.sin(ar), np.sin(er)])  # points toward camera
+    cam /= np.linalg.norm(cam)
+    right = np.cross(np.array([0.0, 0.0, 1.0]), cam); right /= np.linalg.norm(right)
+    up = np.cross(cam, right); up /= np.linalg.norm(up)
+    return right, up, cam
 
 
-def project(R, L):
-    """Return per-vertex pixel coords (top-left origin) + depth, plus the axes/fig for the
-    footprint helper. Uses matplotlib ONLY for the ortho iso projection matrix."""
-    fig = plt.figure(figsize=(5, 5), dpi=120)
-    ax = fig.add_axes([0, 0, 1, 1], projection="3d")
-    ax.set_xlim(-L / 2, L / 2); ax.set_ylim(-L / 2, L / 2); ax.set_zlim(0, L)
-    ax.set_box_aspect((1, 1, 1)); ax.view_init(elev=30, azim=-45); ax.set_axis_off()
-    try:
-        ax.set_proj_type("ortho")  # 2:1 isometric to match the world grid
-    except Exception:
-        pass
-    fig.canvas.draw()
-    M = ax.get_proj()
-    W, H = fig.canvas.get_width_height()
-    V = R.reshape(-1, 3)
-    xs, ys, zs = proj3d.proj_transform(V[:, 0], V[:, 1], V[:, 2], M)
-    disp = ax.transData.transform(np.column_stack([xs, ys]))
-    px = disp[:, 0]; py = H - disp[:, 1]  # top-left origin
-    P = np.column_stack([px, py]).reshape(-1, 3, 2)
-    Z = zs.reshape(-1, 3)
-    return P, Z, W, H, ax, fig
-
-
-def tri_colors(R, cols, hasc, override=None):
+def tri_colors(R, cols):
     n = np.cross(R[:, 1] - R[:, 0], R[:, 2] - R[:, 0])
     ln = np.linalg.norm(n, axis=1); ln[ln == 0] = 1.0
-    bright = 0.68 + 0.32 * np.abs((n / ln[:, None]) @ LIGHT)  # |n·light|: winding-independent
-    if override is not None:
-        base = np.tile(np.array(override, float), (len(cols), 1))
-    else:
-        blank = np.array([(not h) or is_blank(c) for c, h in zip(cols, hasc)])
-        base = np.where(blank[:, None], NEUTRAL, np.array(cols))
-    rgb = np.clip(base * bright[:, None], 0, 1)
+    bright = 0.72 + 0.28 * np.abs((n / ln[:, None]) @ LIGHT)  # gentle, winding-independent shading
+    rgb = np.clip(cols * bright[:, None], 0, 1)
     return (rgb * 255).astype(np.uint8)
 
 
 def rasterize(P, Z, rgb, W, H):
-    """Flat-shaded triangle rasteriser with a real z-buffer (nearer = larger projected z)."""
+    """Flat-shaded triangle rasteriser with a real z-buffer (nearer camera = larger depth)."""
     img = np.zeros((H, W, 4), np.uint8)
     zbuf = np.full((H, W), -np.inf)
     for i in range(len(P)):
@@ -150,33 +133,39 @@ def rasterize(P, Z, rgb, W, H):
     return img
 
 
-def footprint_px(ax, H, R):
-    """Pixel bounds (top-left origin) of the model's GROUND plot (low-z XY extent)."""
+os.makedirs(ASSETS, exist_ok=True)
+right, up, cam = camera_basis()
+meta = {}
+for name in MODELS:
+    R, cols = load(name)
     flat = R.reshape(-1, 3)
+    sx = flat @ right; sy = flat @ up
+    sxmin, sxmax = sx.min(), sx.max(); symin, symax = sy.min(), sy.max()
+    S = TARGET / max(sxmax - sxmin, symax - symin)
+    W = int(np.ceil((sxmax - sxmin) * S)) + 2 * PAD
+    H = int(np.ceil((symax - symin) * S)) + 2 * PAD
+
+    def to_px(pts):  # world (N,3) -> pixel (N,2), top-left origin
+        vx = pts @ right; vy = pts @ up
+        return np.column_stack([(vx - sxmin) * S + PAD, (symax - vy) * S + PAD])
+
+    P = to_px(R.reshape(-1, 3)).reshape(-1, 3, 2)
+    Z = (R.reshape(-1, 3) @ cam).reshape(-1, 3)   # camera depth (larger = nearer)
+    rgb = tri_colors(R, cols)
+    img = rasterize(P, Z, rgb, W, H)
+
+    # footprint = the ground plot (green field / soil base): low-z XY extent
     zmax = float(flat[:, 2].max()) or 1.0
     ground = flat[flat[:, 2] <= 0.12 * zmax]
     if len(ground) < 4:
         ground = flat
-    x0, x1 = ground[:, 0].min(), ground[:, 0].max()
-    y0, y1 = ground[:, 1].min(), ground[:, 1].max()
-    corners = np.array([[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y1, 0]], float)
-    xs, ys, _ = proj3d.proj_transform(corners[:, 0], corners[:, 1], corners[:, 2], ax.get_proj())
-    disp = ax.transData.transform(np.column_stack([xs, ys]))
-    px = disp[:, 0]; py = H - disp[:, 1]
-    return px.min(), px.max(), py.min(), py.max()
+    gx0, gx1 = ground[:, 0].min(), ground[:, 0].max()
+    gy0, gy1 = ground[:, 1].min(), ground[:, 1].max()
+    corners = np.array([[gx0, gy0, 0], [gx1, gy0, 0], [gx1, gy1, 0], [gx0, gy1, 0]], float)
+    cpx = to_px(corners)
+    fx0, fx1 = cpx[:, 0].min(), cpx[:, 0].max()
+    fy0, fy1 = cpx[:, 1].min(), cpx[:, 1].max()
 
-
-os.makedirs(ASSETS, exist_ok=True)
-meta = {}
-for name in MODELS:
-    R, cols, hasc = load(name)
-    flat = R.reshape(-1, 3)
-    L = max(2 * np.abs(flat[:, :2]).max(), flat[:, 2].max()) * 1.05
-    P, Z, W, H, ax, fig = project(R, L)
-    rgb = tri_colors(R, cols, hasc, FIELD_COLOR.get(name))
-    img = rasterize(P, Z, rgb, W, H)
-    fx0, fx1, fy0, fy1 = footprint_px(ax, H, R)
-    plt.close(fig)
     im = Image.fromarray(img, "RGBA")
     bb = im.getbbox()  # (left, upper, right, lower)
     im.crop(bb).save(os.path.join(ASSETS, name + ".png"))
@@ -185,6 +174,6 @@ for name in MODELS:
     fcx = ((fx0 + fx1) / 2 - bb[0]) / cw
     fcy = ((fy0 + fy1) / 2 - bb[1]) / ch
     meta[name] = {"w": cw, "h": ch, "footW": round(footW, 4), "fcx": round(fcx, 4), "fcy": round(fcy, 4)}
-    print(f"{name}: crop={cw}x{ch} footW={footW:.3f} fcx={fcx:.3f} fcy={fcy:.3f}")
+    print(f"{name}: crop={cw}x{ch} tris={len(P)} footW={footW:.3f} fcx={fcx:.3f} fcy={fcy:.3f}")
 json.dump(meta, open(os.path.join(ASSETS, "meta.json"), "w"), indent=1)
 print("done")
