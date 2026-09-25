@@ -63,6 +63,7 @@ export interface CityLayout {
 
 export interface City {
   id: string;
+  name: string;
   owner: number;
   tileId: number;
   level: number;

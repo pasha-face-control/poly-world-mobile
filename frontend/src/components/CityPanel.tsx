@@ -13,12 +13,13 @@ interface Props {
   bottomInset: number;
   onTrain: (type: UnitType) => void;
   onEnterCity: () => void;
+  onRename: () => void;
   onClose: () => void;
 }
 
 const TRAINABLE: UnitType[] = ["warrior", "archer", "beefeater", "catapult", "rider", "armored_rider", "chivalry", "pikemen", "swordsmen", "merchant"];
 
-export default function CityPanel({ state, city, bottomInset, onTrain, onEnterCity, onClose }: Props) {
+export default function CityPanel({ state, city, bottomInset, onTrain, onEnterCity, onRename, onClose }: Props) {
   const player = state.players[state.currentPlayer];
 
   return (
@@ -26,7 +27,10 @@ export default function CityPanel({ state, city, bottomInset, onTrain, onEnterCi
       <View style={styles.card} testID="city-panel">
         <View style={styles.header}>
           <MaterialCommunityIcons name={city.isCapital ? "castle" : "home-city"} size={22} color={C.brand} />
-          <Text style={styles.title}>{city.isCapital ? "Capital" : "City"} · Lvl {city.level}</Text>
+          <View style={styles.titleWrap}>
+            <Text style={styles.title} numberOfLines={1}>{city.name}</Text>
+            <Text style={styles.subtitle}>{city.isCapital ? "Capital" : "City"} · Lvl {city.level}</Text>
+          </View>
           <View style={styles.headerStat}>
             <MaterialCommunityIcons name="account-group" size={15} color={C.onSurfaceSecondary} />
             <Text style={styles.headerStatText}>{city.population}/{levelThreshold(city.level)}</Text>
@@ -86,10 +90,16 @@ export default function CityPanel({ state, city, bottomInset, onTrain, onEnterCi
         </ScrollView>
 
         <Text style={styles.section}>City Actions</Text>
-        <Pressable testID="enter-city" onPress={onEnterCity} style={({ pressed }) => [styles.enterBtn, { opacity: pressed ? 0.9 : 1 }]}>
-          <MaterialCommunityIcons name="home-city" size={20} color="#fff" />
-          <Text style={styles.enterText}>Enter the City</Text>
-        </Pressable>
+        <View style={styles.actionRow}>
+          <Pressable testID="enter-city" onPress={onEnterCity} style={({ pressed }) => [styles.enterBtn, { flex: 1, opacity: pressed ? 0.9 : 1 }]}>
+            <MaterialCommunityIcons name="home-city" size={20} color="#fff" />
+            <Text style={styles.enterText}>Enter the City</Text>
+          </Pressable>
+          <Pressable testID="rename-city" onPress={onRename} style={({ pressed }) => [styles.renameBtn, { opacity: pressed ? 0.9 : 1 }]}>
+            <MaterialCommunityIcons name="pencil" size={18} color={C.brand} />
+            <Text style={styles.renameText}>Rename</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -106,7 +116,9 @@ const styles = StyleSheet.create({
     ...shadow(8),
   },
   header: { flexDirection: "row", alignItems: "center", gap: SP.sm, marginBottom: SP.sm },
+  titleWrap: { flex: 1, minWidth: 0 },
   title: { fontSize: 17, fontWeight: "900", color: C.onSurface },
+  subtitle: { fontSize: 11, fontWeight: "700", color: C.onSurfaceSecondary, marginTop: 1 },
   headerStat: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: C.surfaceSecondary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: R.pill },
   headerStatText: { fontWeight: "800", color: C.onSurface, fontSize: 12 },
   close: { marginLeft: "auto", padding: 6, backgroundColor: C.surfaceSecondary, borderRadius: R.pill },
@@ -131,4 +143,7 @@ const styles = StyleSheet.create({
   goodCostText: { fontSize: 10, fontWeight: "800", color: C.onSurface },
   enterBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.brand, borderRadius: R.md, paddingVertical: 12, marginTop: 2 },
   enterText: { color: "#fff", fontSize: 15, fontWeight: "900" },
+  actionRow: { flexDirection: "row", gap: SP.sm, marginTop: 2 },
+  renameBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border, borderRadius: R.md, paddingVertical: 12, paddingHorizontal: 16 },
+  renameText: { color: C.brand, fontSize: 15, fontWeight: "900" },
 });

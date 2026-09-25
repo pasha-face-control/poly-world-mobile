@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { storage } from "@/src/utils/storage";
 import { generateGame } from "./mapgen";
+import { randomCityName } from "./factory";
 import {
   advanceTurn,
   applyLevelReward,
@@ -69,6 +70,7 @@ function migrateState(loaded: GameState): GameState {
   for (const c of loaded.cities || []) {
     if (!c.citadelStage) c.citadelStage = 1;
     if (!c.layout) c.layout = { buildings: [], roads: [] };
+    if (!c.name) c.name = randomCityName();
   }
   for (const t of loaded.tiles || []) {
     if (t.tradePort === undefined) t.tradePort = false;
@@ -132,6 +134,7 @@ interface GameContextValue {
   doResolveOffer: (cityId: string, accept: boolean) => boolean;
   doExpandTerritory: (tileId: number) => boolean;
   doUpgradeCitadel: (cityId: string) => boolean;
+  doRenameCity: (cityId: string, name: string) => boolean;
   doPlaceCityBuilding: (cityId: string, type: string, x: number, y: number) => boolean;
   doSetFactoryFeed: (cityId: string, buildingId: string, feed: number) => boolean;
   doDrawCityRoads: (cityId: string, cells: number[]) => boolean;
@@ -311,6 +314,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doResolveOffer = useCallback((cityId: string, accept: boolean) => apply((s) => resolveCityOffer(s, cityId, accept)), [apply]);
   const doExpandTerritory = useCallback((tileId: number) => apply((s) => expandTerritory(s, s.currentPlayer, tileId)), [apply]);
   const doUpgradeCitadel = useCallback((cityId: string) => apply((s) => upgradeCitadel(s, s.currentPlayer, cityId)), [apply]);
+  const doRenameCity = useCallback(
+    (cityId: string, name: string) =>
+      apply((s) => {
+        const c = s.cities.find((x) => x.id === cityId);
+        const trimmed = name.trim().slice(0, 24);
+        if (!c || c.owner !== s.currentPlayer || !trimmed) return false;
+        c.name = trimmed;
+        return true;
+      }),
+    [apply],
+  );
   const doPlaceCityBuilding = useCallback((cityId: string, type: string, x: number, y: number) => apply((s) => placeCityBuilding(s, s.currentPlayer, cityId, type, x, y)), [apply]);
   const doSetFactoryFeed = useCallback((cityId: string, buildingId: string, feed: number) => apply((s) => setFactoryFeed(s, s.currentPlayer, cityId, buildingId, feed)), [apply]);
   const doDrawCityRoads = useCallback((cityId: string, cells: number[]) => apply((s) => drawCityRoads(s, s.currentPlayer, cityId, cells) > 0), [apply]);
@@ -379,6 +393,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doResolveOffer,
         doExpandTerritory,
         doUpgradeCitadel,
+        doRenameCity,
         doPlaceCityBuilding,
         doSetFactoryFeed,
         doDrawCityRoads,

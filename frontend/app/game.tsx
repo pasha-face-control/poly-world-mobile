@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -43,7 +43,7 @@ export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { soundOn, hapticsOn, volume } = useFxSettings();
-  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, doExpandTerritory, saveToSlot, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, doExpandTerritory, doRenameCity, saveToSlot, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
@@ -57,6 +57,8 @@ export default function GameScreen() {
   const [captureTarget, setCaptureTarget] = useState<(CaptureTarget & { tileId: number; cityId?: string }) | null>(null);
   const [expandTarget, setExpandTarget] = useState<ExpandTarget | null>(null);
   const [economyOpen, setEconomyOpen] = useState(false);
+  const [renameCityId, setRenameCityId] = useState<string | null>(null);
+  const [renameText, setRenameText] = useState("");
   const [moveAnim, setMoveAnim] = useState<{ unitId: string; fromTileId: number; toTileId: number; key: number } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -449,6 +451,11 @@ export default function GameScreen() {
             doTrain(selectedCity.id, t);
           }}
           onClose={() => setSelectedCityId(null)}
+          onRename={() => {
+            haptic.select();
+            setRenameText(selectedCity.name);
+            setRenameCityId(selectedCity.id);
+          }}
           onEnterCity={() => {
             haptic.select();
             const id = selectedCity.id;
@@ -457,6 +464,54 @@ export default function GameScreen() {
           }}
         />
       )}
+      <Modal visible={renameCityId != null} transparent animationType="fade" onRequestClose={() => setRenameCityId(null)}>
+        <Pressable style={styles.renameBackdrop} onPress={() => setRenameCityId(null)}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.renameCenter}>
+            <Pressable style={styles.renameCard} onPress={() => {}}>
+              <Text style={styles.renameTitle}>Rename City</Text>
+              <TextInput
+                testID="rename-input"
+                style={styles.renameInput}
+                value={renameText}
+                onChangeText={setRenameText}
+                placeholder="City name"
+                placeholderTextColor={C.onSurfaceSecondary}
+                maxLength={24}
+                autoFocus
+                selectTextOnFocus
+                returnKeyType="done"
+                onSubmitEditing={() => {
+                  if (renameCityId && renameText.trim()) {
+                    doRenameCity(renameCityId, renameText);
+                    haptic.select();
+                    setRenameCityId(null);
+                  }
+                }}
+              />
+              <View style={styles.renameBtns}>
+                <Pressable testID="rename-cancel" onPress={() => setRenameCityId(null)} style={[styles.renameAction, styles.renameCancel]}>
+                  <Text style={styles.renameCancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  testID="rename-save"
+                  disabled={!renameText.trim()}
+                  onPress={() => {
+                    if (renameCityId && renameText.trim()) {
+                      doRenameCity(renameCityId, renameText);
+                      haptic.select();
+                      setRenameCityId(null);
+                    }
+                  }}
+                  style={[styles.renameAction, styles.renameSave, !renameText.trim() && { opacity: 0.5 }]}
+                >
+                  <Text style={styles.renameSaveText}>Save</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
+
       {selectedBuildTileId != null && !selectedCity && !selectedUnit && (
         <BuildPanel
           state={state}
@@ -732,6 +787,18 @@ export default function GameScreen() {
 }
 
 const styles = StyleSheet.create({
+  renameBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
+  renameCenter: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 28 },
+  renameCard: { width: "100%", maxWidth: 360, backgroundColor: C.surface, borderRadius: R.lg, padding: SP.lg, borderWidth: 1, borderColor: C.border, ...shadow(12) },
+  renameTitle: { fontSize: 18, fontWeight: "900", color: C.onSurface, marginBottom: SP.md },
+  renameInput: { backgroundColor: C.surfaceSecondary, borderRadius: R.md, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, fontWeight: "700", color: C.onSurface },
+  renameBtns: { flexDirection: "row", gap: SP.sm, marginTop: SP.md },
+  renameAction: { flex: 1, borderRadius: R.md, paddingVertical: 12, alignItems: "center" },
+  renameCancel: { backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border },
+  renameCancelText: { color: C.onSurface, fontSize: 15, fontWeight: "800" },
+  renameSave: { backgroundColor: C.brand },
+  renameSaveText: { color: "#fff", fontSize: 15, fontWeight: "900" },
+
   container: { flex: 1, backgroundColor: "#1d3b38" },
   toast: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(28,28,28,0.9)", paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, ...shadow(6) },
   toastText: { color: "#fff", fontWeight: "800", fontSize: 13 },

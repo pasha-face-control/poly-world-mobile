@@ -1,0 +1,37 @@
+{
+  "summary": "Frontend-only verification of Random City Names + Rename City feature at https://poly-tactics-1.preview.emergentagent.com (mobile viewport 390x844). ALL 7 acceptance items PASS. (1) Started a single-player game via menu-new-game → mode-single → tribe-nature → start-game; /game loaded with city-panel opening on capital-tile tap. (2) The City panel header renders city.name as the title ('Quenby' in this run, later renamed to 'Testburg') with subtitle 'Capital · Lvl 1'. The title is NOT the literal string 'Capital' or 'City' — src/game/factory.ts:randomCityName() picks from a 56-name pool and newCity assigns it. (3) 'City Actions' section shows BOTH testIDs 'enter-city' (Enter the City) and 'rename-city' (Rename) side-by-side as expected in CityPanel.tsx:94-101. (4) Tapping 'rename-city' opens a modal with 'rename-input' pre-filled with the current city name ('Quenby'), plus 'rename-cancel' and 'rename-save' buttons. (5) Clearing the input, typing 'Testburg', tapping 'rename-save' closes the modal and the panel header title updates to 'Testburg'. Persistence verified in localStorage.hextribes_save_v1 → cities[0].name === 'Testburg'. (6) Reopening the modal, changing text to 'ShouldNotSave' and tapping 'rename-cancel' keeps the name as 'Testburg' (no mutation). (7) Both cities in the generated map have distinct random names — capital 'Quenby' (P0) and AI capital 'Lonewatch' (P1); neither is literal 'Capital'/'City'. No red-screen errors during the flow. Only carry-over non-blocking Expo web deprecation warnings observed (shadow* style props, pointerEvents prop, Image.resizeMode).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "shadow* style props", "issue": "Carry-over non-blocking web deprecation warning: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Emitted by /app/frontend/src/theme.ts shadow() helper used across game screens."},
+      {"component": "props.pointerEvents", "issue": "Carry-over non-blocking web deprecation: 'props.pointerEvents is deprecated. Use style.pointerEvents' — likely from CityPanel wrapper or overlay containers. Non-blocking."},
+      {"component": "Image.style.resizeMode", "issue": "Carry-over non-blocking web deprecation: 'Image: style.resizeMode is deprecated. Please use props.resizeMode'. Non-blocking."}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_24.json"],
+  "action_items": [
+    "No functional fixes required — random city names + Rename City feature is verified end-to-end (random name in header, subtitle Capital·Lvl N, both action buttons, modal with prefilled input, Save mutates name and persists, Cancel is a true no-op, second city also has a distinct random name).",
+    "(Optional carry-over) Migrate remaining shadow*/pointerEvents prop/Image.resizeMode style usages to their new equivalents to silence Expo web deprecation warnings. Non-blocking.",
+    "(Optional) The panel header stacks the icon + name + subtitle + two stat pills + close in a single row (CityPanel.tsx:28-45). At 390px viewport with longer generated names (e.g., 'Cindermaw', 'Silverkeep') plus 'Lvl N' the row is already dense; verify longer 24-char user-typed names still render nicely — a numberOfLines={1} is already set on the title so it truncates cleanly, but visually consider dropping one header stat pill when a very long name is entered."
+  ],
+  "critical_code_review_comments": [
+    "src/game/factory.ts:8-25 — CITY_NAMES pool has 56 entries and randomCityName() dedupes via a module-scope usedNames Set. This is session-scoped (resets on JS reload), so continuing a save and generating a new game later can reuse names — acceptable since names are stored per-city in save, but be aware duplicates can theoretically occur across new games in the same session once >56 cities have been created.",
+    "src/game/factory.ts:21 — Fallback 'Settlement N' is only reached if the pool is exhausted; with 56 names and max ~8 cities per game (capital + villages captured) this is safe.",
+    "src/game/store.tsx:317-327 — doRenameCity correctly (a) trims, (b) caps at 24 chars via slice, (c) rejects empty after trim, and (d) enforces c.owner === s.currentPlayer so a player can never rename another player's city. Good.",
+    "src/game/store.tsx:73 — migrateState backfills c.name via randomCityName() for old saves missing the field. Migration path verified logically.",
+    "app/game.tsx:467-513 — Rename Modal correctly wires renameCityId as visibility, uses KeyboardAvoidingView + backdrop-tap-to-close (Pressable on backdrop, no-op Pressable on card to swallow the tap), disables Save when renameText is blank, and handles onSubmitEditing for keyboard 'done'. Nice UX.",
+    "app/game.tsx:454-458 — onRename callback sets renameText=selectedCity.name BEFORE opening — this is what makes the input pre-filled. Verified at runtime.",
+    "src/components/CityPanel.tsx:31-32 — Header uses <Text numberOfLines={1}> for the title and a separate subtitle Text, all wrapped correctly in RN Text components. No raw text nodes.",
+    "src/components/CityPanel.tsx:98-101 — 'Rename' button has testID='rename-city' and uses C.brand text on C.surfaceSecondary background — sufficient contrast. Touch target ~44px tall (paddingVertical 12 + text ~20px) — meets minimum."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend only)", "frontend": "100% (7/7 acceptance items verified)"},
+  "seed_data_creation": "none — used a fresh single-player game generated by the /setup flow.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Public URL: https://poly-tactics-1.preview.emergentagent.com — 100% client-side; use mobile viewport 390x844. Path to gameplay: menu-new-game -> mode-single -> /setup (tribe-nature) -> start-game -> /game. On first entry a tutorial modal appears; dismiss it with page.get_by_text('Skip'). To open the city panel from the map, tap near the screen center (GameMap auto-centers on capitalTile); on 390x844 the capital rendered ~15px above center — a small nudge sweep may be needed. Random name pool is src/game/factory.ts CITY_NAMES (56 names) with a session-scoped usedNames Set. Persisted state at localStorage.hextribes_save_v1 is a DOUBLE-encoded JSON string — parse with JSON.parse twice. City rename action = store.doRenameCity(cityId, name); trims and slices to 24 chars, only allows current player's cities. Rename modal testIDs: rename-input, rename-save, rename-cancel; city-actions testIDs: enter-city, rename-city. Header selector: [data-testid=\"city-panel\"] — title text is child <Text> with numberOfLines={1}.",
+  "rca_of_issue": "n/a — no bugs reproduced. All 7 acceptance items for Random City Names + Rename City passed: random name in header, subtitle format 'Capital · Lvl 1', two action buttons (enter-city / rename-city), modal opens with prefilled input, Save mutates name + updates header + persists to save, Cancel is a no-op, and multiple cities have distinct random names not equal to literal 'Capital'/'City'."
+}
