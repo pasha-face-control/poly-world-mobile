@@ -121,6 +121,8 @@ Build a game similar to The Battle of Polytopia. Client-side, local persistence.
 
 - **Random city names + Rename City** — every city now gets a random name from a 56-name pool (`randomCityName()` in `factory.ts`, session-deduped via a `usedNames` Set); assigned in `newCity` so capitals AND captured villages are covered; `migrateState` backfills names on old saves. `City.name` added to types. `CityPanel` header shows the name as the title with a `Capital/City · Lvl N` subtitle. A new **Rename** button (testID `rename-city`) sits beside **Enter the City** in the City Actions section and opens a text-input modal (`rename-input`/`rename-save`/`rename-cancel`, KeyboardAvoiding) wired to store action `doRenameCity(cityId, name)` (trims, caps 24 chars, only the current player's own city). Verified: `node scripts/engine_test.js` **208/208**; testing_agent iteration_24 (7/7 PASS: random name shown, two action buttons, save updates title + persists, cancel is a no-op, distinct names per city).
 
+- **City name labels on map** — each city now shows its name in a small dark pill directly under the city on the world map (`GameMap.tsx` token overlay, positioned at `cx, cy + HH*0.45`, styles `cityLabel`/`cityLabelText`, `numberOfLines={1}`, `pointerEvents="none"`). Labels pan/zoom with the map and respect fog (hidden tiles render nothing). Only cities (not neutral villages) are labelled. Verified visually via screenshot (capital "Marrowvale" labelled beside its level badge); lint clean.
+
 ## Backlog / Next
 - Build the goods economy + resource top-bar (foundation for buildings, unit costs, trading).
 - Then buildings & per-turn production, then naval + upgrades, then merchant trading UI.

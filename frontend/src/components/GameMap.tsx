@@ -675,6 +675,11 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                     <Text style={styles.cityLevelText}>{city.level}</Text>
                   </View>
                 )}
+                {city && (
+                  <View pointerEvents="none" style={[styles.cityLabel, { left: cx - 64, top: cy + HH * 0.45 }]}>
+                    <Text numberOfLines={1} style={styles.cityLabelText}>{city.name}</Text>
+                  </View>
+                )}
                 {t.isVillage && t.claimBy != null && !city && (
                   <View style={[styles.claimRing, { left: cx - 12, top: baseY - 36, borderColor: playerColor(state, t.claimBy) }]}>
                     <MaterialCommunityIcons name="timer-sand" size={13} color={playerColor(state, t.claimBy)} />
@@ -815,6 +820,8 @@ const styles = StyleSheet.create({
   building: { position: "absolute", width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#fff", ...shadow(3) },
   cityLevel: { position: "absolute", minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 3, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#fff" },
   cityLevelText: { color: "#fff", fontSize: 10, fontWeight: "900" },
+  cityLabel: { position: "absolute", width: 128, alignItems: "center" },
+  cityLabelText: { color: "#fff", fontSize: 10.5, fontWeight: "800", textAlign: "center", backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, overflow: "hidden" },
   garrison: { position: "absolute", width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", borderWidth: 2, ...shadow(3) },
   hpBarBg: { position: "absolute", width: 28, height: 4, borderRadius: 2, backgroundColor: "rgba(0,0,0,0.4)", overflow: "hidden" },
   hpBar: { height: 4, backgroundColor: C.success },
