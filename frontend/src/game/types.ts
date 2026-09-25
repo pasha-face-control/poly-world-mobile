@@ -121,4 +121,5 @@ export interface NewGameConfig {
   passAndPlay: boolean;
   difficulty: Difficulty;
   tribes?: TribeId[]; // explicit per-player tribes (pass & play); length = number of players
+  humans?: number; // number of human players (first N); the rest are AI bots. Defaults: passAndPlay=all, else 1
 }

@@ -96,6 +96,7 @@ export function generateGame(config: {
   difficulty?: Difficulty;
   seed?: number;
   tribes?: TribeId[];
+  humans?: number;
 }): GameState {
   const seed = config.seed ?? Math.floor(Math.random() * 1e9);
   const rng = new RNG(seed);
@@ -113,6 +114,9 @@ export function generateGame(config: {
 
   const landTiles = tiles.filter((t) => t.terrain !== "water");
   const numPlayers = config.tribes?.length ?? config.opponents + 1;
+  // Human players occupy the first `humans` slots; the rest are AI bots. In pass & play
+  // everyone is human unless a smaller `humans` count is given (humans + bots).
+  const humans = config.humans ?? (config.passAndPlay ? numPlayers : 1);
 
   // Players (human first) — each player's tribe defines its region's biome.
   // In pass & play the tribes are chosen explicitly, one per human player.
@@ -125,8 +129,10 @@ export function generateGame(config: {
     else if (p === 0) tribe = config.tribe;
     else tribe = tribeOptions.find((t) => !usedTribes.has(t)) ?? rng.pick(tribeOptions);
     usedTribes.add(tribe);
-    const isHuman = p === 0 ? true : !!config.passAndPlay;
-    const name = config.passAndPlay ? `Player ${p + 1}` : p === 0 ? TRIBE_BY_ID[tribe].name : `${TRIBE_BY_ID[tribe].name} AI`;
+    const isHuman = p < humans;
+    const name = isHuman
+      ? (config.passAndPlay ? `Player ${p + 1}` : TRIBE_BY_ID[tribe].name)
+      : `${TRIBE_BY_ID[tribe].name} AI`;
     players.push({ index: p, tribe, name, isHuman, stars: START_STARS, goods: { ...START_GOODS }, techs: [TRIBE_BY_ID[tribe].startTech], eliminated: false, economy: { bought: {}, sold: {} } });
   }
 

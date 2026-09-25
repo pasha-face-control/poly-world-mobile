@@ -7,16 +7,18 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Button from "@/src/components/Button";
 import { useGame } from "@/src/game/store";
 import { TECH_BY_ID, TRIBES } from "@/src/game/data";
-import { MapType, TribeId } from "@/src/game/types";
+import { MapType, TribeId, Difficulty } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
 
 export default function ChooseTribe() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { startNewGame } = useGame();
-  const params = useLocalSearchParams<{ players: string; mapSize: string; mapType: string; index: string; chosen: string; closed: string }>();
+  const params = useLocalSearchParams<{ players: string; bots: string; difficulty: string; mapSize: string; mapType: string; index: string; chosen: string; closed: string }>();
 
   const players = parseInt(params.players ?? "2", 10);
+  const bots = parseInt(params.bots ?? "0", 10);
+  const difficulty = (params.difficulty ?? "normal") as Difficulty;
   const mapSize = parseInt(params.mapSize ?? "24", 10);
   const mapType = (params.mapType ?? "continents") as MapType;
   const index = parseInt(params.index ?? "0", 10);
@@ -30,10 +32,18 @@ export default function ChooseTribe() {
     if (!tribe) return;
     const tribes = [...chosen, tribe];
     if (isLast) {
-      startNewGame({ tribe: tribes[0], opponents: players - 1, mapSize, mapType, passAndPlay: true, difficulty: "normal", tribes, closed });
+      // Auto-assign tribes to the AI bots (prefer unused biomes, allow duplicates when needed).
+      const options: TribeId[] = ["nature", "desert", "volcanic", "snow"];
+      const botTribes: TribeId[] = [];
+      for (let i = 0; i < bots; i++) {
+        const avail = options.filter((o) => ![...tribes, ...botTribes].includes(o));
+        botTribes.push(avail.length ? avail[0] : options[(tribes.length + i) % options.length]);
+      }
+      const allTribes = [...tribes, ...botTribes];
+      startNewGame({ tribe: allTribes[0], opponents: allTribes.length - 1, mapSize, mapType, passAndPlay: true, difficulty, tribes: allTribes, humans: players, closed });
       router.replace("/game");
     } else {
-      router.push({ pathname: "/choose-tribe", params: { players: String(players), mapSize: String(mapSize), mapType, closed: closed ? "1" : "", index: String(index + 1), chosen: tribes.join(",") } });
+      router.push({ pathname: "/choose-tribe", params: { players: String(players), bots: String(bots), difficulty, mapSize: String(mapSize), mapType, closed: closed ? "1" : "", index: String(index + 1), chosen: tribes.join(",") } });
     }
   };
 

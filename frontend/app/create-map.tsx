@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Button from "@/src/components/Button";
-import { MAP_SIZES, MAP_TYPES } from "@/src/game/data";
-import { MapType } from "@/src/game/types";
+import { DIFFICULTIES, MAP_SIZES, MAP_TYPES } from "@/src/game/data";
+import { Difficulty, MapType } from "@/src/game/types";
 import { C, R, SP } from "@/src/theme";
 
 export default function CreateMap() {
@@ -16,10 +16,12 @@ export default function CreateMap() {
   const [mapSize, setMapSize] = useState(24);
   const [mapType, setMapType] = useState<MapType>("continents");
   const [players, setPlayers] = useState(2);
+  const [bots, setBots] = useState(0);
+  const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [closed, setClosed] = useState(false);
 
   const next = () => {
-    router.push({ pathname: "/choose-tribe", params: { players: String(players), mapSize: String(mapSize), mapType, closed: closed ? "1" : "", index: "0", chosen: "" } });
+    router.push({ pathname: "/choose-tribe", params: { players: String(players), bots: String(bots), difficulty, mapSize: String(mapSize), mapType, closed: closed ? "1" : "", index: "0", chosen: "" } });
   };
 
   return (
@@ -41,6 +43,33 @@ export default function CreateMap() {
             </Pressable>
           ))}
         </View>
+
+        <Text style={styles.label}>Bots</Text>
+        <View style={styles.pillRow}>
+          {[0, 1, 2, 3].map((n) => (
+            <Pressable key={n} testID={`bots-${n}`} onPress={() => setBots(n)} style={[styles.pill, bots === n && styles.pillActive]}>
+              <Text style={[styles.pillText, bots === n && styles.pillTextActive]}>{n}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {bots > 0 && (
+          <>
+            <Text style={styles.label}>Bot Difficulty</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
+              {DIFFICULTIES.map((d) => {
+                const active = difficulty === d.id;
+                return (
+                  <Pressable key={d.id} testID={`botdiff-${d.id}`} onPress={() => setDifficulty(d.id)} style={[styles.diffCard, active && styles.typeCardActive]}>
+                    <MaterialCommunityIcons name={d.icon as any} size={24} color={active ? "#fff" : C.brand} />
+                    <Text style={[styles.typeText, active && { color: "#fff" }]}>{d.label}</Text>
+                    <Text style={[styles.diffBlurb, active && { color: "rgba(255,255,255,0.85)" }]}>{d.blurb}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </>
+        )}
 
         <Text style={styles.label}>Map Size</Text>
         <View style={styles.pillRow}>
@@ -104,5 +133,7 @@ const styles = StyleSheet.create({
   typeCard: { width: 96, backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingVertical: 14, alignItems: "center", gap: 6, flexShrink: 0 },
   typeCardActive: { backgroundColor: C.brand },
   typeText: { fontSize: 13, fontWeight: "800", color: C.onSurface },
+  diffCard: { width: 150, backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingVertical: 14, paddingHorizontal: 12, alignItems: "center", gap: 6, flexShrink: 0 },
+  diffBlurb: { fontSize: 10, color: C.onSurfaceSecondary, textAlign: "center", lineHeight: 13 },
   footer: { padding: SP.lg, borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surface },
 });

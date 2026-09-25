@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only verification of the new AI-bots feature on the Multiplayer Offline 'Create Map' screen at https://poly-tactics-1.preview.emergentagent.com (mobile viewport 390x844). ALL 5 review-request items PASS. (1) Create Map (/create-map): the 'Bots' pill row renders all four testIDs bots-0..bots-3; with the default bots=0 the 'Bot Difficulty' section is hidden (botdiff-normal is not visible). Tapping bots-1 reveals all four difficulty cards (botdiff-peaceful, botdiff-easy, botdiff-normal, botdiff-hard). Tapping bots-0 again hides the difficulty section. (2) Full flow with Players=2 / Bots=1 / Difficulty=Normal / mapsize-12 / gamekind-open / createmap-next lands on Choose Tribe with header 'Player 1'; tapping tribe-nature shows tribe-next (start-game hidden). Advancing to 'Player 2' and tapping tribe-desert flips the footer to start-game (tribe-next hidden). Tapping start-game navigates to /game. The persisted state (localStorage.hextribes_save_v1) has exactly 3 players: P0 tribe=nature isHuman=true name='Player 1', P1 tribe=desert isHuman=true name='Player 2', P2 tribe=volcanic isHuman=false name='He-he AI' — 2 humans + 1 bot, bot tribe auto-assigned. (3) Bot turn runs automatically: end turn #1 hands off to human P1 (cp=1, turn=1, playing); end turn #2 auto-runs the AI bot and returns control to human P0 (cp=0, turn=2, playing) with no crash and no hang. (4) Regression /setup single player: after picking a tribe and start-game, /game loads with 2 players / 1 human (status=playing) — 1 human + AI opponent as expected. (5) Regression Bots=0 pass-and-play: 2 players, both isHuman=true; ending human 1's turn switches to human 2 (cp=1, isHuman=true, status=playing) with no AI auto-turn. No red-screen errors during any flow. Deprecated packages detected: none. Only carry-over non-blocking Expo web deprecation warnings observed (shadow* style props).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "shadow* style props", "issue": "Carry-over non-blocking web deprecation warning: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Fires on Create Map/Choose Tribe/Game screens via /app/frontend/src/theme.ts shadow() helper."}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_23.json"],
+  "action_items": [
+    "No functional fixes required — all 5 acceptance items for the Bots + Bot Difficulty feature verified working end-to-end (UI toggle, tribe flow for humans only, engine humans/isHuman split, bot auto-turn in endTurn, regressions).",
+    "(Optional carry-over from iterations 19-22) Migrate shadow* style usages in /app/frontend/src/theme.ts to style.boxShadow to silence the remaining Expo web deprecation warning. Non-blocking."
+  ],
+  "critical_code_review_comments": [
+    "app/create-map.tsx:56 correctly gates the Bot Difficulty section on `bots > 0` — matches spec 'shown only when bots >= 1'. Selecting bots-0 toggles it off. Good.",
+    "app/create-map.tsx:24 forwards `bots` and `difficulty` to /choose-tribe. `players` still means humans only, consistent with the spec.",
+    "app/choose-tribe.tsx:29 `isLast = index >= players - 1` and :34-43 build the full tribe list (chosen human tribes + auto-assigned bot tribes from options ['nature','desert','volcanic','snow'] preferring unused biomes) and call startNewGame with `humans: players` and `tribes: allTribes`. Only humans go through the picker — bot tribes are auto-assigned. Verified at runtime (bot got 'volcanic' after humans picked nature+desert).",
+    "src/game/mapgen.ts:119-136 respects the new `humans` field: `humans = config.humans ?? (config.passAndPlay ? numPlayers : 1)`; `isHuman = p < humans`; player naming distinguishes human ('Player N') vs bot ('<Tribe> AI'). Correct — runtime showed 'Player 1', 'Player 2', 'He-he AI'.",
+    "src/game/store.tsx:321-343 endTurn's while-loop `while (s.status === 'playing' && !s.players[s.currentPlayer].isHuman && guard < 50) { runAiTurn(...); advanceTurn(...); }` correctly drives any non-human currentPlayer. Verified: end-turn #2 auto-processed the bot and returned control to human P0. No hang.",
+    "src/game/store.tsx:327 `const anyAi = s.players.some((p) => !p.isHuman)` gates the setTimeout — for a Bots=0 pass&play game this short-circuits and does a pure human-to-human handoff. Verified at runtime.",
+    "Choose Tribe uses expo-router push (not replace) between Player 1 -> Player 2, so both screens remain mounted in the stack; the same tribe-<id> testID renders twice while the intermediate transition is animating. Not a bug but tests must select the last/visible element (playwright .last). Consider router.replace on intermediate screens if this causes UX confusion later — minor.",
+    "create-map.tsx is 140 lines and choose-tribe.tsx is 113 lines — well under the 700-line split threshold. No DRY violations spotted in the diff."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (no backend)", "frontend": "100% (5/5 acceptance items verified)"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Public URL: https://poly-tactics-1.preview.emergentagent.com — 100% client-side; use mobile viewport 390x844. Path to Create Map: menu-new-game -> mode-multi -> create-map-screen. New testIDs: bots-0..bots-3, botdiff-peaceful/easy/normal/hard (rendered only when bots>=1). Choose Tribe intermediate screens stay mounted in the expo-router stack: query duplicated testIDs with `page.locator(sel).last`. Game state is persisted in localStorage under key 'hextribes_save_v1'; the storage util JSON.stringifies its value AND the state itself is already a JSON string, so `localStorage.getItem` returns a DOUBLE-encoded string — parse with json.loads twice. Player objects contain {index, tribe, name, isHuman}. Bot naming pattern is '<TribeName> AI'. Tribe options for auto-assignment: nature/desert/volcanic/snow, preferring unused biomes. endTurn in store.tsx drives all non-human currentPlayer via a while-loop after a 300ms setTimeout — allow ~3-4s after the 2nd end-turn to give the bot time to finish. No red-screen errors observed across all flows tested.",
+  "rca_of_issue": "n/a — no bugs reproduced this iteration. All acceptance items (Bots pills + conditional Bot Difficulty, humans-only tribe picking, humans+bots split with auto-assigned bot tribes, bot auto-turn in endTurn, /setup regression, Bots=0 regression) passed."
+}

@@ -541,6 +541,21 @@ if (anyWater) {
   ok("tier 3 unlocks once tier 2 is fully bought", r3buyable.length > 0 && r3buyable.every((tid) => engine.expansionOptionForTile(g, 0, tid).cost === 10));
 }
 
+// ---- Multiplayer offline: humans + AI bots split ----
+{
+  const g = generateGame({ tribe: "nature", opponents: 3, mapSize: 16, mapType: "continents", passAndPlay: true, difficulty: "hard", tribes: ["nature", "desert", "volcanic", "snow"], humans: 2, seed: 11 });
+  ok("humans+bots: 4 players total", g.players.length === 4);
+  ok("humans+bots: first 2 are human", g.players[0].isHuman && g.players[1].isHuman);
+  ok("humans+bots: last 2 are bots", !g.players[2].isHuman && !g.players[3].isHuman);
+  ok("humans+bots: human named 'Player N'", /^Player /.test(g.players[0].name));
+  ok("humans+bots: bot name has ' AI' suffix", / AI$/.test(g.players[3].name));
+  ok("humans+bots: bot difficulty applied", g.difficulty === "hard");
+  // pass & play with no humans override => everyone human (unchanged behaviour)
+  const gp = generateGame({ tribe: "nature", opponents: 1, mapSize: 16, mapType: "continents", passAndPlay: true, difficulty: "normal", tribes: ["nature", "desert"], seed: 12 });
+  ok("pass&play default: all players human", gp.players.every((p) => p.isHuman));
+}
+
+
 // ---- Build panel opens even when the player cannot afford (price shown red) ----
 {
   const data = require("../src/game/data.ts");
