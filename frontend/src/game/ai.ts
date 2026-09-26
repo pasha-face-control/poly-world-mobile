@@ -253,18 +253,23 @@ export function runAiTurn(state: GameState, player: number) {
       state.players[player].goods[TRIBE_MATERIAL[state.players[player].tribe]] += 4;
     }
     let merchants = state.units.filter((u) => u.owner === player && u.type === "merchant");
-    if (merchants.length === 0) {
-      // Subsidise a peaceful bot's FIRST merchant so it ships out the turn after `trading` lands.
+    // Peaceful bots trade with EVERY human player, so they want one merchant per human
+    // capital (not just Player 1). Train toward that count, one merchant per free city/turn.
+    const humanCaps = state.cities.filter((c) => c.isCapital && state.players[c.owner]?.isHuman && c.owner !== player);
+    const desiredMerchants = Math.max(1, humanCaps.length);
+    while (merchants.length < desiredMerchants) {
+      // Subsidise a peaceful bot's merchants so they ship out soon after `trading` lands.
       if (restrained && state.players[player].stars < UNIT_DEFS.merchant.cost) {
         state.players[player].stars = UNIT_DEFS.merchant.cost;
       }
-      if (state.players[player].stars >= UNIT_DEFS.merchant.cost) {
-        for (const c of state.cities.filter((c) => c.owner === player)) {
-          if (unitAt(state, c.tileId)) continue;
-          if (trainUnit(state, player, c.id, "merchant")) break;
-        }
-        merchants = state.units.filter((u) => u.owner === player && u.type === "merchant");
+      if (state.players[player].stars < UNIT_DEFS.merchant.cost) break;
+      let trained = false;
+      for (const c of state.cities.filter((c) => c.owner === player)) {
+        if (unitAt(state, c.tileId)) continue;
+        if (trainUnit(state, player, c.id, "merchant")) { trained = true; break; }
       }
+      if (!trained) break; // no free city tile to spawn from this turn
+      merchants = state.units.filter((u) => u.owner === player && u.type === "merchant");
     }
     // Sellable goods include the crafted materials (planks/stone/sand/glass) so the player
     // can buy what their own tribe can't make. The bot's own material is listed first so it
@@ -335,12 +340,28 @@ export function runAiTurn(state: GameState, player: number) {
   // the city keeps producing; they never advance on the player.
   if (restrained) {
     const own = ownedTerritory(state, player);
-    const humanCap = state.cities.find((c) => c.owner === 0 && c.isCapital);
-    if (humanCap) {
-      for (const m of state.units.filter((u) => u.owner === player && u.type === "merchant")) {
-        if (m.moved) continue;
-        stepMerchantToward(state, m, humanCap.tileId);
+    // Send a merchant to EVERY human player's capital (each gets its own caravan), not just Player 1.
+    const humanCaps = state.cities.filter((c) => c.isCapital && state.players[c.owner]?.isHuman && c.owner !== player);
+    const merchants = state.units.filter((u) => u.owner === player && u.type === "merchant");
+    const assigned = new Set<string>();
+    const served = new Set<number>();
+    // A capital already has a caravan if one of our merchants is parked beside it.
+    for (const cap of humanCaps) {
+      for (const m of merchants) {
+        if (chebyshev(state.tiles[m.tileId], state.tiles[cap.tileId]) <= 1) { served.add(cap.tileId); assigned.add(m.id); break; }
       }
+    }
+    // Route the nearest free merchant toward each still-unserved capital.
+    for (const cap of humanCaps) {
+      if (served.has(cap.tileId)) continue;
+      let best: Unit | null = null;
+      let bestD = Infinity;
+      for (const m of merchants) {
+        if (assigned.has(m.id) || m.moved) continue;
+        const d = chebyshev(state.tiles[m.tileId], state.tiles[cap.tileId]);
+        if (d < bestD) { bestD = d; best = m; }
+      }
+      if (best) { assigned.add(best.id); stepMerchantToward(state, best, cap.tileId); }
     }
     for (const u of state.units.filter((x) => x.owner === player && x.type !== "merchant")) {
       if (u.moved || u.boat) continue;

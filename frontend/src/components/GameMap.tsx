@@ -678,11 +678,6 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                     <Text style={styles.cityLevelText}>{city.level}</Text>
                   </View>
                 )}
-                {city && (
-                  <View pointerEvents="none" style={[styles.cityLabel, { left: cx - 64, top: cy + HH * 0.45 }]}>
-                    <Text numberOfLines={1} style={styles.cityLabelText}>{city.name}</Text>
-                  </View>
-                )}
                 {t.isVillage && t.claimBy != null && !city && (
                   <View style={[styles.claimRing, { left: cx - 12, top: baseY - 36, borderColor: playerColor(state, t.claimBy) }]}>
                     <MaterialCommunityIcons name="timer-sand" size={13} color={playerColor(state, t.claimBy)} />
@@ -738,6 +733,19 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                   </>
                 )}
               </React.Fragment>
+            );
+          })}
+
+          {/* City name labels — drawn in a final pass so terrain/units never cover them. */}
+          {ordered.map(({ t, vx, vy }) => {
+            if (fog && !t.explored) return null;
+            const city = t.cityId ? state.cities.find((c) => c.id === t.cityId) : undefined;
+            if (!city) return null;
+            const [cx, cy] = project(vx, vy);
+            return (
+              <View key={`clabel${t.id}`} pointerEvents="none" style={[styles.cityLabel, { left: cx - 64, top: cy + HH * 0.5 }]}>
+                <Text numberOfLines={1} style={styles.cityLabelText}>{city.name}</Text>
+              </View>
             );
           })}
 
