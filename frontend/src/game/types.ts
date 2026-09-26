@@ -3,7 +3,7 @@ export type ResourceType = "fruit" | "animal" | "fish" | "ore" | "crop" | "coal"
 export type UnitType = "warrior" | "archer" | "beefeater" | "catapult" | "rider" | "armored_rider" | "chivalry" | "pikemen" | "swordsmen" | "merchant";
 export type TribeId = "nature" | "desert" | "volcanic" | "snow";
 export type MapType = "dryland" | "lakes" | "pangea" | "continents" | "archipelago";
-export type GoodType = "wood" | "iron" | "wheat" | "meat" | "horse" | "planks" | "stone" | "sand" | "glass" | "coal";
+export type GoodType = "wood" | "iron" | "wheat" | "meat" | "horse" | "planks" | "stone" | "sand" | "glass" | "coal" | "apple";
 export type NavalTier = "rowing" | "sailing" | "battleship";
 export type Difficulty = "peaceful" | "easy" | "normal" | "hard";
 

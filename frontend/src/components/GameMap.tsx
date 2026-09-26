@@ -7,7 +7,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import GameIcon from "@/src/components/GameIcon";
 import { C, shadow } from "@/src/theme";
 import { BOAT_DEFS, BUILDING_BY_ID, RESOURCE_ICON, TERRAIN_COLOR, TRIBE_BY_ID, UNIT_DEFS } from "@/src/game/data";
-import { canFish, canHunt } from "@/src/game/engine";
+import { canFish, canFruit, canHunt } from "@/src/game/engine";
 import { GameState } from "@/src/game/types";
 
 // Pre-rendered low-poly 3D unit sprites, one per tribe colour.
@@ -641,6 +641,9 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                   <Animated.View pointerEvents="none" style={[styles.huntGlow, { left: cx - 22, top: baseY - 20 }, huntGlowStyle]} />
                 )}
                 {t.resource === "fish" && !city && !unit && !t.building && canFish(state, state.currentPlayer, t.id).ok && (
+                  <Animated.View pointerEvents="none" style={[styles.huntGlow, { left: cx - 22, top: baseY - 20 }, huntGlowStyle]} />
+                )}
+                {t.resource === "fruit" && !city && !unit && !t.building && canFruit(state, state.currentPlayer, t.id).ok && (
                   <Animated.View pointerEvents="none" style={[styles.huntGlow, { left: cx - 22, top: baseY - 20 }, huntGlowStyle]} />
                 )}
                 {t.terrain === "forest" && !city && !unit && !t.building && (

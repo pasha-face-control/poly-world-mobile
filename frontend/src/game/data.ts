@@ -21,6 +21,7 @@ export const GOODS: { id: GoodType; name: string; icon: string; color: string }[
   { id: "wheat", name: "Wheat", icon: "barley", color: "#E5A93A" },
   { id: "iron", name: "Iron", icon: "img:ingot", color: "#7F8896" },
   { id: "horse", name: "Horse", icon: "horse-variant", color: "#8A5A34" },
+  { id: "apple", name: "Apples", icon: "food-apple", color: "#C0392B" },
 ];
 
 // Crafted / city-builder resources (global, shared across a player's cities).
@@ -38,7 +39,7 @@ export const CITY_GOODS: { id: GoodType; name: string; icon: string; color: stri
 export const TRADE_GOODS = CITY_GOODS.filter((g) => g.id !== "coal");
 
 // Modest starting stockpile so goods-costed units are usable before production buildings exist.
-export const START_GOODS: Record<GoodType, number> = { wood: 12, meat: 10, wheat: 6, iron: 8, horse: 2, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0 };
+export const START_GOODS: Record<GoodType, number> = { wood: 12, meat: 10, wheat: 6, iron: 8, horse: 2, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, apple: 0 };
 
 export interface BuildingDef {
   id: string;

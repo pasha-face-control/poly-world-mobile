@@ -31,6 +31,8 @@ import {
   huntSuccess,
   hireFisherman,
   fishSuccess,
+  hireGardener,
+  harvestFruit,
   loadMerchant,
   moveUnit,
   research,
@@ -63,7 +65,7 @@ function migrateState(loaded: GameState): GameState {
   if (!loaded.difficulty) loaded.difficulty = "normal";
   for (const p of loaded.players || []) {
     const g = (p.goods || {}) as Partial<Record<GoodType, number>>;
-    p.goods = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, ...g };
+    p.goods = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, apple: 0, ...g };
     if (p.provoked === undefined) p.provoked = false;
     if (!p.economy) p.economy = { bought: {}, sold: {} };
   }
@@ -127,6 +129,8 @@ interface GameContextValue {
   doHuntSuccess: (tileId: number) => boolean;
   doHireFisherman: (tileId: number) => boolean;
   doFishSuccess: (tileId: number) => boolean;
+  doHireGardener: (tileId: number) => boolean;
+  doHarvestFruit: (tileId: number, collected: number) => boolean;
   doBuyFromMerchant: (merchantId: string, slotIndex: number, amount: number) => boolean;
   doClearSale: () => boolean;
   doBuyVillage: (tileId: number) => boolean;
@@ -307,6 +311,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doHuntSuccess = useCallback((tileId: number) => apply((s) => huntSuccess(s, s.currentPlayer, tileId)), [apply]);
   const doHireFisherman = useCallback((tileId: number) => apply((s) => hireFisherman(s, s.currentPlayer, tileId)), [apply]);
   const doFishSuccess = useCallback((tileId: number) => apply((s) => fishSuccess(s, s.currentPlayer, tileId)), [apply]);
+  const doHireGardener = useCallback((tileId: number) => apply((s) => hireGardener(s, s.currentPlayer, tileId)), [apply]);
+  const doHarvestFruit = useCallback((tileId: number, collected: number) => apply((s) => harvestFruit(s, s.currentPlayer, tileId, collected)), [apply]);
   const doBuyFromMerchant = useCallback((merchantId: string, slotIndex: number, amount: number) => apply((s) => buyFromMerchant(s, s.currentPlayer, merchantId, slotIndex, amount)), [apply]);
   const doClearSale = useCallback(() => apply((s) => { if (s.pendingSales) delete s.pendingSales[s.currentPlayer]; return true; }), [apply]);
   const doBuyVillage = useCallback((tileId: number) => apply((s) => buyVillage(s, s.currentPlayer, tileId)), [apply]);
@@ -386,6 +392,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doHuntSuccess,
         doHireFisherman,
         doFishSuccess,
+        doHireGardener,
+        doHarvestFruit,
         doBuyFromMerchant,
         doClearSale,
         doBuyVillage,

@@ -254,6 +254,49 @@ if (anyWater) {
   ok("pending cleared", !s.pendingLevelUps.includes(rcap.id));
 }
 
+// ---- Fruit: gardener + harvest mini-game reward tiers ----
+{
+  if (!player.techs.includes("organisation")) player.techs.push("organisation");
+  const terr = [cap.tileId, ...engine.neighbors(s, cap.tileId)];
+  const fid = terr.find((id) => id !== cap.tileId && s.tiles[id].terrain !== "water" && !s.tiles[id].cityId && !engine.unitAt(s, id));
+  const setFruit = () => { const t = s.tiles[fid]; t.terrain = "grass"; t.resource = "fruit"; t.explored = true; return fid; };
+  const savedLevel = cap.level, savedPop = cap.population;
+  cap.level = 30; cap.population = 0; // high level so +pop never crosses the level threshold here
+  const totalPop = () => cap.population;
+
+  setFruit();
+  ok("canFruit ok on owned fruit tile", engine.canFruit(s, P, fid).ok);
+
+  // Gardener: 3 stars -> +6 apples, +1 pop
+  player.stars = 20;
+  let a0 = player.goods.apple, p0 = totalPop(), st0 = player.stars;
+  ok("hire gardener succeeds", engine.hireGardener(s, P, fid));
+  ok("gardener costs 3 stars", player.stars === st0 - 3);
+  ok("gardener grants +6 apples", player.goods.apple === a0 + 6);
+  ok("gardener grants +1 pop", totalPop() === p0 + 1);
+  ok("gardener consumes the fruit", s.tiles[fid].resource === null);
+
+  // Harvest tier: 15 apples -> +15 apples, +2 pop
+  setFruit(); a0 = player.goods.apple; p0 = totalPop();
+  ok("harvest 15 succeeds", engine.harvestFruit(s, P, fid, 15));
+  ok("harvest 15 -> +15 apples", player.goods.apple === a0 + 15);
+  ok("harvest 15 -> +2 pop", totalPop() === p0 + 2);
+
+  // Harvest tier: 10 apples -> +10 apples, +1 pop
+  setFruit(); a0 = player.goods.apple; p0 = totalPop();
+  ok("harvest 10 succeeds", engine.harvestFruit(s, P, fid, 10));
+  ok("harvest 10 -> +10 apples", player.goods.apple === a0 + 10);
+  ok("harvest 10 -> +1 pop", totalPop() === p0 + 1);
+
+  // Harvest tier: 3 apples -> +3 apples, +0 pop
+  setFruit(); a0 = player.goods.apple; p0 = totalPop();
+  ok("harvest 3 succeeds", engine.harvestFruit(s, P, fid, 3));
+  ok("harvest 3 -> +3 apples", player.goods.apple === a0 + 3);
+  ok("harvest 3 -> +0 pop", totalPop() === p0);
+  cap.level = savedLevel; cap.population = savedPop; // restore for later tests
+}
+
+
 // ---- Level-up reward choice is offered to ALL human players (not just player 0) ----
 {
   const mkGame = () => {

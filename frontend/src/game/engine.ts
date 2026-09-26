@@ -990,6 +990,50 @@ export function fishSuccess(state: GameState, player: number, tileId: number): b
   return true;
 }
 
+// ---------- Fruit (orchards on grass) ----------
+export function canFruit(state: GameState, player: number, tileId: number): { ok: boolean; reason?: string } {
+  const tile = state.tiles[tileId];
+  if (tile.resource !== "fruit") return { ok: false, reason: "No fruit here" };
+  if (player === 0 && !tile.explored) return { ok: false, reason: "Not discovered" };
+  if (!playerHasTech(state, player, "organisation")) return { ok: false, reason: "Requires Organisation" };
+  const city = cityControllingTile(state, tileId);
+  if (!city || city.owner !== player) return { ok: false, reason: "Outside your borders" };
+  return { ok: true };
+}
+
+// Hire a gardener: instant, costs 3 stars, grants +1 population and +6 apples.
+export function hireGardener(state: GameState, player: number, tileId: number): boolean {
+  if (!canFruit(state, player, tileId).ok) return false;
+  if (state.players[player].stars < 3) return false;
+  state.players[player].stars -= 3;
+  const tile = state.tiles[tileId];
+  tile.resource = null;
+  state.players[player].goods.apple += 6;
+  const city = nearestPlayerCity(state, player, tileId);
+  if (city) addPopulation(state, city, 1);
+  refreshFog(state, player);
+  log(state, `${state.players[player].name} hired a gardener (+1 pop, +6 apples)`);
+  return true;
+}
+
+// Reward from the Fruit Harvesting mini-game, scaled by apples collected (0..15):
+//   15 → +2 pop & +15 apples · 6-14 → +1 pop & +collected · <6 → +collected only.
+export function harvestFruit(state: GameState, player: number, tileId: number, collected: number): boolean {
+  if (!canFruit(state, player, tileId).ok) return false;
+  const apples = Math.max(0, Math.min(15, Math.floor(collected)));
+  const pop = apples >= 15 ? 2 : apples >= 6 ? 1 : 0;
+  const tile = state.tiles[tileId];
+  tile.resource = null;
+  state.players[player].goods.apple += apples;
+  if (pop > 0) {
+    const city = nearestPlayerCity(state, player, tileId);
+    if (city) addPopulation(state, city, pop);
+  }
+  refreshFog(state, player);
+  log(state, `${state.players[player].name} harvested fruit (+${pop} pop, +${apples} apples)`);
+  return true;
+}
+
 export function canTrain(state: GameState, player: number, cityId: string, type: UnitType): { ok: boolean; reason?: string } {
   const city = state.cities.find((c) => c.id === cityId);
   if (!city || city.owner !== player) return { ok: false, reason: "Invalid city" };

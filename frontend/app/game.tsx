@@ -25,6 +25,8 @@ import HuntChoiceModal from "@/src/components/HuntChoiceModal";
 import HuntingMiniGame from "@/src/components/HuntingMiniGame";
 import FishChoiceModal from "@/src/components/FishChoiceModal";
 import FishingMiniGame from "@/src/components/FishingMiniGame";
+import FruitChoiceModal from "@/src/components/FruitChoiceModal";
+import FruitHarvestMiniGame from "@/src/components/FruitHarvestMiniGame";
 import SaleModal from "@/src/components/SaleModal";
 import CaptureModal, { CaptureTarget } from "@/src/components/CaptureModal";
 import ExpandModal, { ExpandTarget } from "@/src/components/ExpandModal";
@@ -34,7 +36,7 @@ import Button from "@/src/components/Button";
 import SaveSlotList from "@/src/components/SaveSlotList";
 import { useGame } from "@/src/game/store";
 import { storage } from "@/src/utils/storage";
-import { attackableTiles, canBuyCity, canBuyVillage, canFish, canHunt, expansionOptionForTile, hasDiscovered, neighbors, reachableTiles, stalemateTurnsLeft, tileHasActions } from "@/src/game/engine";
+import { attackableTiles, canBuyCity, canBuyVillage, canFish, canFruit, canHunt, expansionOptionForTile, hasDiscovered, neighbors, reachableTiles, stalemateTurnsLeft, tileHasActions } from "@/src/game/engine";
 import { TRIBE_BY_ID } from "@/src/game/data";
 import { UnitType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
@@ -43,7 +45,7 @@ export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { soundOn, hapticsOn, volume } = useFxSettings();
-  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, doExpandTerritory, doRenameCity, saveToSlot, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doHireGardener, doHarvestFruit, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, doExpandTerritory, doRenameCity, saveToSlot, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
@@ -54,6 +56,8 @@ export default function GameScreen() {
   const [huntPlaying, setHuntPlaying] = useState(false);
   const [fishTileId, setFishTileId] = useState<number | null>(null);
   const [fishPlaying, setFishPlaying] = useState(false);
+  const [fruitTileId, setFruitTileId] = useState<number | null>(null);
+  const [fruitPlaying, setFruitPlaying] = useState(false);
   const [captureTarget, setCaptureTarget] = useState<(CaptureTarget & { tileId: number; cityId?: string }) | null>(null);
   const [expandTarget, setExpandTarget] = useState<ExpandTarget | null>(null);
   const [economyOpen, setEconomyOpen] = useState(false);
@@ -262,6 +266,17 @@ export default function GameScreen() {
     if (tile.resource === "fish" && canFish(state, cp, tileId).ok) {
       haptic.select(); playSfx("tap");
       setFishTileId(tileId);
+      setSelectedUnitId(null);
+      setSelectedCityId(null);
+      setSelectedBuildTileId(null);
+      setMerchantOpen(false);
+      return;
+    }
+
+    // Nothing selected — a fruit tile opens the orchard choice (gardener or harvest mini-game).
+    if (tile.resource === "fruit" && canFruit(state, cp, tileId).ok) {
+      haptic.select(); playSfx("tap");
+      setFruitTileId(tileId);
       setSelectedUnitId(null);
       setSelectedCityId(null);
       setSelectedBuildTileId(null);
@@ -685,6 +700,35 @@ export default function GameScreen() {
             }
             setFishPlaying(false);
             setFishTileId(null);
+          }}
+        />
+      )}
+
+      <FruitChoiceModal
+        visible={fruitTileId != null && !fruitPlaying}
+        stars={state.players[state.currentPlayer]?.stars ?? 0}
+        onHire={() => {
+          if (fruitTileId == null) return;
+          haptic.notify();
+          doHireGardener(fruitTileId);
+          setFruitTileId(null);
+        }}
+        onHarvest={() => {
+          haptic.impact(Haptics.ImpactFeedbackStyle.Medium);
+          setFruitPlaying(true);
+        }}
+        onClose={() => setFruitTileId(null)}
+      />
+
+      {fruitPlaying && (
+        <FruitHarvestMiniGame
+          onFinish={(collected) => {
+            if (fruitTileId != null) {
+              haptic.notify();
+              doHarvestFruit(fruitTileId, collected);
+            }
+            setFruitPlaying(false);
+            setFruitTileId(null);
           }}
         />
       )}
