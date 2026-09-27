@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { LayoutChangeEvent, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { cancelAnimation, runOnJS, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
-import Svg, { Ellipse, Line, Polygon } from "react-native-svg";
+import Svg, { Ellipse, Image as SvgImage, Line, Polygon } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import GameIcon from "@/src/components/GameIcon";
 import { C, shadow } from "@/src/theme";
@@ -609,6 +609,16 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     if (t.tradePort && !city) drawDock(terrainShapes, cx, surfY, `t${k}`, true);
     if (city) drawCity(terrainShapes, cx, surfY, playerColor(state, city.owner), city.isCapital, k);
     else if (t.isVillage) drawCity(terrainShapes, cx, surfY, t.claimBy != null ? playerColor(state, t.claimBy) : C.borderStrong, false, k);
+    // Farm plot sprites live in the depth-sorted terrain layer so mountains/cities in front
+    // correctly occlude them (RN Image overlays would always paint on top).
+    if (t.building && !city && !unit && FARM_SPRITES[t.building] && FARM_META[t.building]) {
+      const m = FARM_META[t.building];
+      const sc = (2 * HW) / (m.footW * m.w);
+      const sw = m.w * sc, sh = m.h * sc;
+      terrainShapes.push(
+        <SvgImage key={`farm${k}`} href={FARM_SPRITES[t.building]} x={cx - m.fcx * sw} y={cy - m.fcy * sh} width={sw} height={sh} preserveAspectRatio="xMidYMid meet" />
+      );
+    }
     if (unit && !city && unit.id !== animUnit?.id) {
       if (unit.boat) { if (!BOAT_SPRITES[unit.boat]) drawBoat(terrainShapes, cx, unitSurfY, playerColor(state, unit.owner), unit.boat, k); }
       else if (!MODEL_SPRITES[unit.type]) drawUnit(terrainShapes, cx, unitSurfY, playerColor(state, unit.owner), k);
@@ -649,24 +659,10 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                 {t.terrain === "forest" && !city && !unit && !t.building && (
                   <MaterialCommunityIcons name="pine-tree" size={26} color="#CBD6AE" style={{ position: "absolute", left: cx - 13, top: baseY - 24 }} />
                 )}
-                {t.building && !city && !unit && (
-                  FARM_SPRITES[t.building] && FARM_META[t.building] ? (() => {
-                    const m = FARM_META[t.building];
-                    const sc = (2 * HW) / (m.footW * m.w); // scale so the footprint == one cell wide
-                    const sw = m.w * sc, sh = m.h * sc;
-                    return (
-                      <Image
-                        source={FARM_SPRITES[t.building]}
-                        pointerEvents="none"
-                        style={{ position: "absolute", left: cx - m.fcx * sw, top: cy - m.fcy * sh, width: sw, height: sh }}
-                        resizeMode="contain"
-                      />
-                    );
-                  })() : (
-                    <View style={[styles.building, { left: cx - 15, top: baseY - 30, backgroundColor: BUILDING_BY_ID[t.building]?.color ?? C.brand }]}>
-                      <GameIcon name={BUILDING_BY_ID[t.building]?.icon ?? "home"} size={18} color="#fff" />
-                    </View>
-                  )
+                {t.building && !city && !unit && !FARM_SPRITES[t.building] && (
+                  <View style={[styles.building, { left: cx - 15, top: baseY - 30, backgroundColor: BUILDING_BY_ID[t.building]?.color ?? C.brand }]}>
+                    <GameIcon name={BUILDING_BY_ID[t.building]?.icon ?? "home"} size={18} color="#fff" />
+                  </View>
                 )}
                 {t.resource && t.resource !== "animal" && !city && !unit && !t.building && (
                   <View style={[styles.resourceBadge, { left: cx + 6, top: baseY - 16 }]}>
