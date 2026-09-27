@@ -51,6 +51,7 @@ export interface BuildingDef {
   produces: Partial<Record<GoodType | "stars", number>>;
   color: string;
   requiresResource?: ResourceType; // must sit on a tile carrying this ore/resource
+  terrains?: TerrainType[]; // if set, buildable on ANY of these terrains (overrides single `terrain`)
 }
 
 export const BUILDINGS: BuildingDef[] = [
@@ -61,12 +62,15 @@ export const BUILDINGS: BuildingDef[] = [
   { id: "coal_mine", name: "Coal Mine", icon: "img:coal_mine", terrain: "mountain", tech: "mining", cost: 4, produces: {}, color: "#6E747B", requiresResource: "coal" },
   { id: "iron_mine", name: "Iron Mine", icon: "img:mine", terrain: "mountain", tech: "iron_mine", cost: 5, produces: { iron: 2 }, color: "#7F8896", requiresResource: "iron_ore" },
   { id: "gold_mine", name: "Gold Mine", icon: "gold", terrain: "mountain", tech: "gold_mine", cost: 6, produces: { stars: 5 }, color: "#E5A93A", requiresResource: "gold" },
+  { id: "field_temple", name: "Field Temple", icon: "temple-hindu", terrain: "grass", terrains: ["grass", "sand"], tech: "devotion", cost: 15, produces: {}, color: "#B98FD6" },
+  { id: "forest_temple", name: "Forest Temple", icon: "temple-buddhist", terrain: "forest", tech: "devotion", cost: 15, produces: {}, color: "#6FBF8E" },
+  { id: "mountain_temple", name: "Mountain Temple", icon: "hexagram", terrain: "mountain", tech: "devotion", cost: 15, produces: {}, color: "#A8B0B8" },
 ];
 
 export const BUILDING_BY_ID: Record<string, BuildingDef> = Object.fromEntries(BUILDINGS.map((b) => [b.id, b]));
 
 // Population a building adds to its owning city when built.
-export const BUILDING_POP: Record<string, number> = { lumber_hut: 1, wheat_farm: 2, bull_farm: 2, horse_farm: 2, coal_mine: 2, iron_mine: 2 };
+export const BUILDING_POP: Record<string, number> = { lumber_hut: 1, wheat_farm: 2, bull_farm: 2, horse_farm: 2, coal_mine: 2, iron_mine: 2, field_temple: 1, forest_temple: 1, mountain_temple: 1 };
 
 export const UNIT_DEFS: Record<UnitType, UnitDef> = {
   warrior: { type: "warrior", name: "Warrior", icon: "sword", cost: 2, hp: 10, atk: 1, def: 1, move: 1, range: 1, requires: null, goods: { meat: 1 } },
@@ -181,7 +185,7 @@ export const TECHS: TechDef[] = [
   T("armor_production", "Armor Production", 3, "riding", "horse", "Unlock the Armored Rider."),
   T("pike", "Pike", 4, "armor_production", "chess-rook", "Unlock the Pikeman unit."),
   T("chivalry", "Chivalry", 5, "pike", "shield-cross", "Unlock the Knight unit."),
-  T("devotion", "Devotion", 2, "forest_exploration", "hexagram", "Build Temples on grass (+population)."),
+  T("devotion", "Devotion", 2, "forest_exploration", "hexagram", "Build Temples on field/sand, forest & mountain (+population)."),
   T("forest_care", "Forest Care", 3, "devotion", "sprout", "Plant new forest; forest gives units ×1.5 defense."),
 
   // Organisation branch

@@ -404,6 +404,39 @@ if (anyWater) {
     ok("build wheat farm", engine.build(g3, 0, gid, "wheat_farm"));
     ok("wheat farm +2 population", cap3.population === p0 + 2);
   } else { console.log("SKIP farm (no land adj)"); }
+
+  // ---- Temples (Devotion tech): +1 pop each, cost 15 stars, terrain-gated ----
+  {
+    const pl = g3.players[0];
+    if (!pl.techs.includes("devotion")) pl.techs.push("devotion");
+    cap3.level = 30; cap3.population = 0; // high level so +1 pops never spill into a level-up
+    const scratch = terr.find((id) => !g3.tiles[id].cityId && g3.tiles[id].terrain !== "water" && !grid.unitAt(g3, id));
+    const reset = (terrain) => { const t = g3.tiles[scratch]; t.terrain = terrain; t.building = null; t.resource = null; return scratch; };
+
+    reset("grass"); pl.stars = 20; let p0 = cap3.population, st = pl.stars;
+    ok("field temple buildable on grass", engine.canBuild(g3, 0, scratch, "field_temple").ok);
+    ok("build field temple (grass)", engine.build(g3, 0, scratch, "field_temple"));
+    ok("field temple costs 15 stars", pl.stars === st - 15);
+    ok("field temple +1 pop on build", cap3.population === p0 + 1);
+
+    reset("sand");
+    ok("field temple buildable on sand", engine.canBuild(g3, 0, scratch, "field_temple", { ignoreStars: true }).ok);
+    ok("forest temple NOT buildable on sand", !engine.canBuild(g3, 0, scratch, "forest_temple", { ignoreStars: true }).ok);
+
+    reset("forest"); pl.stars = 20; p0 = cap3.population;
+    ok("build forest temple", engine.build(g3, 0, scratch, "forest_temple"));
+    ok("forest temple +1 pop on build", cap3.population === p0 + 1);
+
+    reset("mountain"); pl.stars = 20; p0 = cap3.population;
+    ok("mountain temple buildable on bare mountain (no ore)", engine.canBuild(g3, 0, scratch, "mountain_temple").ok);
+    ok("build mountain temple", engine.build(g3, 0, scratch, "mountain_temple"));
+    ok("mountain temple +1 pop on build", cap3.population === p0 + 1);
+
+    reset("grass"); pl.techs = pl.techs.filter((tk) => tk !== "devotion");
+    ok("temples blocked without Devotion", !engine.canBuild(g3, 0, scratch, "field_temple", { ignoreStars: true }).ok);
+    pl.techs.push("devotion");
+  }
+
 }
 
 // ---- Fishing ----

@@ -497,7 +497,8 @@ export function canBuild(state: GameState, player: number, tileId: number, build
   const tile = state.tiles[tileId];
   if (tile.building) return { ok: false, reason: "Already built" };
   if (tile.cityId) return { ok: false, reason: "City tile" };
-  if (tile.terrain !== def.terrain) return { ok: false, reason: `Needs ${def.terrain}` };
+  const terrainOk = def.terrains ? def.terrains.includes(tile.terrain) : tile.terrain === def.terrain;
+  if (!terrainOk) return { ok: false, reason: `Needs ${def.terrains ? def.terrains.join(" or ") : def.terrain}` };
   if (def.requiresResource && tile.resource !== def.requiresResource) return { ok: false, reason: "No matching ore" };
   if (!playerHasTech(state, player, def.tech)) return { ok: false, reason: `Requires ${TECH_BY_ID[def.tech].name}` };
   if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };

@@ -21,7 +21,7 @@ const goodMeta = (id: string) => GOODS.find((g) => g.id === id);
 export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfra, onClose }: Props) {
   const player = state.players[state.currentPlayer];
   const tile = state.tiles[tileId];
-  const options = BUILDINGS.filter((b) => b.terrain === tile.terrain);
+  const options = BUILDINGS.filter((b) => (b.terrains ? b.terrains.includes(tile.terrain) : b.terrain === tile.terrain));
   // Infra options that are terrain-relevant to this tile (validity handled by canInfra).
   const infraOptions = INFRA.filter((i) => {
     if (i.id === "road") return tile.terrain !== "water" && tile.terrain !== "mountain" && !tile.road;
