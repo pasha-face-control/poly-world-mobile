@@ -327,7 +327,9 @@ export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onC
           return { depth: r.footBottom, node };
         });
         items.push({
-          depth: baseBottom.y,
+          // Sort the citadel by the CENTRE of its footprint (not its front corner) so the ring
+          // of houses in front of and beside it correctly draws over it (painter's algorithm).
+          depth: center.y,
           node: <Image key="citadel" source={CITADEL_SPRITES[stageKey]} pointerEvents="none" resizeMode="contain" style={{ position: "absolute", left: baseBottom.x - citW * 0.499, top: baseBottom.y - citH * 0.971, width: citW, height: citH }} />,
         });
         items.sort((a, b) => a.depth - b.depth);

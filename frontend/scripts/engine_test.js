@@ -1200,5 +1200,59 @@ if (anyWater) {
   ok("finish keeps game 'won' after checkVictory", g.status === "won");
 }
 
+// ---- Metallurgical Plant: income gate + iron/gold/coal pop ----
+{
+  const g = generateGame({ tribe: "snow", opponents: 1, mapSize: 12, mapType: "continents", passAndPlay: false, seed: 55 });
+  const cap = g.cities.find((c) => c.owner === 0);
+  g.players[0].techs = g.players[0].techs.concat(["climbing", "forgery", "mining", "mining_technology"]);
+  g.players[0].stars = 500;
+  const nb = engine.neighbors(g, cap.tileId);
+  const mine = nb.find((n) => g.tiles[n].terrain !== "water" && !g.tiles[n].cityId && !engine.unitAt(g, n));
+  g.tiles[mine].terrain = "mountain"; g.tiles[mine].resource = "iron_ore"; g.tiles[mine].building = "iron_mine";
+  const g1 = nb.find((n) => n !== mine && engine.neighbors(g, mine).includes(n) && g.tiles[n].terrain !== "water" && !g.tiles[n].cityId && !engine.unitAt(g, n));
+  g.tiles[g1].terrain = "grass"; g.tiles[g1].building = null; g.tiles[g1].resource = null;
+  ok("plant OK when ore income (2) covers demand (2)", engine.canBuild(g, 0, g1, "metallurgical_plant").ok);
+  engine.build(g, 0, g1, "metallurgical_plant");
+  const g2 = nb.find((n) => n !== mine && n !== g1 && engine.neighbors(g, mine).includes(n) && g.tiles[n].terrain !== "water" && !g.tiles[n].cityId && !g.tiles[n].building && !engine.unitAt(g, n));
+  if (g2 != null) {
+    g.tiles[g2].terrain = "grass";
+    ok("2nd plant blocked: not enough iron ore income", !engine.canBuild(g, 0, g2, "metallurgical_plant", { ignoreStars: true }).ok);
+  }
+
+  // Pop counts iron + gold + coal mines: plant beside 1 iron + 1 coal mine => +4 pop.
+  const g3 = generateGame({ tribe: "snow", opponents: 1, mapSize: 12, mapType: "continents", passAndPlay: false, seed: 56 });
+  const cap3 = g3.cities.find((c) => c.owner === 0);
+  cap3.level = 30; cap3.population = 0;
+  g3.players[0].techs = g3.players[0].techs.concat(["climbing", "forgery"]);
+  g3.players[0].stars = 500;
+  const nb3 = engine.neighbors(g3, cap3.tileId);
+  const plot = nb3.find((n) => g3.tiles[n].terrain !== "water" && !g3.tiles[n].cityId && !engine.unitAt(g3, n));
+  g3.tiles[plot].terrain = "grass"; g3.tiles[plot].building = null; g3.tiles[plot].resource = null;
+  const around = nb3.filter((n) => n !== plot && engine.neighbors(g3, plot).includes(n) && !g3.tiles[n].cityId && g3.tiles[n].terrain !== "water");
+  if (around.length >= 2) {
+    g3.tiles[around[0]].terrain = "mountain"; g3.tiles[around[0]].resource = "iron_ore"; g3.tiles[around[0]].building = "iron_mine";
+    g3.tiles[around[1]].terrain = "mountain"; g3.tiles[around[1]].building = "coal_mine";
+    const before = cap3.population;
+    engine.build(g3, 0, plot, "metallurgical_plant");
+    ok("plant +2 pop per adjacent iron/coal mine (=+4)", cap3.population === before + 4);
+  }
+}
+
+// ---- Trade All Goods: coal (and every resource) is tradeable ----
+{
+  const { TRADE_GOODS, CITY_GOODS } = require("../src/game/data.ts");
+  ok("coal is now a tradeable good", TRADE_GOODS.some((g) => g.id === "coal"));
+  ok("every city good is tradeable", TRADE_GOODS.length === CITY_GOODS.length);
+
+  // A merchant can load coal and a rival can buy it.
+  const gt = generateGame({ tribe: "snow", opponents: 1, mapSize: 11, mapType: "continents", passAndPlay: false, seed: 5 });
+  const cap = gt.tiles.find((t) => t.cityId && gt.cities.find((c) => c.id === t.cityId && c.owner === 0));
+  const merch = { id: "m-coal", owner: 0, type: "merchant", tileId: cap.id, hp: 10, maxHp: 10, moved: false, cargo: [{ good: null, qty: 0, price: 5 }, { good: null, qty: 0, price: 5 }, { good: null, qty: 0, price: 5 }, { good: null, qty: 0, price: 5 }] };
+  gt.units.push(merch);
+  gt.players[0].goods.coal = 10;
+  const loaded = engine.loadMerchant(gt, "m-coal", 0, "coal", 5);
+  ok("merchant can load coal into a slot", loaded && merch.cargo[0].good === "coal" && merch.cargo[0].qty === 5);
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

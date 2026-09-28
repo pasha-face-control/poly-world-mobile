@@ -360,6 +360,17 @@ export function runMetallurgicalPlants(state: GameState, player: number) {
   }
 }
 
+// Iron ore per turn already claimed by the player's existing Metallurgical Plants.
+function metallurgicalDemand(state: GameState, player: number): number {
+  let d = 0;
+  for (const t of state.tiles) {
+    if (t.building !== "metallurgical_plant") continue;
+    const c = cityControllingTile(state, t.id);
+    if (c && c.owner === player) d += 2 * neighbors(state, t.id).filter((n) => state.tiles[n].building === "iron_mine").length;
+  }
+  return d;
+}
+
 
 // Runs every Material Factory the player owns at the start of their turn.
 export function runCityFactories(state: GameState, player: number) {
@@ -519,8 +530,12 @@ export function canBuild(state: GameState, player: number, tileId: number, build
   const terrainOk = def.terrains ? def.terrains.includes(tile.terrain) : tile.terrain === def.terrain;
   if (!terrainOk) return { ok: false, reason: `Needs ${def.terrains ? def.terrains.join(" or ") : def.terrain}` };
   if (def.requiresResource && tile.resource !== def.requiresResource) return { ok: false, reason: "No matching ore" };
-  if (buildingId === "metallurgical_plant" && !neighbors(state, tileId).some((n) => state.tiles[n].building === "iron_mine")) {
-    return { ok: false, reason: "Must be next to an iron mine" };
+  if (buildingId === "metallurgical_plant") {
+    const ironMines = neighbors(state, tileId).filter((n) => state.tiles[n].building === "iron_mine").length;
+    if (ironMines <= 0) return { ok: false, reason: "Must be next to an iron mine" };
+    // Only allow it if the player mines enough iron ore each turn to feed all their plants.
+    const income = goodsIncome(state, player).iron_ore ?? 0;
+    if (metallurgicalDemand(state, player) + 2 * ironMines > income) return { ok: false, reason: "Not enough iron ore income" };
   }
   if (!playerHasTech(state, player, def.tech)) return { ok: false, reason: `Requires ${TECH_BY_ID[def.tech].name}` };
   if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };
@@ -537,7 +552,7 @@ export function build(state: GameState, player: number, tileId: number, building
   if (def.requiresResource) state.tiles[tileId].resource = null; // ore consumed by the mine
   // Farms & lumber huts grow the owning city's population.
   const popGain = buildingId === "metallurgical_plant"
-    ? 2 * neighbors(state, tileId).filter((n) => state.tiles[n].building === "iron_mine").length // +2 per adjacent iron mine
+    ? 2 * neighbors(state, tileId).filter((n) => ["iron_mine", "gold_mine", "coal_mine"].includes(state.tiles[n].building ?? "")).length // +2 per adjacent iron/gold/coal mine
     : BUILDING_POP[buildingId] ?? 0;
   if (popGain > 0) {
     const owner = owningCityForTile(state, player, tileId);

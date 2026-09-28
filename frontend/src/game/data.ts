@@ -35,9 +35,9 @@ export const CITY_GOODS: { id: GoodType; name: string; icon: string; color: stri
   { id: "coal", name: "Coal", icon: "img:coal_ore", color: "#3A3A3A" },
 ];
 
-// Goods a Merchant / Merchant Ship can carry & trade. Includes the crafted
-// city materials (planks, stone, sand, glass); coal is not tradable.
-export const TRADE_GOODS = CITY_GOODS.filter((g) => g.id !== "coal");
+// Goods a Merchant / Merchant Ship can carry & trade. Includes every resource
+// (base goods, crafted city materials, iron ore, and coal) so all can be traded.
+export const TRADE_GOODS = CITY_GOODS;
 
 // Modest starting stockpile so goods-costed units are usable before production buildings exist.
 export const START_GOODS: Record<GoodType, number> = { wood: 12, meat: 10, wheat: 6, iron: 8, horse: 2, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, apple: 0, iron_ore: 0 };
