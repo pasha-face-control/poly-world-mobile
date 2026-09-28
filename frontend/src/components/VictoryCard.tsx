@@ -38,7 +38,14 @@ export default function VictoryCard({ state }: { state: GameState }) {
   const units = state.units.filter((u) => u.owner === 0).length;
   const techs = state.players[0].techs.length;
   const score = computeScore(state);
-  const standings = computeLeaderboards(state).points;
+  const boards = computeLeaderboards(state);
+  const [tab, setTab] = useState<"points" | "cities" | "cityLevel">("points");
+  const TABS: { id: "points" | "cities" | "cityLevel"; label: string }[] = [
+    { id: "points", label: "Points" },
+    { id: "cities", label: "Cities" },
+    { id: "cityLevel", label: "City Level" },
+  ];
+  const standings = boards[tab];
   const medals = ["#E5C558", "#C7CBD1", "#CD8B5B"];
 
   const onShare = async () => {
@@ -88,7 +95,17 @@ export default function VictoryCard({ state }: { state: GameState }) {
       </ViewShot>
 
       <View style={styles.standings} testID="final-standings">
-        <Text style={styles.standTitle}>FINAL STANDINGS · POINTS</Text>
+        <Text style={styles.standTitle}>FINAL STANDINGS</Text>
+        <View style={styles.tabRow}>
+          {TABS.map((t) => {
+            const active = tab === t.id;
+            return (
+              <Pressable key={t.id} testID={`vc-tab-${t.id}`} onPress={() => setTab(t.id)} style={[styles.tab, active && styles.tabActive]}>
+                <Text style={[styles.tabText, active && styles.tabTextActive]}>{t.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
         {standings.map((r, i) => {
           const me = r.player === 0;
           return (
@@ -137,6 +154,11 @@ const styles = StyleSheet.create({
   shareText: { color: "#fff", fontWeight: "900", fontSize: 15 },
   standings: { backgroundColor: C.surfaceSecondary, borderRadius: R.md, padding: SP.sm, gap: 4 },
   standTitle: { fontSize: 11, fontWeight: "800", color: C.onSurfaceSecondary, letterSpacing: 1, marginBottom: 2, textAlign: "center" },
+  tabRow: { flexDirection: "row", backgroundColor: C.surface, borderRadius: R.md, padding: 3, marginBottom: 4 },
+  tab: { flex: 1, paddingVertical: 6, borderRadius: R.sm, alignItems: "center" },
+  tabActive: { backgroundColor: C.brand },
+  tabText: { fontSize: 12, fontWeight: "800", color: C.onSurfaceSecondary },
+  tabTextActive: { color: "#fff" },
   standRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 5, paddingHorizontal: 6, borderRadius: R.sm },
   standRowMe: { backgroundColor: C.surface },
   rankBadge: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
