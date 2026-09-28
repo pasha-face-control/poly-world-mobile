@@ -8,6 +8,7 @@ interface Props {
   bottomInset: number;
   busy: boolean;
   onTech: () => void;
+  onLeaderboard: () => void;
   onNextUnit: () => void;
   onMenu: () => void;
   onEndTurn: () => void;
@@ -22,11 +23,12 @@ function Action({ icon, label, onPress, primary, testID }: { icon: string; label
   );
 }
 
-export default function BottomBar({ bottomInset, busy, onTech, onNextUnit, onMenu, onEndTurn }: Props) {
+export default function BottomBar({ bottomInset, busy, onTech, onLeaderboard, onNextUnit, onMenu, onEndTurn }: Props) {
   return (
     <View style={[styles.wrap, { paddingBottom: bottomInset + 8 }]} pointerEvents="box-none">
       <BlurView intensity={40} tint="light" style={styles.bar} testID="bottom-bar">
         <Action icon="file-tree" label="Tech" onPress={onTech} testID="action-tech" />
+        <Action icon="trophy" label="Ranks" onPress={onLeaderboard} testID="action-leaderboard" />
         <Action icon="crosshairs-gps" label="Next" onPress={onNextUnit} testID="action-next-unit" />
         <Action icon="menu" label="Menu" onPress={onMenu} testID="action-menu" />
         {busy ? (
@@ -48,7 +50,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
     paddingVertical: 8,
     borderRadius: R.lg,
     overflow: "hidden",
@@ -62,10 +64,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 10,
-    marginHorizontal: 4,
+    marginHorizontal: 2,
     borderRadius: R.md,
     gap: 2,
   },
   primary: { backgroundColor: C.brand },
-  label: { fontSize: 12, fontWeight: "800", color: C.onSurface },
+  label: { fontSize: 11, fontWeight: "800", color: C.onSurface },
 });

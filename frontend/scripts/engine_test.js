@@ -1095,5 +1095,46 @@ if (anyWater) {
 }
 
 
+// ---- Leaderboard scoring ----
+{
+  const lb = require("../src/game/leaderboard.ts");
+  const g = generateGame({ tribe: "snow", opponents: 1, mapSize: 12, mapType: "continents", passAndPlay: false, seed: 42 });
+  const p0 = g.players[0];
+  const cap0 = g.cities.find((c) => c.owner === 0);
+
+  // City-level points: +100 per level beyond 1.
+  cap0.level = 1;
+  const b1 = lb.playerPointsBreakdown(g, 0);
+  cap0.level = 3;
+  const b2 = lb.playerPointsBreakdown(g, 0);
+  ok("city level +100 per level (2 levels = +200)", b2.cityLevels - b1.cityLevels === 200);
+
+  // Tech points by tier: adding a tier-3 tech grants +50.
+  const before = lb.playerPointsBreakdown(g, 0).tech;
+  const tier3 = require("../src/game/data.ts").TECHS.find((t) => t.tier === 3 && !p0.techs.includes(t.id));
+  p0.techs.push(tier3.id);
+  ok("tier-3 tech grants +50 points", lb.playerPointsBreakdown(g, 0).tech - before === 50);
+
+  // Gold-mine building points: +25.
+  const grid2 = require("../src/game/grid.ts");
+  const terr = grid2.neighbors(g, cap0.tileId).find((id) => g.tiles[id].terrain !== "water" && !g.tiles[id].cityId && !g.tiles[id].building);
+  const bb0 = lb.playerPointsBreakdown(g, 0).buildings;
+  g.tiles[terr].building = "gold_mine";
+  ok("gold mine grants +25 building points", lb.playerPointsBreakdown(g, 0).buildings - bb0 === 25);
+  g.tiles[terr].building = "wheat_farm";
+  ok("farm grants +10 building points", lb.playerPointsBreakdown(g, 0).buildings - bb0 === 10);
+
+  // Territory: at least the capital's 3x3 counts (>= 9 cells * 150).
+  ok("territory points cover the capital footprint", lb.playerPointsBreakdown(g, 0).territory >= 9 * 150);
+
+  // Boards are sorted descending and include every player.
+  const boards = lb.computeLeaderboards(g);
+  ok("points board lists all players", boards.points.length === g.players.length);
+  ok("points board sorted desc", boards.points.every((r, i, a) => i === 0 || a[i - 1].value >= r.value));
+  ok("cities board sorted desc", boards.cities.every((r, i, a) => i === 0 || a[i - 1].value >= r.value));
+  ok("cityLevel board sorted desc", boards.cityLevel.every((r, i, a) => i === 0 || a[i - 1].value >= r.value));
+}
+
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

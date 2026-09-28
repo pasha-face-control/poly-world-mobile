@@ -12,6 +12,7 @@ import { useFxSettings } from "@/src/utils/useFxSettings";
 import GameMap from "@/src/components/GameMap";
 import TopHUD from "@/src/components/TopHUD";
 import BottomBar from "@/src/components/BottomBar";
+import LeaderboardModal from "@/src/components/LeaderboardModal";
 import TechTreeModal from "@/src/components/TechTreeModal";
 import CityPanel from "@/src/components/CityPanel";
 import UnitPanel from "@/src/components/UnitPanel";
@@ -65,6 +66,7 @@ export default function GameScreen() {
   const [renameText, setRenameText] = useState("");
   const [moveAnim, setMoveAnim] = useState<{ unitId: string; fromTileId: number; toTileId: number; key: number } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
@@ -548,6 +550,7 @@ export default function GameScreen() {
         bottomInset={insets.bottom}
         busy={busy}
         onTech={() => setTechOpen(true)}
+        onLeaderboard={() => setLeaderboardOpen(true)}
         onNextUnit={onNextUnit}
         onMenu={() => setMenuOpen(true)}
         onEndTurn={onEndTurn}
@@ -563,6 +566,9 @@ export default function GameScreen() {
         }}
         onClose={() => setTechOpen(false)}
       />
+
+      <LeaderboardModal visible={leaderboardOpen} state={state} onClose={() => setLeaderboardOpen(false)} />
+
 
       <LevelUpModal
         city={(() => {
