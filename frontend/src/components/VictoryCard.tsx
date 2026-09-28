@@ -5,6 +5,7 @@ import * as Sharing from "expo-sharing";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, SP, shadow } from "@/src/theme";
 import { TRIBE_BY_ID } from "@/src/game/data";
+import { computeLeaderboards } from "@/src/game/leaderboard";
 import { GameState } from "@/src/game/types";
 
 export function computeScore(state: GameState): number {
@@ -37,6 +38,8 @@ export default function VictoryCard({ state }: { state: GameState }) {
   const units = state.units.filter((u) => u.owner === 0).length;
   const techs = state.players[0].techs.length;
   const score = computeScore(state);
+  const standings = computeLeaderboards(state).points;
+  const medals = ["#E5C558", "#C7CBD1", "#CD8B5B"];
 
   const onShare = async () => {
     try {
@@ -84,6 +87,25 @@ export default function VictoryCard({ state }: { state: GameState }) {
         </View>
       </ViewShot>
 
+      <View style={styles.standings} testID="final-standings">
+        <Text style={styles.standTitle}>FINAL STANDINGS · POINTS</Text>
+        {standings.map((r, i) => {
+          const me = r.player === 0;
+          return (
+            <View key={r.player} style={[styles.standRow, me && styles.standRowMe]}>
+              <View style={[styles.rankBadge, { backgroundColor: medals[i] ?? C.surfaceSecondary }]}>
+                <Text style={[styles.rankNum, i > 2 && { color: C.onSurfaceSecondary }]}>{i + 1}</Text>
+              </View>
+              <View style={[styles.standDot, { backgroundColor: r.color }]} />
+              <Text style={[styles.standName, me && styles.standNameMe, r.eliminated && styles.standDead]} numberOfLines={1}>
+                {r.name}{me ? " (You)" : ""}
+              </Text>
+              <Text style={styles.standValue}>{r.value.toLocaleString()}</Text>
+            </View>
+          );
+        })}
+      </View>
+
       <Pressable testID="share-result" onPress={onShare} style={({ pressed }) => [styles.shareBtn, pressed && { opacity: 0.85 }]}>
         <MaterialCommunityIcons name="share-variant" size={20} color="#fff" />
         <Text style={styles.shareText}>
@@ -113,5 +135,16 @@ const styles = StyleSheet.create({
   brand: { fontSize: 11, fontWeight: "700", color: "rgba(248,246,240,0.45)", marginTop: SP.sm },
   shareBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: C.brand, borderRadius: R.md, paddingVertical: 14 },
   shareText: { color: "#fff", fontWeight: "900", fontSize: 15 },
+  standings: { backgroundColor: C.surfaceSecondary, borderRadius: R.md, padding: SP.sm, gap: 4 },
+  standTitle: { fontSize: 11, fontWeight: "800", color: C.onSurfaceSecondary, letterSpacing: 1, marginBottom: 2, textAlign: "center" },
+  standRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 5, paddingHorizontal: 6, borderRadius: R.sm },
+  standRowMe: { backgroundColor: C.surface },
+  rankBadge: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  rankNum: { fontSize: 12, fontWeight: "900", color: "#3A2E12" },
+  standDot: { width: 12, height: 12, borderRadius: 6 },
+  standName: { flex: 1, fontSize: 14, fontWeight: "700", color: C.onSurface },
+  standNameMe: { fontWeight: "900", color: C.brand },
+  standDead: { textDecorationLine: "line-through", color: C.onSurfaceSecondary },
+  standValue: { fontSize: 14, fontWeight: "900", color: C.onSurface },
   webNote: { fontSize: 11, color: C.onSurfaceSecondary, textAlign: "center" },
 });

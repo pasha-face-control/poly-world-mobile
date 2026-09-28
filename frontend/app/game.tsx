@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -817,7 +817,7 @@ export default function GameScreen() {
       {/* Victory / Defeat */}
       <Modal visible={state.status !== "playing"} transparent animationType="fade">
         <View style={styles.centerOverlay}>
-          <View style={styles.dialog} testID="result-dialog">
+          <ScrollView style={styles.dialogScroll} contentContainerStyle={styles.dialog} showsVerticalScrollIndicator={false}>
             {state.status !== "playing" && <VictoryCard state={state} />}
             <Button
               testID="result-newgame"
@@ -829,7 +829,7 @@ export default function GameScreen() {
               }}
             />
             <Button testID="result-menu" label="Main Menu" icon="home" variant="secondary" onPress={goMenu} />
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -859,7 +859,8 @@ const styles = StyleSheet.create({
   gateBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#4F772D", paddingHorizontal: 44, paddingVertical: 16, borderRadius: 999 },
   gateBtnText: { color: "#fff", fontWeight: "900", fontSize: 20 },
   centerOverlay: { flex: 1, backgroundColor: "rgba(28,28,28,0.6)", alignItems: "center", justifyContent: "center", padding: SP.xl },
-  dialog: { width: "100%", maxWidth: 360, backgroundColor: C.surface, borderRadius: R.lg, padding: SP.xl, gap: SP.md, alignItems: "stretch", ...shadow(10) },
+  dialogScroll: { width: "100%", maxWidth: 360, maxHeight: "90%", alignSelf: "center", flexGrow: 0 },
+  dialog: { backgroundColor: C.surface, borderRadius: R.lg, padding: SP.xl, gap: SP.md, ...shadow(10) },
   dialogTitle: { fontSize: 28, fontWeight: "900", color: C.onSurface, textAlign: "center" },
   dialogSub: { fontSize: 14, color: C.onSurfaceSecondary, textAlign: "center", marginBottom: SP.sm },
   saveNote: { fontSize: 12, color: C.onSurfaceSecondary, textAlign: "center" },
