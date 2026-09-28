@@ -1191,5 +1191,14 @@ if (anyWater) {
 }
 
 
+// ---- City-level finish: setting status stays terminal through checkVictory ----
+{
+  const g = generateGame({ tribe: "snow", opponents: 1, mapSize: 12, mapType: "continents", passAndPlay: false, seed: 77 });
+  g.cities.find((c) => c.owner === 0).level = 18;
+  g.status = "won"; // player tapped Finish → Yes
+  engine.checkVictory(g); // must not revert an intentional finish while rivals are alive
+  ok("finish keeps game 'won' after checkVictory", g.status === "won");
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

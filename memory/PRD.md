@@ -150,6 +150,8 @@ Build a game similar to The Battle of Polytopia. Client-side, local persistence.
 
 - **Victory screen standings tabs** — the end-game `VictoryCard` Final Standings now has Points / Cities / City Level toggle tabs (testIDs `vc-tab-points|cities|cityLevel`, default Points), re-ranking the list via `computeLeaderboards(state)[tab]` just like the in-game leaderboard. Verified via temp-route screenshot (tab switch re-ranks correctly); lint clean, `node scripts/engine_test.js` **253/253**.
 
+- **City-level victory (Finish)** — when any of the human's cities reaches **level 18**, a gold **Finish** button (crown) appears in the bottom bar (`BottomBar` gained `canFinish`/`onFinish`; `game.tsx` gate: `state.status==="playing" && cities.some(owner===0 && level>=18)`). Tapping it opens a confirm modal "Do you really want to end the game?" with **No** (closes, testID `finish-no`) and **Yes** (testID `finish-yes`) → store action `doFinishGame` sets `status="won"` (survives `checkVictory` since rivals are alive), showing the Final Standings screen. Verified: 6-item bar layout renders cleanly (temp-route screenshot), `node scripts/engine_test.js` **254/254** (added: finish stays 'won' through checkVictory), lint clean.
+
 ## Backlog / Next
 - Build the goods economy + resource top-bar (foundation for buildings, unit costs, trading).
 - Then buildings & per-turn production, then naval + upgrades, then merchant trading UI.

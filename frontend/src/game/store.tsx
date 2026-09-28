@@ -139,6 +139,7 @@ interface GameContextValue {
   doExpandTerritory: (tileId: number) => boolean;
   doUpgradeCitadel: (cityId: string) => boolean;
   doRenameCity: (cityId: string, name: string) => boolean;
+  doFinishGame: () => boolean;
   doPlaceCityBuilding: (cityId: string, type: string, x: number, y: number) => boolean;
   doSetFactoryFeed: (cityId: string, buildingId: string, feed: number) => boolean;
   doDrawCityRoads: (cityId: string, cells: number[]) => boolean;
@@ -313,6 +314,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doFishSuccess = useCallback((tileId: number) => apply((s) => fishSuccess(s, s.currentPlayer, tileId)), [apply]);
   const doHireGardener = useCallback((tileId: number) => apply((s) => hireGardener(s, s.currentPlayer, tileId)), [apply]);
   const doHarvestFruit = useCallback((tileId: number, collected: number) => apply((s) => harvestFruit(s, s.currentPlayer, tileId, collected)), [apply]);
+  const doFinishGame = useCallback(() => apply((s) => { s.status = "won"; return true; }), [apply]);
   const doBuyFromMerchant = useCallback((merchantId: string, slotIndex: number, amount: number) => apply((s) => buyFromMerchant(s, s.currentPlayer, merchantId, slotIndex, amount)), [apply]);
   const doClearSale = useCallback(() => apply((s) => { if (s.pendingSales) delete s.pendingSales[s.currentPlayer]; return true; }), [apply]);
   const doBuyVillage = useCallback((tileId: number) => apply((s) => buyVillage(s, s.currentPlayer, tileId)), [apply]);
@@ -402,6 +404,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doExpandTerritory,
         doUpgradeCitadel,
         doRenameCity,
+        doFinishGame,
         doPlaceCityBuilding,
         doSetFactoryFeed,
         doDrawCityRoads,

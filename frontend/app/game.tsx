@@ -46,7 +46,7 @@ export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { soundOn, hapticsOn, volume } = useFxSettings();
-  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doHireGardener, doHarvestFruit, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, doExpandTerritory, doRenameCity, saveToSlot, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doHireGardener, doHarvestFruit, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, doExpandTerritory, doRenameCity, doFinishGame, saveToSlot, exitToMenu } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
@@ -67,6 +67,7 @@ export default function GameScreen() {
   const [moveAnim, setMoveAnim] = useState<{ unitId: string; fromTileId: number; toTileId: number; key: number } | null>(null);
   const [techOpen, setTechOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [finishOpen, setFinishOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
@@ -551,6 +552,8 @@ export default function GameScreen() {
         busy={busy}
         onTech={() => setTechOpen(true)}
         onLeaderboard={() => setLeaderboardOpen(true)}
+        canFinish={!!state && state.status === "playing" && state.cities.some((c) => c.owner === 0 && c.level >= 18)}
+        onFinish={() => { haptic.select(); setFinishOpen(true); }}
         onNextUnit={onNextUnit}
         onMenu={() => setMenuOpen(true)}
         onEndTurn={onEndTurn}
@@ -568,6 +571,28 @@ export default function GameScreen() {
       />
 
       <LeaderboardModal visible={leaderboardOpen} state={state} onClose={() => setLeaderboardOpen(false)} />
+
+      <Modal visible={finishOpen} transparent animationType="fade" onRequestClose={() => setFinishOpen(false)}>
+        <Pressable style={styles.renameBackdrop} onPress={() => setFinishOpen(false)}>
+          <View style={styles.renameCenter}>
+            <Pressable style={styles.renameCard} onPress={() => {}}>
+              <Text style={styles.finishTitle}>Do you really want to end the game?</Text>
+              <View style={styles.renameBtns}>
+                <Pressable testID="finish-no" onPress={() => setFinishOpen(false)} style={[styles.renameAction, styles.renameCancel]}>
+                  <Text style={styles.renameCancelText}>No</Text>
+                </Pressable>
+                <Pressable
+                  testID="finish-yes"
+                  onPress={() => { haptic.notify(); setFinishOpen(false); doFinishGame(); }}
+                  style={[styles.renameAction, styles.renameSave]}
+                >
+                  <Text style={styles.renameSaveText}>Yes</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
 
       <LevelUpModal
@@ -841,6 +866,7 @@ const styles = StyleSheet.create({
   renameCenter: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 28 },
   renameCard: { width: "100%", maxWidth: 360, backgroundColor: C.surface, borderRadius: R.lg, padding: SP.lg, borderWidth: 1, borderColor: C.border, ...shadow(12) },
   renameTitle: { fontSize: 18, fontWeight: "900", color: C.onSurface, marginBottom: SP.md },
+  finishTitle: { fontSize: 17, fontWeight: "900", color: C.onSurface, marginBottom: SP.md, textAlign: "center", lineHeight: 23 },
   renameInput: { backgroundColor: C.surfaceSecondary, borderRadius: R.md, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, fontWeight: "700", color: C.onSurface },
   renameBtns: { flexDirection: "row", gap: SP.sm, marginTop: SP.md },
   renameAction: { flex: 1, borderRadius: R.md, paddingVertical: 12, alignItems: "center" },
