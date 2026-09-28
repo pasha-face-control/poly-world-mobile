@@ -143,6 +143,9 @@ Build a game similar to The Battle of Polytopia. Client-side, local persistence.
   - **'Forgery' tech renamed to 'Metallurgy'** (display name only; id kept `forgery` so `sword_art` prereq and old saves stay valid); it now unlocks the Metallurgical Plant.
   - Verified: `node scripts/engine_test.js` **252/252** (added: mine makes ore not ingots, plant adjacency gate, +2 pop/mine, 2-ore→1-iron refining); app boots, plant sprite renders, lint clean.
 
+- **Plant info row (build panel)** — the Metallurgical Plant chip in `BuildPanel` now shows its value before building: a `+2/mine` population badge and an ore→iron conversion row (`iron_ore` icon "2" → `iron` icon "1"). `goodMeta` now looks up `CITY_GOODS` (so `iron_ore` resolves). Styles `plantRow`/`plantConv` added.
+- **Bot Metallurgy** — `ai.ts`: (1) research nudge — a bot that controls an iron mine but lacks `forgery` now prioritises researching Metallurgy (needs `cityControllingTile`, newly exported from engine); (2) build preference — step 3b now builds a `metallurgical_plant` on any territory tile where it's buildable (beside a mine) BEFORE other structures, so bots keep refining ore into iron for troops. Verified: `node scripts/engine_test.js` **253/253** (added integration test: a normal bot with an iron mine + Metallurgy builds a plant beside it within a few turns).
+
 ## Backlog / Next
 - Build the goods economy + resource top-bar (foundation for buildings, unit costs, trading).
 - Then buildings & per-turn production, then naval + upgrades, then merchant trading UI.

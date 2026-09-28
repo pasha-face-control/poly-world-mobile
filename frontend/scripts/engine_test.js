@@ -1039,6 +1039,34 @@ if (anyWater) {
 }
 
 {
+  // Bot Metallurgy: a bot with an iron mine + Metallurgy builds a Metallurgical Plant beside it.
+  const ai = require("../src/game/ai.ts");
+  const grid = require("../src/game/grid.ts");
+  const g = generateGame({ tribe: "nature", opponents: 1, mapSize: 16, mapType: "continents", passAndPlay: false, seed: 9 });
+  g.difficulty = "normal";
+  const botCap = g.cities.find((c) => c.owner === 1 && c.isCapital);
+  const capN = engine.neighbors(g, botCap.tileId);
+  // Put a mountain iron mine on one neighbour and a grass tile (adjacent to it) on another.
+  const mineTile = capN.find((n) => g.tiles[n].terrain !== "water" && !g.tiles[n].cityId && !engine.unitAt(g, n));
+  g.tiles[mineTile].terrain = "mountain"; g.tiles[mineTile].resource = "iron_ore"; g.tiles[mineTile].building = "iron_mine";
+  const grassTile = capN.find((n) => n !== mineTile && engine.neighbors(g, mineTile).includes(n) && g.tiles[n].terrain !== "water" && !g.tiles[n].cityId && !engine.unitAt(g, n));
+  if (grassTile != null) {
+    g.tiles[grassTile].terrain = "grass"; g.tiles[grassTile].building = null; g.tiles[grassTile].resource = null;
+    g.players[1].techs = ["climbing", "forgery"]; // Metallurgy unlocked
+    g.players[1].stars = 200;
+    let built = false;
+    for (let i = 0; i < 6 && !built; i++) {
+      g.players[1].stars += 20;
+      g.units.filter((u) => u.owner === 1).forEach((u) => { u.moved = false; });
+      ai.runAiTurn(g, 1);
+      built = g.tiles.some((t) => t.building === "metallurgical_plant" && engine.cityControllingTile(g, t.id)?.owner === 1);
+    }
+    ok("bot builds a Metallurgical Plant beside its iron mine", built);
+  }
+}
+
+
+{
   // Villages must be at least 3 cells apart from each other across generated maps.
   const grid = require("../src/game/grid.ts");
   let minGap = Infinity, total = 0;

@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import GameIcon from "@/src/components/GameIcon";
 import { C, R, SP, shadow } from "@/src/theme";
-import { BUILDINGS, BUILDING_POP, GOODS, INFRA } from "@/src/game/data";
+import { BUILDINGS, BUILDING_POP, CITY_GOODS, INFRA } from "@/src/game/data";
 import { canBuild, canInfra } from "@/src/game/engine";
 import { GameState } from "@/src/game/types";
 
@@ -16,7 +16,7 @@ interface Props {
   onClose: () => void;
 }
 
-const goodMeta = (id: string) => GOODS.find((g) => g.id === id);
+const goodMeta = (id: string) => CITY_GOODS.find((g) => g.id === id);
 
 export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfra, onClose }: Props) {
   const player = state.players[state.currentPlayer];
@@ -79,7 +79,22 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfr
                       <Text style={[styles.produceText, { color: C.info }]}>+{BUILDING_POP[b.id]}</Text>
                     </View>
                   )}
+                  {b.id === "metallurgical_plant" && (
+                    <View style={styles.produceItem}>
+                      <MaterialCommunityIcons name="account-group" size={11} color={C.info} />
+                      <Text style={[styles.produceText, { color: C.info }]}>+2/mine</Text>
+                    </View>
+                  )}
                 </View>
+                {b.id === "metallurgical_plant" && (
+                  <View style={styles.plantRow}>
+                    <GameIcon name={goodMeta("iron_ore")?.icon ?? "help"} size={11} color={goodMeta("iron_ore")?.color ?? C.onSurface} />
+                    <Text style={styles.plantConv}>2</Text>
+                    <MaterialCommunityIcons name="arrow-right-thin" size={13} color={C.onSurfaceSecondary} />
+                    <GameIcon name={goodMeta("iron")?.icon ?? "help"} size={11} color={goodMeta("iron")?.color ?? C.onSurface} />
+                    <Text style={styles.plantConv}>1</Text>
+                  </View>
+                )}
               </Pressable>
             );
           })}
@@ -137,5 +152,7 @@ const styles = StyleSheet.create({
   produce: { flexDirection: "row", gap: 6 },
   produceItem: { flexDirection: "row", alignItems: "center", gap: 1 },
   produceText: { fontSize: 10, fontWeight: "800", color: C.success },
+  plantRow: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 1 },
+  plantConv: { fontSize: 10, fontWeight: "900", color: C.onSurface },
   infraDesc: { fontSize: 9, color: C.onSurfaceSecondary, textAlign: "center", lineHeight: 11 },
 });

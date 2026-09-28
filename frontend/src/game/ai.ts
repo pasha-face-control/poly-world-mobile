@@ -8,6 +8,7 @@ import {
   canBuyCity,
   chebyshev,
   cityBuyPrice,
+  cityControllingTile,
   doInfra,
   embark,
   expandTerritory,
@@ -192,6 +193,13 @@ export function runAiTurn(state: GameState, player: number) {
         const nav = affordable.find((a) => NAVAL_LINE.includes(a.id));
         if (nav && Math.random() < 0.6) pick = nav;
       }
+      // If the bot mines iron ore but can't refine it yet, prioritise Metallurgy so its
+      // Metallurgical Plants can turn that ore into iron for troops.
+      const ownsIronMine = state.tiles.some((t) => t.building === "iron_mine" && cityControllingTile(state, t.id)?.owner === player);
+      if (ownsIronMine && !state.players[player].techs.includes("forgery")) {
+        const met = affordable.find((a) => a.id === "forgery");
+        if (met) pick = met;
+      }
       research(state, player, pick.id);
     }
   }
@@ -236,6 +244,15 @@ export function runAiTurn(state: GameState, player: number) {
   // 3b. Build production structures in city territory.
   for (const c of state.cities.filter((c) => c.owner === player)) {
     const terr = [c.tileId, ...neighbors(state, c.tileId), ...(c.expandedTiles ?? [])];
+    // Prefer a Metallurgical Plant beside a mine so the bot keeps refining ore into iron for troops.
+    let built = false;
+    for (const tid of terr) {
+      if (buildableFor(state, player, tid).includes("metallurgical_plant") && build(state, player, tid, "metallurgical_plant")) {
+        built = true;
+        break;
+      }
+    }
+    if (built) continue;
     for (const tid of terr) {
       const opts = buildableFor(state, player, tid);
       if (opts.length) {

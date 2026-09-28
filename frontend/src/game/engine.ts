@@ -505,7 +505,7 @@ function owningCityForTile(state: GameState, player: number, tileId: number): Ci
 }
 
 // Any city (any owner) controlling the tile.
-function cityControllingTile(state: GameState, tileId: number): City | undefined {
+export function cityControllingTile(state: GameState, tileId: number): City | undefined {
   return state.cities.find((c) => cityTerritory(state, c).includes(tileId));
 }
 
