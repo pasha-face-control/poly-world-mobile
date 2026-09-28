@@ -1127,6 +1127,15 @@ if (anyWater) {
   // Territory: at least the capital's 3x3 counts (>= 9 cells * 150).
   ok("territory points cover the capital footprint", lb.playerPointsBreakdown(g, 0).territory >= 9 * 150);
 
+  // Temple bonus: +100 leaderboard points per temple at each turn start.
+  g.tiles[terr].building = "field_temple"; // one temple in the capital's territory
+  const tp0 = lb.playerPointsBreakdown(g, 0).temples;
+  engine.startPlayerTurn(g, 0);
+  ok("temple accrues +100 pts on turn start", lb.playerPointsBreakdown(g, 0).temples - tp0 === 100);
+  engine.startPlayerTurn(g, 0);
+  ok("temple accrues +100 pts again next turn", lb.playerPointsBreakdown(g, 0).temples - tp0 === 200);
+  g.tiles[terr].building = null;
+
   // Boards are sorted descending and include every player.
   const boards = lb.computeLeaderboards(g);
   ok("points board lists all players", boards.points.length === g.players.length);

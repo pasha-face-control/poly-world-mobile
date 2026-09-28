@@ -842,17 +842,21 @@ export function startPlayerTurn(state: GameState, player: number) {
   const income = state.cities.filter((c) => c.owner === player).reduce((s, c) => s + cityStarIncome(c), 0);
   state.players[player].stars += income;
   // Building production for tiles the player's cities control.
+  let temples = 0;
   for (const tile of state.tiles) {
     if (!tile.building) continue;
     const city = cityControllingTile(state, tile.id);
     if (!city || city.owner !== player) continue;
     const def = BUILDING_BY_ID[tile.building];
     if (!def) continue;
+    if (tile.building.endsWith("_temple")) temples++;
     for (const [key, amt] of Object.entries(def.produces)) {
       if (key === "stars") state.players[player].stars += amt ?? 0;
       else state.players[player].goods[key as GoodType] += amt ?? 0;
     }
   }
+  // Temples grant an ongoing +100 leaderboard points each turn.
+  if (temples > 0) state.players[player].templePoints = (state.players[player].templePoints ?? 0) + 100 * temples;
   for (const u of state.units) {
     if (u.owner === player) {
       u.moved = false;

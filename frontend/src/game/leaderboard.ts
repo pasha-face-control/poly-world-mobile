@@ -51,6 +51,7 @@ export interface PointsBreakdown {
   territory: number;
   cityLevels: number;
   tech: number;
+  temples: number;
   total: number;
 }
 
@@ -84,7 +85,10 @@ export function playerPointsBreakdown(state: GameState, p: number): PointsBreakd
     if (def) tech += TECH_TIER_POINTS[def.tier] ?? 0;
   }
 
-  return { explored, buildings, territory, cityLevels, tech, total: explored + buildings + territory + cityLevels + tech };
+  // Ongoing temple bonus accumulated over the game (+100/turn per temple).
+  const temples = state.players[p].templePoints ?? 0;
+
+  return { explored, buildings, territory, cityLevels, tech, temples, total: explored + buildings + territory + cityLevels + tech + temples };
 }
 
 export function playerPoints(state: GameState, p: number): number {

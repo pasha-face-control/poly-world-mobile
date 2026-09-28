@@ -88,6 +88,7 @@ export interface Player {
   techs: string[];
   eliminated: boolean;
   provoked?: boolean; // peaceful-mode bot has been attacked and may now fight back
+  templePoints?: number; // cumulative leaderboard points earned from temples (+100/turn per temple)
   economy?: { bought: GoodLedger; sold: GoodLedger }; // cumulative trade history for the economy panel
 }
 
