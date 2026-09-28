@@ -10,13 +10,13 @@ The whole plot (green pasture + white fence + barn + animals) is kept so each fa
 reads exactly like the reference renders. Per-vertex colours (COLOR_0) are used as-is.
 Output: assets/images/farms/<name>.png  + meta.json (footprint fractions for 1x1 grid).
 """
-import os, json, struct
+import os, json, struct, sys
 import numpy as np
 from PIL import Image
 
 BASE = "/tmp/model"
 ASSETS = os.path.join(os.path.dirname(__file__), "..", "assets", "images", "farms")
-MODELS = ["wheat_farm", "horse_farm", "bullfarm"]
+MODELS = sys.argv[1:] if len(sys.argv) > 1 else ["wheat_farm", "horse_farm", "bullfarm"]
 
 ELEV, AZIM = 30.0, -45.0          # match the rest of the sprite pipeline (2:1 iso)
 PAD = 8                            # px padding around the model
@@ -135,7 +135,7 @@ def rasterize(P, Z, rgb, W, H):
 
 os.makedirs(ASSETS, exist_ok=True)
 right, up, cam = camera_basis()
-meta = {}
+meta = json.load(open(os.path.join(ASSETS, "meta.json"))) if os.path.exists(os.path.join(ASSETS, "meta.json")) else {}
 for name in MODELS:
     R, cols = load(name)
     flat = R.reshape(-1, 3)

@@ -7,7 +7,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 // (so they recolor per state like a vector glyph).
 const IMG: Record<string, { src: ReturnType<typeof require>; tint: boolean }> = {
   "img:ingot": { src: require("../../assets/images/iron_ingot.png"), tint: false },
-  "img:mine": { src: require("../../assets/images/iron_mine_icon.png"), tint: false },
+  "img:mine": { src: require("../../assets/images/iron_mine_icon_new.png"), tint: false },
+  "img:iron_ore": { src: require("../../assets/images/iron_ore_symbol.png"), tint: false },
   "img:ingot_line": { src: require("../../assets/images/iron_ingot_line.png"), tint: true },
   "img:coal_ore": { src: require("../../assets/images/coal_ore.png"), tint: false },
   "img:coal_mine": { src: require("../../assets/images/coal_mine.png"), tint: false },

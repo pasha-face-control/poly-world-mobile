@@ -681,7 +681,25 @@ if (anyWater) {
     const popBefore = cm.population, lvlBefore = cm.level;
     engine.build(gm, 0, mt, "iron_mine");
     ok("iron mine adds +2 city population", cm.population === popBefore + 2 && cm.level === lvlBefore);
-    ok("iron mine produces iron income (+2/turn)", engine.goodsIncome(gm, 0).iron >= 2);
+    ok("iron mine produces iron ORE income (+2/turn)", engine.goodsIncome(gm, 0).iron_ore >= 2);
+    ok("iron mine no longer produces iron ingots directly", (engine.goodsIncome(gm, 0).iron ?? 0) === 0);
+
+    // Metallurgical Plant: on a grass tile beside the mine, +2 pop/mine, refines 2 ore -> 1 iron.
+    if (!gm.players[0].techs.includes("forgery")) gm.players[0].techs.push("forgery");
+    const capN = engine.neighbors(gm, cm.tileId);
+    const plantTile = capN.find((n) => n !== mt && engine.neighbors(gm, mt).includes(n) && gm.tiles[n].terrain !== "water" && !gm.tiles[n].cityId && !gm.tiles[n].building && !engine.unitAt(gm, n));
+    if (plantTile != null) {
+      gm.tiles[plantTile].terrain = "grass"; gm.tiles[plantTile].building = null; gm.tiles[plantTile].resource = null;
+      ok("plant NOT buildable away from a mine (control)", !engine.canBuild(gm, 0, cm.tileId, "metallurgical_plant", { ignoreStars: true }).ok);
+      ok("plant buildable beside an iron mine", engine.canBuild(gm, 0, plantTile, "metallurgical_plant", { ignoreStars: true }).ok);
+      const pop2 = cm.population; gm.players[0].stars = 20;
+      ok("build metallurgical plant", engine.build(gm, 0, plantTile, "metallurgical_plant"));
+      ok("plant grants +2 pop per adjacent mine", cm.population === pop2 + 2);
+      // Refining: give 5 ore, run plant -> converts up to 2*mines (=2) ore into 1 iron.
+      gm.players[0].goods.iron_ore = 5; gm.players[0].goods.iron = 0;
+      engine.runMetallurgicalPlants(gm, 0);
+      ok("plant refines 2 ore -> 1 iron (capped by 1 mine)", gm.players[0].goods.iron === 1 && gm.players[0].goods.iron_ore === 3);
+    }
   }
 
   // Sell path: a bot buying from the human's merchant must record on the human's SOLD ledger

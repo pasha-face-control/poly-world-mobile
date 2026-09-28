@@ -65,7 +65,7 @@ function migrateState(loaded: GameState): GameState {
   if (!loaded.difficulty) loaded.difficulty = "normal";
   for (const p of loaded.players || []) {
     const g = (p.goods || {}) as Partial<Record<GoodType, number>>;
-    p.goods = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, apple: 0, ...g };
+    p.goods = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, apple: 0, iron_ore: 0, ...g };
     if (p.provoked === undefined) p.provoked = false;
     if (!p.economy) p.economy = { bought: {}, sold: {} };
   }

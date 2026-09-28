@@ -342,6 +342,25 @@ export function setFactoryFeed(state: GameState, player: number, cityId: string,
   return true;
 }
 
+// Metallurgical Plants refine iron ore into iron each turn (2 ore → 1 iron), mirroring the
+// sawmill's 2-wood→1-plank flow. Throughput is capped at what its adjacent iron mines mine
+// (2 ore per adjacent mine), so a plant keeps pace with the mines feeding it.
+export function runMetallurgicalPlants(state: GameState, player: number) {
+  const p = state.players[player];
+  for (const tile of state.tiles) {
+    if (tile.building !== "metallurgical_plant") continue;
+    const city = cityControllingTile(state, tile.id);
+    if (!city || city.owner !== player) continue;
+    const mines = neighbors(state, tile.id).filter((n) => state.tiles[n].building === "iron_mine").length;
+    if (mines <= 0) continue;
+    const cap = 2 * mines;
+    const avail = p.goods.iron_ore;
+    const usable = Math.min(cap, avail - (avail % 2));
+    if (usable >= 2) { p.goods.iron_ore -= usable; p.goods.iron += usable / 2; }
+  }
+}
+
+
 // Runs every Material Factory the player owns at the start of their turn.
 export function runCityFactories(state: GameState, player: number) {
   const p = state.players[player];
@@ -500,6 +519,9 @@ export function canBuild(state: GameState, player: number, tileId: number, build
   const terrainOk = def.terrains ? def.terrains.includes(tile.terrain) : tile.terrain === def.terrain;
   if (!terrainOk) return { ok: false, reason: `Needs ${def.terrains ? def.terrains.join(" or ") : def.terrain}` };
   if (def.requiresResource && tile.resource !== def.requiresResource) return { ok: false, reason: "No matching ore" };
+  if (buildingId === "metallurgical_plant" && !neighbors(state, tileId).some((n) => state.tiles[n].building === "iron_mine")) {
+    return { ok: false, reason: "Must be next to an iron mine" };
+  }
   if (!playerHasTech(state, player, def.tech)) return { ok: false, reason: `Requires ${TECH_BY_ID[def.tech].name}` };
   if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };
   if (unitAt(state, tileId)) return { ok: false, reason: "Tile occupied" };
@@ -514,7 +536,9 @@ export function build(state: GameState, player: number, tileId: number, building
   state.tiles[tileId].building = buildingId;
   if (def.requiresResource) state.tiles[tileId].resource = null; // ore consumed by the mine
   // Farms & lumber huts grow the owning city's population.
-  const popGain = BUILDING_POP[buildingId] ?? 0;
+  const popGain = buildingId === "metallurgical_plant"
+    ? 2 * neighbors(state, tileId).filter((n) => state.tiles[n].building === "iron_mine").length // +2 per adjacent iron mine
+    : BUILDING_POP[buildingId] ?? 0;
   if (popGain > 0) {
     const owner = owningCityForTile(state, player, tileId);
     if (owner) addPopulation(state, owner, popGain);
@@ -764,7 +788,7 @@ function recordPurchase(state: GameState, player: number, good: GoodType, qty: n
 
 // Goods a player gains at the start of each of their turns (building production).
 export function goodsIncome(state: GameState, player: number): Record<GoodType, number> {
-  const out: Record<GoodType, number> = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0 };
+  const out: Record<GoodType, number> = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, iron_ore: 0 };
   for (const tile of state.tiles) {
     if (!tile.building) continue;
     const city = cityControllingTile(state, tile.id);
@@ -790,10 +814,11 @@ export function economyProjection(state: GameState, player: number): { income: R
   for (const [g, amt] of Object.entries(base)) p.goods[g as GoodType] += amt; // apply this turn's building income first
   const mid: Record<string, number> = { ...(p.goods as Record<string, number>) };
   runCityFactories(clone, player);
+  runMetallurgicalPlants(clone, player); // ore → iron refining shows in the economy panel
   const after = p.goods as Record<string, number>;
   const income: Record<string, number> = {};
   const costs: Record<string, number> = {};
-  const goods = ["wood", "iron", "wheat", "meat", "horse", "planks", "stone", "sand", "glass", "coal"] as const;
+  const goods = ["wood", "iron", "wheat", "meat", "horse", "planks", "stone", "sand", "glass", "coal", "iron_ore"] as const;
   for (const g of goods) {
     const delta = (after[g] ?? 0) - (mid[g] ?? 0); // factory net for this good
     income[g] = (base[g as GoodType] ?? 0) + Math.max(0, delta);
@@ -857,6 +882,7 @@ export function startPlayerTurn(state: GameState, player: number) {
   }
   // Temples grant an ongoing +100 leaderboard points each turn.
   if (temples > 0) state.players[player].templePoints = (state.players[player].templePoints ?? 0) + 100 * temples;
+  runMetallurgicalPlants(state, player); // refine iron ore → iron
   for (const u of state.units) {
     if (u.owner === player) {
       u.moved = false;

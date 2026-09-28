@@ -123,6 +123,7 @@ const FARM_SPRITES: Record<string, number> = {
   wheat_farm: require("../../assets/images/farms/wheat_farm.png"),
   bull_farm: require("../../assets/images/farms/bullfarm.png"),
   horse_farm: require("../../assets/images/farms/horse_farm.png"),
+  metallurgical_plant: require("../../assets/images/farms/metallurgical_plant.png"),
 };
 // Per-model footprint metadata (fractions of the sprite) so each farm's ground plot maps to
 // exactly one cell: footW = footprint width / sprite width; fcx/fcy = footprint centre.
@@ -130,6 +131,7 @@ const FARM_META: Record<string, { w: number; h: number; footW: number; fcx: numb
   wheat_farm: require("../../assets/images/farms/meta.json").wheat_farm,
   bull_farm: require("../../assets/images/farms/meta.json").bullfarm,
   horse_farm: require("../../assets/images/farms/meta.json").horse_farm,
+  metallurgical_plant: require("../../assets/images/farms/meta.json").metallurgical_plant,
 };
 
 interface Props {

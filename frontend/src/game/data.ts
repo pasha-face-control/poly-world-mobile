@@ -27,6 +27,7 @@ export const GOODS: { id: GoodType; name: string; icon: string; color: string }[
 // Crafted / city-builder resources (global, shared across a player's cities).
 export const CITY_GOODS: { id: GoodType; name: string; icon: string; color: string }[] = [
   ...GOODS,
+  { id: "iron_ore", name: "Iron Ore", icon: "img:iron_ore", color: "#6E5A44" },
   { id: "planks", name: "Planks", icon: "wall", color: "#B08040" },
   { id: "stone", name: "Stone", icon: "cube", color: "#9AA0A6" },
   { id: "sand", name: "Sand", icon: "grain", color: "#E8CE8A" },
@@ -39,7 +40,7 @@ export const CITY_GOODS: { id: GoodType; name: string; icon: string; color: stri
 export const TRADE_GOODS = CITY_GOODS.filter((g) => g.id !== "coal");
 
 // Modest starting stockpile so goods-costed units are usable before production buildings exist.
-export const START_GOODS: Record<GoodType, number> = { wood: 12, meat: 10, wheat: 6, iron: 8, horse: 2, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, apple: 0 };
+export const START_GOODS: Record<GoodType, number> = { wood: 12, meat: 10, wheat: 6, iron: 8, horse: 2, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, apple: 0, iron_ore: 0 };
 
 export interface BuildingDef {
   id: string;
@@ -60,8 +61,9 @@ export const BUILDINGS: BuildingDef[] = [
   { id: "bull_farm", name: "Bull Farm", icon: "cow", terrain: "grass", tech: "bull_farming", cost: 4, produces: { meat: 2 }, color: "#BC4749" },
   { id: "horse_farm", name: "Horse Farm", icon: "horseshoe", terrain: "grass", tech: "horse_farming", cost: 4, produces: { horse: 1 }, color: "#8A5A34" },
   { id: "coal_mine", name: "Coal Mine", icon: "img:coal_mine", terrain: "mountain", tech: "mining", cost: 4, produces: {}, color: "#6E747B", requiresResource: "coal" },
-  { id: "iron_mine", name: "Iron Mine", icon: "img:mine", terrain: "mountain", tech: "iron_mine", cost: 5, produces: { iron: 2 }, color: "#7F8896", requiresResource: "iron_ore" },
+  { id: "iron_mine", name: "Iron Mine", icon: "img:mine", terrain: "mountain", tech: "iron_mine", cost: 5, produces: { iron_ore: 2 }, color: "#7F8896", requiresResource: "iron_ore" },
   { id: "gold_mine", name: "Gold Mine", icon: "gold", terrain: "mountain", tech: "gold_mine", cost: 6, produces: { stars: 5 }, color: "#E5A93A", requiresResource: "gold" },
+  { id: "metallurgical_plant", name: "Metallurgical Plant", icon: "factory", terrain: "grass", tech: "forgery", cost: 5, produces: {}, color: "#8A8A8A" },
   { id: "field_temple", name: "Field Temple", icon: "temple-hindu", terrain: "grass", terrains: ["grass", "sand"], tech: "devotion", cost: 15, produces: {}, color: "#B98FD6" },
   { id: "forest_temple", name: "Forest Temple", icon: "temple-buddhist", terrain: "forest", tech: "devotion", cost: 15, produces: {}, color: "#6FBF8E" },
   { id: "mountain_temple", name: "Mountain Temple", icon: "hexagram", terrain: "mountain", tech: "devotion", cost: 15, produces: {}, color: "#A8B0B8" },
@@ -198,11 +200,11 @@ export const TECHS: TechDef[] = [
   T("horse_farming", "Horse Farming", 3, "farming", "horseshoe", "Build Horse Farms (+1 horse/turn)."),
 
   // Climbing branch
-  T("forgery", "Forgery", 2, "climbing", "anvil", "Build Forge next to mines (+population)."),
+  T("forgery", "Metallurgy", 2, "climbing", "anvil", "Build a Metallurgical Plant beside iron mines (+2 pop per mine, refines iron ore into iron)."),
   T("sword_art", "Sword Art", 3, "forgery", "sword-cross", "Unlock the Swordsman unit."),
   T("mining", "Mining", 2, "climbing", "img:coal_mine_line", "Build Coal Mine (+2 population)."),
   T("mining_technology", "Mining Technology", 3, "mining", "pickaxe", "Reveal Iron & Gold mine sites."),
-  T("iron_mine", "Iron Mine", 4, "mining_technology", "img:ingot_line", "Build Iron Mines (+2 iron/turn)."),
+  T("iron_mine", "Iron Mine", 4, "mining_technology", "img:ingot_line", "Build Iron Mines (+2 iron ore/turn)."),
   T("gold_mine", "Gold Mine", 4, "mining_technology", "gold", "Build Gold Mines (+5 stars/turn)."),
 
   // Fishing branch
@@ -311,7 +313,7 @@ export const RESOURCE_ICON: Record<string, string> = {
   ore: "diamond-stone",
   crop: "barley",
   coal: "img:coal_ore",
-  iron_ore: "img:ingot_line",
+  iron_ore: "img:iron_ore",
   gold: "gold",
 };
 

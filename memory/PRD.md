@@ -136,6 +136,13 @@ Build a game similar to The Battle of Polytopia. Client-side, local persistence.
 
 - **Temple bonus (+100 pts/turn)** — temples now grant an ongoing leaderboard perk: at each turn start, `startPlayerTurn` adds 100 points per temple the player controls into a persistent `Player.templePoints` accumulator (counted in the existing tile-production loop via `building.endsWith("_temple")`). `leaderboard.ts` folds `templePoints` into the Points total as a new `temples` breakdown field. Verified: `node scripts/engine_test.js` **246/246** (added: +100 accrues per temple per turn start, and stacks across turns).
 
+- **Iron ore resource + Metallurgical Plant + Metallurgy rename** —
+  - New good **`iron_ore`** added to `GoodType`, `CITY_GOODS` (icon `img:iron_ore` = uploaded ore symbol, tradeable, not in the top HUD like coal), `START_GOODS`, `migrateState` defaults, `goodsIncome` out-record, and the `economyProjection` goods list.
+  - **Iron mine now produces iron ore, not ingots** (`iron_mine.produces` → `{ iron_ore: 2 }`); its tech blurb updated; new pickaxe icon (`img:mine` repointed to `iron_mine_icon_new.png`); mountain ore deposits now show the ore symbol (`RESOURCE_ICON.iron_ore` → `img:iron_ore`).
+  - **Metallurgical Plant** (`BUILDINGS`): built on a grass tile that is adjacent to an iron mine (enforced in `canBuild`: "Must be next to an iron mine"), tech `forgery`, cost 5★. Grants **+2 population per adjacent iron mine** on build (custom in `build()`, not `BUILDING_POP`). Refines **2 iron ore → 1 iron each turn** via new `runMetallurgicalPlants()` (called in `startPlayerTurn` and the economy clone), capped at 2×(adjacent mines) — mirrors the sawmill's 2-wood→1-plank flow. Renders on the map as a 3D isometric sprite (`assets/images/farms/metallurgical_plant.png` + `meta.json`, registered in `GameMap` FARM_SPRITES/FARM_META); FBX→glTF via `assimp`, rendered by generalized `render_farms.py <name>` (now argv-driven + merges meta.json).
+  - **'Forgery' tech renamed to 'Metallurgy'** (display name only; id kept `forgery` so `sword_art` prereq and old saves stay valid); it now unlocks the Metallurgical Plant.
+  - Verified: `node scripts/engine_test.js` **252/252** (added: mine makes ore not ingots, plant adjacency gate, +2 pop/mine, 2-ore→1-iron refining); app boots, plant sprite renders, lint clean.
+
 ## Backlog / Next
 - Build the goods economy + resource top-bar (foundation for buildings, unit costs, trading).
 - Then buildings & per-turn production, then naval + upgrades, then merchant trading UI.
