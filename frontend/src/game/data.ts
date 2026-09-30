@@ -200,11 +200,11 @@ export const TECHS: TechDef[] = [
   T("horse_farming", "Horse Farming", 3, "farming", "horseshoe", "Build Horse Farms (+1 horse/turn)."),
 
   // Climbing branch
-  T("forgery", "Metallurgy", 2, "climbing", "anvil", "Build a Metallurgical Plant beside iron mines (+2 pop per mine, refines iron ore into iron)."),
+  T("forgery", "Metallurgy", 2, "climbing", "img:ingot_line", "Build a Metallurgical Plant beside iron mines (+2 pop per mine, refines iron ore into iron)."),
   T("sword_art", "Sword Art", 3, "forgery", "sword-cross", "Unlock the Swordsman unit."),
   T("mining", "Mining", 2, "climbing", "img:coal_mine_line", "Build Coal Mine (+2 population)."),
   T("mining_technology", "Mining Technology", 3, "mining", "pickaxe", "Reveal Iron & Gold mine sites."),
-  T("iron_mine", "Iron Mine", 4, "mining_technology", "img:ingot_line", "Build Iron Mines (+2 iron ore/turn)."),
+  T("iron_mine", "Iron Mine", 4, "mining_technology", "img:mine_line", "Build Iron Mines (+2 iron ore/turn)."),
   T("gold_mine", "Gold Mine", 4, "mining_technology", "gold", "Build Gold Mines (+5 stars/turn)."),
 
   // Fishing branch
