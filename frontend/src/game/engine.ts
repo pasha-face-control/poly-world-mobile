@@ -521,7 +521,7 @@ export function cityControllingTile(state: GameState, tileId: number): City | un
 }
 
 // ---------- Buildings ----------
-export function canBuild(state: GameState, player: number, tileId: number, buildingId: string, opts?: { ignoreStars?: boolean }): { ok: boolean; reason?: string } {
+export function canBuild(state: GameState, player: number, tileId: number, buildingId: string, opts?: { ignoreStars?: boolean; ignoreIncome?: boolean }): { ok: boolean; reason?: string } {
   const def = BUILDING_BY_ID[buildingId];
   if (!def) return { ok: false, reason: "Unknown building" };
   const tile = state.tiles[tileId];
@@ -534,8 +534,10 @@ export function canBuild(state: GameState, player: number, tileId: number, build
     const ironMines = neighbors(state, tileId).filter((n) => state.tiles[n].building === "iron_mine").length;
     if (ironMines <= 0) return { ok: false, reason: "Must be next to an iron mine" };
     // Only allow it if the player mines enough iron ore each turn to feed all their plants.
-    const income = goodsIncome(state, player).iron_ore ?? 0;
-    if (metallurgicalDemand(state, player) + 2 * ironMines > income) return { ok: false, reason: "Not enough iron ore income" };
+    if (!opts?.ignoreIncome) {
+      const income = goodsIncome(state, player).iron_ore ?? 0;
+      if (metallurgicalDemand(state, player) + 2 * ironMines > income) return { ok: false, reason: "Not enough iron ore income" };
+    }
   }
   if (!playerHasTech(state, player, def.tech)) return { ok: false, reason: `Requires ${TECH_BY_ID[def.tech].name}` };
   if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };

@@ -1217,6 +1217,7 @@ if (anyWater) {
   if (g2 != null) {
     g.tiles[g2].terrain = "grass";
     ok("2nd plant blocked: not enough iron ore income", !engine.canBuild(g, 0, g2, "metallurgical_plant", { ignoreStars: true }).ok);
+    ok("2nd plant income failure is affordability (structurally valid via ignoreIncome)", engine.canBuild(g, 0, g2, "metallurgical_plant", { ignoreStars: true, ignoreIncome: true }).ok);
   }
 
   // Pop counts iron + gold + coal mines: plant beside 1 iron + 1 coal mine => +4 pop.

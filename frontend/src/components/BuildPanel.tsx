@@ -45,7 +45,11 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfr
           {options.map((b) => {
             const check = canBuild(state, player.index, tileId, b.id);
             const lockedTech = !player.techs.includes(b.tech);
-            const onlyStars = !check.ok && canBuild(state, player.index, tileId, b.id, { ignoreStars: true }).ok;
+            // "Unaffordable" = the tile is structurally valid (terrain/tech/adjacency ok) but the
+            // player lacks the stars OR (for the plant) the iron-ore income to support it. Show the
+            // cost in red at full opacity instead of a dimmed/locked chip.
+            const onlyStars = !check.ok && canBuild(state, player.index, tileId, b.id, { ignoreStars: true, ignoreIncome: true }).ok;
+            const incomeShort = onlyStars && check.reason === "Not enough iron ore income";
             return (
               <Pressable key={b.id} testID={`build-${b.id}`} disabled={!check.ok} onPress={() => onBuild(b.id)} style={[styles.chip, !check.ok && !onlyStars && styles.chipDisabled, onlyStars && styles.chipUnaffordable]}>
                 <View style={[styles.chipIcon, { backgroundColor: b.color }]}>
@@ -88,11 +92,11 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfr
                 </View>
                 {b.id === "metallurgical_plant" && (
                   <View style={styles.plantRow}>
-                    <GameIcon name={goodMeta("iron_ore")?.icon ?? "help"} size={11} color={goodMeta("iron_ore")?.color ?? C.onSurface} />
-                    <Text style={styles.plantConv}>2</Text>
-                    <MaterialCommunityIcons name="arrow-right-thin" size={13} color={C.onSurfaceSecondary} />
-                    <GameIcon name={goodMeta("iron")?.icon ?? "help"} size={11} color={goodMeta("iron")?.color ?? C.onSurface} />
-                    <Text style={styles.plantConv}>1</Text>
+                    <GameIcon name={goodMeta("iron_ore")?.icon ?? "help"} size={11} color={incomeShort ? C.error : (goodMeta("iron_ore")?.color ?? C.onSurface)} />
+                    <Text style={[styles.plantConv, incomeShort && styles.costRed]}>2</Text>
+                    <MaterialCommunityIcons name="arrow-right-thin" size={13} color={incomeShort ? C.error : C.onSurfaceSecondary} />
+                    <GameIcon name={goodMeta("iron")?.icon ?? "help"} size={11} color={incomeShort ? C.error : (goodMeta("iron")?.color ?? C.onSurface)} />
+                    <Text style={[styles.plantConv, incomeShort && styles.costRed]}>1</Text>
                   </View>
                 )}
               </Pressable>
