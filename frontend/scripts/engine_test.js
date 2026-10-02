@@ -1188,6 +1188,25 @@ if (anyWater) {
   ok("points board sorted desc", boards.points.every((r, i, a) => i === 0 || a[i - 1].value >= r.value));
   ok("cities board sorted desc", boards.cities.every((r, i, a) => i === 0 || a[i - 1].value >= r.value));
   ok("cityLevel board sorted desc", boards.cityLevel.every((r, i, a) => i === 0 || a[i - 1].value >= r.value));
+
+  // cityLevel ranks by HIGHEST individual city level, not the sum of all cities' levels.
+  {
+    const g2 = generateGame({ tribe: "snow", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 88 });
+    // Pick 3 distinct real land tiles (not already a city) for player 0's cities.
+    const land = g2.tiles.filter((t) => t.terrain !== "water" && !t.cityId).slice(0, 3).map((t) => t.id);
+    const base0 = g2.cities.find((c) => c.owner === 0);
+    const base1 = g2.cities.find((c) => c.owner === 1);
+    const mk = (owner, tileId, level) => { g2.tiles[tileId].cityId = `lbc-${tileId}`; return { id: `lbc-${tileId}`, owner, tileId, name: "T", level, population: 0, capital: false, citadelStage: 1, layout: [] }; };
+    // Player 0: three small cities (2 + 4 + 3 = 9 summed) but highest = 4.
+    // Player 1: one big city level 6.
+    base0.level = 2;
+    g2.cities = [base0, mk(0, land[0], 4), mk(0, land[1], 3), { ...base1, level: 6 }];
+    const bb = lb.computeLeaderboards(g2);
+    const p0val = bb.cityLevel.find((r) => r.player === 0).value;
+    const p1val = bb.cityLevel.find((r) => r.player === 1).value;
+    ok("cityLevel = highest city level (p0=4 not 9)", p0val === 4);
+    ok("cityLevel: one big city (6) outranks three small (max 4)", p1val === 6 && bb.cityLevel[0].player === 1);
+  }
 }
 
 

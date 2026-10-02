@@ -117,7 +117,8 @@ export function computeLeaderboards(state: GameState): Record<LbKind, LbRow[]> {
       eliminated: pl.eliminated,
       points: playerPoints(state, pl.index),
       cities: owned.length,
-      cityLevel: owned.reduce((a, c) => a + c.level, 0),
+      // Highest individual city level (not the sum of all cities' levels).
+      cityLevel: owned.reduce((a, c) => Math.max(a, c.level), 0),
     };
   });
   const rank = (key: "points" | "cities" | "cityLevel"): LbRow[] =>
