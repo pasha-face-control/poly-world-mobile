@@ -1308,5 +1308,20 @@ if (anyWater) {
   ok("shadeVariants(3) distinct", new Set(sv).size === 3);
 }
 
+// ---- Custom player names (offline multiplayer) ----
+{
+  const g = generateGame({ tribe: "nature", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: true, difficulty: "normal", tribes: ["nature", "desert"], humans: 2, playerNames: ["Tolik", "Masha"], seed: 41 });
+  ok("human 1 uses custom name Tolik", g.players[0].name === "Tolik");
+  ok("human 2 uses custom name Masha", g.players[1].name === "Masha");
+
+  // Empty / missing custom name falls back to "Player N"; bots stay "<Tribe> AI".
+  const g2 = generateGame({ tribe: "nature", opponents: 2, mapSize: 16, mapType: "continents", passAndPlay: true, difficulty: "normal", tribes: ["nature", "desert", "volcanic"], humans: 1, playerNames: ["Zed"], seed: 42 });
+  ok("human uses custom name Zed", g2.players[0].name === "Zed");
+  ok("bot keeps '<Tribe> AI' name", g2.players[1].name.endsWith(" AI") && g2.players[2].name.endsWith(" AI"));
+
+  const g3 = generateGame({ tribe: "nature", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: true, difficulty: "normal", tribes: ["nature", "desert"], humans: 2, seed: 43 });
+  ok("no custom names → default Player N", g3.players[0].name === "Player 1" && g3.players[1].name === "Player 2");
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

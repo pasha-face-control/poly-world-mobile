@@ -127,4 +127,5 @@ export interface NewGameConfig {
   tribes?: TribeId[]; // explicit per-player tribes (pass & play); length = number of players
   humans?: number; // number of human players (first N); the rest are AI bots. Defaults: passAndPlay=all, else 1
   botDifficulties?: Difficulty[]; // per-bot difficulty (indexed by bot order: 1st bot, 2nd bot, ...). Overrides `difficulty` for that bot.
+  playerNames?: string[]; // custom human player names (indexed by player slot); falls back to "Player N"
 }

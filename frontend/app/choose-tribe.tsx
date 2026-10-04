@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -14,7 +14,7 @@ export default function ChooseTribe() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { startNewGame } = useGame();
-  const params = useLocalSearchParams<{ players: string; bots: string; difficulty: string; botDiffs: string; mapSize: string; mapType: string; index: string; chosen: string; closed: string }>();
+  const params = useLocalSearchParams<{ players: string; bots: string; difficulty: string; botDiffs: string; mapSize: string; mapType: string; index: string; chosen: string; names: string; closed: string }>();
 
   const players = parseInt(params.players ?? "2", 10);
   const bots = parseInt(params.bots ?? "0", 10);
@@ -24,14 +24,18 @@ export default function ChooseTribe() {
   const mapType = (params.mapType ?? "continents") as MapType;
   const index = parseInt(params.index ?? "0", 10);
   const chosen = (params.chosen ?? "").split(",").filter(Boolean) as TribeId[];
+  const priorNames = (params.names ?? "").split(",").filter(Boolean);
   const closed = params.closed === "1";
 
   const [tribe, setTribe] = useState<TribeId | null>(null);
+  const [name, setName] = useState("");
   const isLast = index >= players - 1;
 
   const confirm = () => {
     if (!tribe) return;
     const tribes = [...chosen, tribe];
+    const resolvedName = name.trim() || `Player ${index + 1}`;
+    const names = [...priorNames, resolvedName];
     if (isLast) {
       // Auto-assign tribes to the AI bots (prefer unused biomes, allow duplicates when needed).
       const options: TribeId[] = ["nature", "desert", "volcanic", "snow"];
@@ -41,10 +45,10 @@ export default function ChooseTribe() {
         botTribes.push(avail.length ? avail[0] : options[(tribes.length + i) % options.length]);
       }
       const allTribes = [...tribes, ...botTribes];
-      startNewGame({ tribe: allTribes[0], opponents: allTribes.length - 1, mapSize, mapType, passAndPlay: true, difficulty, tribes: allTribes, humans: players, botDifficulties, closed });
+      startNewGame({ tribe: allTribes[0], opponents: allTribes.length - 1, mapSize, mapType, passAndPlay: true, difficulty, tribes: allTribes, humans: players, botDifficulties, playerNames: names, closed });
       router.replace("/game");
     } else {
-      router.push({ pathname: "/choose-tribe", params: { players: String(players), bots: String(bots), difficulty, botDiffs: botDifficulties.join(","), mapSize: String(mapSize), mapType, closed: closed ? "1" : "", index: String(index + 1), chosen: tribes.join(",") } });
+      router.push({ pathname: "/choose-tribe", params: { players: String(players), bots: String(bots), difficulty, botDiffs: botDifficulties.join(","), mapSize: String(mapSize), mapType, closed: closed ? "1" : "", index: String(index + 1), chosen: tribes.join(","), names: names.join(",") } });
     }
   };
 
@@ -62,6 +66,19 @@ export default function ChooseTribe() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: SP.lg, paddingBottom: 24, gap: SP.md }}>
+        <View>
+          <Text style={styles.nameLabel}>Your Name</Text>
+          <TextInput
+            testID="player-name-input"
+            style={styles.nameInput}
+            value={name}
+            onChangeText={(t) => setName(t.replace(/,/g, "").slice(0, 20))}
+            placeholder={`Player ${index + 1}`}
+            placeholderTextColor={C.onSurfaceSecondary}
+            maxLength={20}
+            returnKeyType="done"
+          />
+        </View>
         {TRIBES.map((t) => {
           const selected = tribe === t.id;
           return (
@@ -103,6 +120,8 @@ const styles = StyleSheet.create({
   back: { padding: 4, backgroundColor: C.surfaceSecondary, borderRadius: R.pill },
   headerTitle: { fontSize: 22, fontWeight: "900", color: C.onSurface },
   headerSub: { fontSize: 12, fontWeight: "700", color: C.onSurfaceSecondary },
+  nameLabel: { fontSize: 13, fontWeight: "900", color: C.onSurfaceSecondary, textTransform: "uppercase", letterSpacing: 1, marginBottom: SP.sm },
+  nameInput: { backgroundColor: C.surfaceSecondary, borderRadius: R.md, borderWidth: 1, borderColor: C.border, paddingHorizontal: SP.md, paddingVertical: 12, fontSize: 16, fontWeight: "800", color: C.onSurface },
   tribeCard: { flexDirection: "row", alignItems: "center", gap: SP.md, backgroundColor: C.surface, borderRadius: R.lg, borderWidth: 3, padding: SP.md },
   tribeIcon: { width: 56, height: 56, borderRadius: R.md, alignItems: "center", justifyContent: "center" },
   tribeName: { fontSize: 20, fontWeight: "900", color: C.onSurface },

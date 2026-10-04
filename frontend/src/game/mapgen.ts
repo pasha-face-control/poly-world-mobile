@@ -111,6 +111,7 @@ export function generateGame(config: {
   tribes?: TribeId[];
   humans?: number;
   botDifficulties?: Difficulty[];
+  playerNames?: string[];
 }): GameState {
   const seed = config.seed ?? Math.floor(Math.random() * 1e9);
   const rng = new RNG(seed);
@@ -144,8 +145,9 @@ export function generateGame(config: {
     else tribe = tribeOptions.find((t) => !usedTribes.has(t)) ?? rng.pick(tribeOptions);
     usedTribes.add(tribe);
     const isHuman = p < humans;
+    const customName = config.playerNames?.[p]?.trim();
     const name = isHuman
-      ? (config.passAndPlay ? `Player ${p + 1}` : TRIBE_BY_ID[tribe].name)
+      ? (customName || (config.passAndPlay ? `Player ${p + 1}` : TRIBE_BY_ID[tribe].name))
       : `${TRIBE_BY_ID[tribe].name} AI`;
     // Per-bot difficulty override (bots are the trailing slots, so bot index = p - humans).
     const botDifficulty = !isHuman ? config.botDifficulties?.[p - humans] : undefined;
