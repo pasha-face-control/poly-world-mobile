@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { storage } from "@/src/utils/storage";
-import { generateGame } from "./mapgen";
+import { generateGame, assignPlayerColors } from "./mapgen";
 import { randomCityName } from "./factory";
 import {
   advanceTurn,
@@ -69,6 +69,8 @@ function migrateState(loaded: GameState): GameState {
     if (p.provoked === undefined) p.provoked = false;
     if (!p.economy) p.economy = { bought: {}, sold: {} };
   }
+  // Backfill per-player shaded colours on older saves (shaded when a tribe is shared).
+  if ((loaded.players || []).some((p) => !p.color)) assignPlayerColors(loaded.players);
   for (const c of loaded.cities || []) {
     if (!c.citadelStage) c.citadelStage = 1;
     if (!c.layout) c.layout = { buildings: [], roads: [] };

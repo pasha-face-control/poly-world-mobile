@@ -1288,5 +1288,25 @@ if (anyWater) {
   ok("all-bots mode: both bots hard", g2.players[1].difficulty === "hard" && g2.players[2].difficulty === "hard");
 }
 
+// ---- Per-player tribe-colour shading when a tribe is shared ----
+{
+  const { shadeVariants } = require("../src/game/colors.ts");
+  // 4 players all pick the SAME tribe (nature) → 4 distinct colours.
+  const g = generateGame({ tribe: "nature", opponents: 3, mapSize: 16, mapType: "continents", passAndPlay: true, difficulty: "normal", tribes: ["nature", "nature", "nature", "nature"], humans: 4, seed: 31 });
+  const cols = g.players.map((p) => p.color);
+  ok("all 4 same-tribe players have a colour", cols.every((c) => typeof c === "string" && c.startsWith("#")));
+  ok("4 same-tribe players get 4 DISTINCT shades", new Set(cols).size === 4);
+
+  // A lone tribe keeps the base colour.
+  const g2 = generateGame({ tribe: "nature", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: true, difficulty: "normal", tribes: ["nature", "desert"], humans: 2, seed: 32 });
+  const { TRIBE_BY_ID } = require("../src/game/data.ts");
+  ok("lone tribe keeps base colour", g2.players[0].color === TRIBE_BY_ID.nature.color && g2.players[1].color === TRIBE_BY_ID.desert.color);
+
+  // shadeVariants: count 1 = base; count>1 = distinct.
+  ok("shadeVariants(1) = base", shadeVariants("#4CAF50", 1).length === 1 && shadeVariants("#4CAF50", 1)[0] === "#4CAF50");
+  const sv = shadeVariants("#4CAF50", 3);
+  ok("shadeVariants(3) distinct", new Set(sv).size === 3);
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

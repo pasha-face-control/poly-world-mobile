@@ -153,7 +153,7 @@ interface Props {
 }
 
 function playerColor(state: GameState, owner: number): string {
-  return TRIBE_BY_ID[state.players[owner].tribe].color;
+  return state.players[owner].color ?? TRIBE_BY_ID[state.players[owner].tribe].color;
 }
 function modelSprite(state: GameState, owner: number, type: string): number | null {
   const set = MODEL_SPRITES[type];

@@ -10,7 +10,7 @@ import { starIncome } from "@/src/game/engine";
 
 export default function TopHUD({ state, topInset, onOpenEconomy }: { state: GameState; topInset: number; onOpenEconomy?: () => void }) {
   const player = state.players[state.currentPlayer];
-  const color = TRIBE_BY_ID[player.tribe].color;
+  const color = player.color ?? TRIBE_BY_ID[player.tribe].color;
   const cities = state.cities.filter((c) => c.owner === player.index).length;
   const income = starIncome(state, player.index);
 

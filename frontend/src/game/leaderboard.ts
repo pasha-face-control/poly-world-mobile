@@ -113,7 +113,7 @@ export function computeLeaderboards(state: GameState): Record<LbKind, LbRow[]> {
     return {
       player: pl.index,
       name: pl.name,
-      color: TRIBE_BY_ID[pl.tribe].color,
+      color: pl.color ?? TRIBE_BY_ID[pl.tribe].color,
       eliminated: pl.eliminated,
       points: playerPoints(state, pl.index),
       cities: owned.length,

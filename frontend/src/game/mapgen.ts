@@ -3,6 +3,19 @@ import { idx } from "./grid";
 import { Difficulty, GameState, MapType, TerrainType, Tile, TribeId } from "./types";
 import { START_STARS, START_GOODS, TRIBE_BY_ID } from "./data";
 import { newUnit, newCity } from "./factory";
+import { shadeVariants } from "./colors";
+
+// Give every player a concrete `color`. Players sharing the same tribe each get a
+// distinct shade of the tribe's base colour; a lone tribe keeps the base colour.
+export function assignPlayerColors(players: GameState["players"]): void {
+  const byTribe: Record<string, GameState["players"]> = {};
+  for (const pl of players) (byTribe[pl.tribe] ??= []).push(pl);
+  for (const tribe in byTribe) {
+    const group = byTribe[tribe];
+    const shades = shadeVariants(TRIBE_BY_ID[tribe as TribeId].color, group.length);
+    group.forEach((pl, i) => { pl.color = shades[i]; });
+  }
+}
 
 function nbrs(x: number, y: number, w: number, h: number): number[] {
   const out: number[] = [];
@@ -138,6 +151,10 @@ export function generateGame(config: {
     const botDifficulty = !isHuman ? config.botDifficulties?.[p - humans] : undefined;
     players.push({ index: p, tribe, name, isHuman, difficulty: botDifficulty, stars: START_STARS, goods: { ...START_GOODS }, techs: [TRIBE_BY_ID[tribe].startTech], eliminated: false, economy: { bought: {}, sold: {} } });
   }
+
+  // Assign per-player colours: when several players share a tribe, give each a
+  // distinct shade of that tribe's base colour so they're visually separable.
+  assignPlayerColors(players);
 
   // Region seeds (= capitals): farthest-point spread across land.
   // Capitals must have at least 5 land cells around them (out of 8 neighbours).

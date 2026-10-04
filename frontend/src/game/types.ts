@@ -83,6 +83,7 @@ export interface Player {
   tribe: TribeId;
   name: string;
   isHuman: boolean;
+  color?: string; // resolved tribe colour (shaded when several players share a tribe)
   stars: number;
   goods: Record<GoodType, number>;
   techs: string[];

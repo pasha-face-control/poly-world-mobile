@@ -387,7 +387,7 @@ export default function GameScreen() {
         focusTileId={focusTileId}
         focusKey={focusKey}
         territory={territory}
-        territoryColor={TRIBE_BY_ID[state.players[state.currentPlayer].tribe].color}
+        territoryColor={state.players[state.currentPlayer].color ?? TRIBE_BY_ID[state.players[state.currentPlayer].tribe].color}
         moveAnim={moveAnim}
         onTileTap={onTileTap}
         onTileDoubleTap={onTileDoubleTap}
