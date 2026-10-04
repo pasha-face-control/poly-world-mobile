@@ -1274,5 +1274,19 @@ if (anyWater) {
   ok("merchant can load coal into a slot", loaded && merch.cargo[0].good === "coal" && merch.cargo[0].qty === 5);
 }
 
+// ---- Per-bot difficulty: each bot can have its own difficulty override ----
+{
+  // 1 human + 3 bots with mixed difficulties (peaceful, easy, hard).
+  const g = generateGame({ tribe: "nature", opponents: 3, mapSize: 16, mapType: "continents", passAndPlay: true, difficulty: "peaceful", tribes: ["nature", "desert", "volcanic", "snow"], humans: 1, botDifficulties: ["peaceful", "easy", "hard"], seed: 21 });
+  ok("human has no per-bot difficulty override", g.players[0].difficulty === undefined);
+  ok("bot 1 difficulty = peaceful", g.players[1].difficulty === "peaceful");
+  ok("bot 2 difficulty = easy", g.players[2].difficulty === "easy");
+  ok("bot 3 difficulty = hard", g.players[3].difficulty === "hard");
+
+  // "Same for all" mode: every bot gets the same difficulty.
+  const g2 = generateGame({ tribe: "nature", opponents: 2, mapSize: 16, mapType: "continents", passAndPlay: true, difficulty: "hard", tribes: ["nature", "desert", "volcanic"], humans: 1, botDifficulties: ["hard", "hard"], seed: 22 });
+  ok("all-bots mode: both bots hard", g2.players[1].difficulty === "hard" && g2.players[2].difficulty === "hard");
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

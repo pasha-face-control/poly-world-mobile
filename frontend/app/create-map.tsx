@@ -18,10 +18,32 @@ export default function CreateMap() {
   const [players, setPlayers] = useState(2);
   const [bots, setBots] = useState(0);
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
+  const [diffMode, setDiffMode] = useState<"all" | "each">("all");
+  const [botDiffs, setBotDiffs] = useState<Difficulty[]>(["normal", "normal", "normal"]);
   const [closed, setClosed] = useState(false);
 
+  const setBotDiff = (i: number, d: Difficulty) =>
+    setBotDiffs((prev) => prev.map((x, idx) => (idx === i ? d : x)));
+
   const next = () => {
-    router.push({ pathname: "/choose-tribe", params: { players: String(players), bots: String(bots), difficulty, mapSize: String(mapSize), mapType, closed: closed ? "1" : "", index: "0", chosen: "" } });
+    const botDifficulties: Difficulty[] =
+      diffMode === "all"
+        ? Array(bots).fill(difficulty)
+        : Array.from({ length: bots }, (_, i) => botDiffs[i] ?? "normal");
+    router.push({
+      pathname: "/choose-tribe",
+      params: {
+        players: String(players),
+        bots: String(bots),
+        difficulty: botDifficulties[0] ?? difficulty,
+        botDiffs: botDifficulties.join(","),
+        mapSize: String(mapSize),
+        mapType,
+        closed: closed ? "1" : "",
+        index: "0",
+        chosen: "",
+      },
+    });
   };
 
   return (
@@ -56,18 +78,51 @@ export default function CreateMap() {
         {bots > 0 && (
           <>
             <Text style={styles.label}>Bot Difficulty</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
-              {DIFFICULTIES.map((d) => {
-                const active = difficulty === d.id;
-                return (
-                  <Pressable key={d.id} testID={`botdiff-${d.id}`} onPress={() => setDifficulty(d.id)} style={[styles.diffCard, active && styles.typeCardActive]}>
-                    <MaterialCommunityIcons name={d.icon as any} size={24} color={active ? "#fff" : C.brand} />
-                    <Text style={[styles.typeText, active && { color: "#fff" }]}>{d.label}</Text>
-                    <Text style={[styles.diffBlurb, active && { color: "rgba(255,255,255,0.85)" }]}>{d.blurb}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            <View style={styles.pillRow}>
+              <Pressable testID="diffmode-all" onPress={() => setDiffMode("all")} style={[styles.kind, diffMode === "all" && styles.pillActive]}>
+                <MaterialCommunityIcons name="account-group" size={20} color={diffMode === "all" ? "#fff" : C.brand} />
+                <Text style={[styles.pillText, diffMode === "all" && styles.pillTextActive]}>Same for All</Text>
+                <Text style={[styles.pillSub, diffMode === "all" && styles.pillTextActive]}>One difficulty</Text>
+              </Pressable>
+              <Pressable testID="diffmode-each" onPress={() => setDiffMode("each")} style={[styles.kind, diffMode === "each" && styles.pillActive]}>
+                <MaterialCommunityIcons name="tune-variant" size={20} color={diffMode === "each" ? "#fff" : C.brand} />
+                <Text style={[styles.pillText, diffMode === "each" && styles.pillTextActive]}>Per Bot</Text>
+                <Text style={[styles.pillSub, diffMode === "each" && styles.pillTextActive]}>Set each bot</Text>
+              </Pressable>
+            </View>
+
+            {diffMode === "all" ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
+                {DIFFICULTIES.map((d) => {
+                  const active = difficulty === d.id;
+                  return (
+                    <Pressable key={d.id} testID={`botdiff-${d.id}`} onPress={() => setDifficulty(d.id)} style={[styles.diffCard, active && styles.typeCardActive]}>
+                      <MaterialCommunityIcons name={d.icon as any} size={24} color={active ? "#fff" : C.brand} />
+                      <Text style={[styles.typeText, active && { color: "#fff" }]}>{d.label}</Text>
+                      <Text style={[styles.diffBlurb, active && { color: "rgba(255,255,255,0.85)" }]}>{d.blurb}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              Array.from({ length: bots }, (_, i) => (
+                <View key={i}>
+                  <Text style={styles.botLabel}>Bot {i + 1}</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
+                    {DIFFICULTIES.map((d) => {
+                      const active = (botDiffs[i] ?? "normal") === d.id;
+                      return (
+                        <Pressable key={d.id} testID={`botdiff-${i}-${d.id}`} onPress={() => setBotDiff(i, d.id)} style={[styles.diffCard, active && styles.typeCardActive]}>
+                          <MaterialCommunityIcons name={d.icon as any} size={24} color={active ? "#fff" : C.brand} />
+                          <Text style={[styles.typeText, active && { color: "#fff" }]}>{d.label}</Text>
+                          <Text style={[styles.diffBlurb, active && { color: "rgba(255,255,255,0.85)" }]}>{d.blurb}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              ))
+            )}
           </>
         )}
 
@@ -135,5 +190,6 @@ const styles = StyleSheet.create({
   typeText: { fontSize: 13, fontWeight: "800", color: C.onSurface },
   diffCard: { width: 150, backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingVertical: 14, paddingHorizontal: 12, alignItems: "center", gap: 6, flexShrink: 0 },
   diffBlurb: { fontSize: 10, color: C.onSurfaceSecondary, textAlign: "center", lineHeight: 13 },
+  botLabel: { fontSize: 12, fontWeight: "800", color: C.onSurface, marginTop: SP.sm, marginBottom: 2 },
   footer: { padding: SP.lg, borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surface },
 });

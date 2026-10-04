@@ -97,6 +97,7 @@ export function generateGame(config: {
   seed?: number;
   tribes?: TribeId[];
   humans?: number;
+  botDifficulties?: Difficulty[];
 }): GameState {
   const seed = config.seed ?? Math.floor(Math.random() * 1e9);
   const rng = new RNG(seed);
@@ -133,7 +134,9 @@ export function generateGame(config: {
     const name = isHuman
       ? (config.passAndPlay ? `Player ${p + 1}` : TRIBE_BY_ID[tribe].name)
       : `${TRIBE_BY_ID[tribe].name} AI`;
-    players.push({ index: p, tribe, name, isHuman, stars: START_STARS, goods: { ...START_GOODS }, techs: [TRIBE_BY_ID[tribe].startTech], eliminated: false, economy: { bought: {}, sold: {} } });
+    // Per-bot difficulty override (bots are the trailing slots, so bot index = p - humans).
+    const botDifficulty = !isHuman ? config.botDifficulties?.[p - humans] : undefined;
+    players.push({ index: p, tribe, name, isHuman, difficulty: botDifficulty, stars: START_STARS, goods: { ...START_GOODS }, techs: [TRIBE_BY_ID[tribe].startTech], eliminated: false, economy: { bought: {}, sold: {} } });
   }
 
   // Region seeds (= capitals): farthest-point spread across land.

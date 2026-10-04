@@ -14,11 +14,12 @@ export default function ChooseTribe() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { startNewGame } = useGame();
-  const params = useLocalSearchParams<{ players: string; bots: string; difficulty: string; mapSize: string; mapType: string; index: string; chosen: string; closed: string }>();
+  const params = useLocalSearchParams<{ players: string; bots: string; difficulty: string; botDiffs: string; mapSize: string; mapType: string; index: string; chosen: string; closed: string }>();
 
   const players = parseInt(params.players ?? "2", 10);
   const bots = parseInt(params.bots ?? "0", 10);
   const difficulty = (params.difficulty ?? "normal") as Difficulty;
+  const botDifficulties = (params.botDiffs ?? "").split(",").filter(Boolean) as Difficulty[];
   const mapSize = parseInt(params.mapSize ?? "24", 10);
   const mapType = (params.mapType ?? "continents") as MapType;
   const index = parseInt(params.index ?? "0", 10);
@@ -40,10 +41,10 @@ export default function ChooseTribe() {
         botTribes.push(avail.length ? avail[0] : options[(tribes.length + i) % options.length]);
       }
       const allTribes = [...tribes, ...botTribes];
-      startNewGame({ tribe: allTribes[0], opponents: allTribes.length - 1, mapSize, mapType, passAndPlay: true, difficulty, tribes: allTribes, humans: players, closed });
+      startNewGame({ tribe: allTribes[0], opponents: allTribes.length - 1, mapSize, mapType, passAndPlay: true, difficulty, tribes: allTribes, humans: players, botDifficulties, closed });
       router.replace("/game");
     } else {
-      router.push({ pathname: "/choose-tribe", params: { players: String(players), bots: String(bots), difficulty, mapSize: String(mapSize), mapType, closed: closed ? "1" : "", index: String(index + 1), chosen: tribes.join(",") } });
+      router.push({ pathname: "/choose-tribe", params: { players: String(players), bots: String(bots), difficulty, botDiffs: botDifficulties.join(","), mapSize: String(mapSize), mapType, closed: closed ? "1" : "", index: String(index + 1), chosen: tribes.join(",") } });
     }
   };
 

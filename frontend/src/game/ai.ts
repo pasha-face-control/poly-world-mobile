@@ -152,13 +152,15 @@ function stepMerchantToward(state: GameState, m: Unit, capitalTileId: number): v
 
 
 export function runAiTurn(state: GameState, player: number) {
-  const cfg = DIFF[state.difficulty] ?? DIFF.normal;
+  // Each bot can have its own difficulty (`player.difficulty`); fall back to the game-wide one.
+  const diff = state.players[player].difficulty ?? state.difficulty;
+  const cfg = DIFF[diff] ?? DIFF.normal;
   state.players[player].stars += cfg.bonusStars; // difficulty handicap
 
   // Peaceful bots stay trade-focused until the human attacks them: capped tiny militia,
   // no city annexation, and their units garrison at home (they never roam to surround
   // the player). Being attacked sets `provoked`, which lifts all of these restraints.
-  const restrained = state.difficulty === "peaceful" && !state.players[player].provoked;
+  const restrained = diff === "peaceful" && !state.players[player].provoked;
   const MILITARY_CAP: Partial<Record<UnitType, number>> = { catapult: 1, rider: 1, warrior: 3 };
 
   const terr = ownedTerritory(state, player);
@@ -266,7 +268,7 @@ export function runAiTurn(state: GameState, player: number) {
   if (state.players[player].techs.includes("trading")) {
     // Peaceful bots run a "factory": they generate their tribe's material each turn so the
     // human can buy the resources they can't produce themselves.
-    if (state.difficulty === "peaceful") {
+    if (diff === "peaceful") {
       state.players[player].goods[TRIBE_MATERIAL[state.players[player].tribe]] += 4;
     }
     let merchants = state.units.filter((u) => u.owner === player && u.type === "merchant");

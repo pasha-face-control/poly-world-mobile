@@ -88,6 +88,7 @@ export interface Player {
   techs: string[];
   eliminated: boolean;
   provoked?: boolean; // peaceful-mode bot has been attacked and may now fight back
+  difficulty?: Difficulty; // per-bot difficulty override (falls back to the game-wide difficulty)
   templePoints?: number; // cumulative leaderboard points earned from temples (+100/turn per temple)
   economy?: { bought: GoodLedger; sold: GoodLedger }; // cumulative trade history for the economy panel
 }
@@ -124,4 +125,5 @@ export interface NewGameConfig {
   difficulty: Difficulty;
   tribes?: TribeId[]; // explicit per-player tribes (pass & play); length = number of players
   humans?: number; // number of human players (first N); the rest are AI bots. Defaults: passAndPlay=all, else 1
+  botDifficulties?: Difficulty[]; // per-bot difficulty (indexed by bot order: 1st bot, 2nd bot, ...). Overrides `difficulty` for that bot.
 }
