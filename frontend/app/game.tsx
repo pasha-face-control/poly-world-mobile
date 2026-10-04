@@ -774,7 +774,7 @@ export default function GameScreen() {
 
             <Pressable testID="toggle-sound" style={styles.toggleRow} onPress={() => setSoundOn(!soundOn)}>
               <MaterialCommunityIcons name={soundOn ? "volume-high" : "volume-off"} size={22} color={C.onSurface} />
-              <Text style={styles.toggleLabel}>Sound Effects</Text>
+              <Text style={styles.toggleLabel} numberOfLines={1} maxFontSizeMultiplier={1.3}>Sound Effects</Text>
               <View style={[styles.switch, soundOn && styles.switchOn]}>
                 <View style={[styles.knob, soundOn && styles.knobOn]} />
               </View>
@@ -802,7 +802,7 @@ export default function GameScreen() {
 
             <Pressable testID="toggle-haptics" style={styles.toggleRow} onPress={() => setHapticsOn(!hapticsOn)}>
               <MaterialCommunityIcons name={hapticsOn ? "vibrate" : "vibrate-off"} size={22} color={C.onSurface} />
-              <Text style={styles.toggleLabel}>Vibration</Text>
+              <Text style={styles.toggleLabel} numberOfLines={1} maxFontSizeMultiplier={1.3}>Vibration</Text>
               <View style={[styles.switch, hapticsOn && styles.switchOn]}>
                 <View style={[styles.knob, hapticsOn && styles.knobOn]} />
               </View>
@@ -886,7 +886,7 @@ const styles = StyleSheet.create({
   gateBtnText: { color: "#fff", fontWeight: "900", fontSize: 20 },
   centerOverlay: { flex: 1, backgroundColor: "rgba(28,28,28,0.6)", alignItems: "center", justifyContent: "center", padding: SP.xl },
   dialogScroll: { width: "100%", maxWidth: 360, maxHeight: "90%", alignSelf: "center", flexGrow: 0 },
-  dialog: { backgroundColor: C.surface, borderRadius: R.lg, padding: SP.xl, gap: SP.md, ...shadow(10) },
+  dialog: { backgroundColor: C.surface, borderRadius: R.lg, padding: SP.xl, gap: SP.md, width: "100%", maxWidth: 420, ...shadow(10) },
   dialogTitle: { fontSize: 28, fontWeight: "900", color: C.onSurface, textAlign: "center" },
   dialogSub: { fontSize: 14, color: C.onSurfaceSecondary, textAlign: "center", marginBottom: SP.sm },
   saveNote: { fontSize: 12, color: C.onSurfaceSecondary, textAlign: "center" },
@@ -899,7 +899,7 @@ const styles = StyleSheet.create({
   volumeRow: { flexDirection: "row", alignItems: "center", gap: SP.sm, paddingHorizontal: SP.sm, marginTop: -SP.xs },
   slider: { flex: 1, height: 36 },
   volPct: { width: 42, textAlign: "right", fontSize: 13, fontWeight: "800", color: C.onSurfaceSecondary },
-  switch: { width: 48, height: 28, borderRadius: 999, backgroundColor: C.borderStrong, padding: 3, justifyContent: "center" },
+  switch: { width: 48, height: 28, borderRadius: 999, backgroundColor: C.borderStrong, padding: 3, justifyContent: "center", flexShrink: 0 },
   switchOn: { backgroundColor: C.brand },
   knob: { width: 22, height: 22, borderRadius: 999, backgroundColor: "#fff", ...shadow(2) },
   knobOn: { alignSelf: "flex-end" },

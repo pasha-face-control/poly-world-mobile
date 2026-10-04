@@ -51,7 +51,11 @@ export default function SaveSlotList({ mode, onSelect }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
       {slots.map((info) => {
-        const tribe = info.tribe ? TRIBE_BY_ID[info.tribe as keyof typeof TRIBE_BY_ID] : null;
+        const isMulti = (info.humans ?? 1) > 1;
+        // In multiplayer offline, show the player whose turn it is (icon + "take your turn");
+        // in single player keep the classic "<Tribe> · Turn N · Status".
+        const tribeId = isMulti ? info.currentTribe : info.tribe;
+        const tribe = tribeId ? TRIBE_BY_ID[tribeId as keyof typeof TRIBE_BY_ID] : null;
         const disabled = mode === "load" && info.empty;
         return (
           <Pressable
@@ -73,6 +77,10 @@ export default function SaveSlotList({ mode, onSelect }: Props) {
               <Text style={styles.title}>Slot {info.index + 1}</Text>
               {info.empty ? (
                 <Text style={styles.sub}>Empty</Text>
+              ) : isMulti && (info.status ?? "playing") === "playing" ? (
+                <Text style={styles.sub} numberOfLines={2}>
+                  Turn {info.turn ?? 1} · {tribe?.name ?? "Game"} · {info.currentName ?? "Player"} take your turn
+                </Text>
               ) : (
                 <Text style={styles.sub} numberOfLines={1}>
                   {tribe?.name ?? "Game"} · Turn {info.turn ?? 1} · {STATUS_LABEL[info.status ?? "playing"]}

@@ -57,6 +57,9 @@ export interface SlotInfo {
   tribe?: string;
   status?: GameState["status"];
   players?: number;
+  humans?: number; // number of human players (multiplayer offline when > 1)
+  currentName?: string; // name of the player whose turn it is
+  currentTribe?: string; // tribe of the player whose turn it is
 }
 
 // Backfill/repair a loaded save so older schemas don't crash the UI.
@@ -274,7 +277,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       try {
         const parsed = JSON.parse(raw) as { savedAt: number; state: GameState };
         const s = parsed.state;
-        out.push({ index: i, empty: false, savedAt: parsed.savedAt, turn: s.turn, tribe: s.players?.[0]?.tribe, status: s.status, players: s.players?.length });
+        const humans = (s.players ?? []).filter((p) => p.isHuman).length;
+        const cur = s.players?.[s.currentPlayer];
+        out.push({ index: i, empty: false, savedAt: parsed.savedAt, turn: s.turn, tribe: s.players?.[0]?.tribe, status: s.status, players: s.players?.length, humans, currentName: cur?.name, currentTribe: cur?.tribe });
       } catch {
         out.push({ index: i, empty: true });
       }
