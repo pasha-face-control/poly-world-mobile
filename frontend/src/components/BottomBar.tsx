@@ -29,8 +29,8 @@ export default function BottomBar({ bottomInset, busy, onTech, onLeaderboard, on
   return (
     <View style={[styles.wrap, { paddingBottom: bottomInset + 8 }]} pointerEvents="box-none">
       <BlurView intensity={40} tint="light" style={styles.bar} testID="bottom-bar">
-        <Action icon="file-tree" label="Tech" onPress={onTech} testID="action-tech" />
         <Action icon="trophy" label="Ranks" onPress={onLeaderboard} testID="action-leaderboard" />
+        <Action icon="file-tree" label="Tech" onPress={onTech} testID="action-tech" />
         <Action icon="crosshairs-gps" label="Next" onPress={onNextUnit} testID="action-next-unit" />
         <Action icon="menu" label="Menu" onPress={onMenu} testID="action-menu" />
         {canFinish && onFinish && <Action icon="crown" label="Finish" onPress={onFinish} finish testID="action-finish" />}
