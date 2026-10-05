@@ -132,7 +132,7 @@ export const slotCapacity = (unit: import("./types").Unit) => (unit.boat ? 32 : 
 
 // ---------- Infrastructure (roads / ports / burn-forest) ----------
 export interface InfraDef {
-  id: "road" | "port" | "trade_port" | "burn_forest";
+  id: "road" | "port" | "trade_port" | "burn_forest" | "plant_forest";
   name: string;
   icon: string;
   tech: string;
@@ -147,6 +147,7 @@ export const INFRA: InfraDef[] = [
   { id: "port", name: "Main Port", icon: "sail-boat", tech: "sailing", cost: 10, woodCost: 12, color: "#5C7A8A", desc: "Embark military & civilian units (not merchants). +3 pop. 10★ + 12 wood." },
   { id: "trade_port", name: "Trade Port", icon: "ferry", tech: "trading_overseas", cost: 8, woodCost: 10, color: "#4A8A6A", desc: "Embark Merchants onto Merchant Ships. +2 pop. 8★ + 10 wood." },
   { id: "burn_forest", name: "Clear Forest", icon: "fire", tech: "construction", cost: 3, color: "#B5651D", desc: "Burn forest into farmable grassland." },
+  { id: "plant_forest", name: "Plant Forest", icon: "pine-tree", tech: "forest_care", cost: 3, color: "#3E7D3A", desc: "Grow a forest on grass or sand." },
 ];
 
 export const INFRA_BY_ID: Record<string, InfraDef> = Object.fromEntries(INFRA.map((i) => [i.id, i]));

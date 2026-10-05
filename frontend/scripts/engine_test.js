@@ -1323,5 +1323,29 @@ if (anyWater) {
   ok("no custom names → default Player N", g3.players[0].name === "Player 1" && g3.players[1].name === "Player 2");
 }
 
+// ---- Plant Forest (Forest Care tech): grass/sand → forest ----
+{
+  const g = generateGame({ tribe: "nature", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 51 });
+  const cap = g.cities.find((c) => c.owner === 0);
+  g.players[0].stars = 100;
+  const nb = engine.neighbors(g, cap.tileId);
+  const plot = nb.find((n) => !g.tiles[n].cityId && !g.tiles[n].building && !engine.unitAt(g, n) && g.tiles[n].terrain !== "water");
+  g.tiles[plot].terrain = "grass"; g.tiles[plot].building = null; g.tiles[plot].resource = null;
+  // Without Forest Care it's blocked.
+  ok("plant forest blocked without Forest Care", !engine.canInfra(g, 0, plot, "plant_forest", { ignoreStars: true }).ok);
+  g.players[0].techs = g.players[0].techs.concat(["forest_care"]);
+  ok("plant forest OK on grass with Forest Care", engine.canInfra(g, 0, plot, "plant_forest").ok);
+  const before = g.players[0].stars;
+  engine.doInfra(g, 0, plot, "plant_forest");
+  ok("grass became forest", g.tiles[plot].terrain === "forest" && g.tiles[plot].resource === null);
+  ok("plant forest cost 3 stars", before - g.players[0].stars === 3);
+  // Sand also allowed; water/mountain not.
+  const plot2 = nb.find((n) => n !== plot && !g.tiles[n].cityId && !engine.unitAt(g, n) && g.tiles[n].terrain !== "water");
+  g.tiles[plot2].terrain = "sand"; g.tiles[plot2].building = null; g.tiles[plot2].resource = null;
+  ok("plant forest OK on sand", engine.canInfra(g, 0, plot2, "plant_forest", { ignoreStars: true }).ok);
+  g.tiles[plot2].terrain = "mountain";
+  ok("plant forest NOT allowed on mountain", !engine.canInfra(g, 0, plot2, "plant_forest", { ignoreStars: true }).ok);
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

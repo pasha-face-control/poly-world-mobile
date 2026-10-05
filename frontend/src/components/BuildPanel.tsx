@@ -28,6 +28,7 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfr
     if (i.id === "port") return tile.terrain === "water" && !tile.port;
     if (i.id === "trade_port") return tile.terrain === "water" && !tile.tradePort;
     if (i.id === "burn_forest") return tile.terrain === "forest";
+    if (i.id === "plant_forest") return tile.terrain === "grass" || tile.terrain === "sand";
     return false;
   });
 

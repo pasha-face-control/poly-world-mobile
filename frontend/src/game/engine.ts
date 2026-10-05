@@ -594,6 +594,11 @@ export function canInfra(state: GameState, player: number, tileId: number, infra
     if (tile.terrain !== "forest") return { ok: false, reason: "Needs forest" };
     if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };
     if (unitAt(state, tileId)) return { ok: false, reason: "Tile occupied" };
+  } else if (infraId === "plant_forest") {
+    if (tile.terrain !== "grass" && tile.terrain !== "sand") return { ok: false, reason: "Needs grass or sand" };
+    if (tile.building) return { ok: false, reason: "Tile has a building" };
+    if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };
+    if (unitAt(state, tileId)) return { ok: false, reason: "Tile occupied" };
   }
   return { ok: true };
 }
@@ -610,6 +615,11 @@ export function doInfra(state: GameState, player: number, tileId: number, infraI
   else if (infraId === "burn_forest") {
     tile.terrain = "grass";
     tile.resource = "crop";
+    tile.building = null;
+  }
+  else if (infraId === "plant_forest") {
+    tile.terrain = "forest";
+    tile.resource = null; // any crop/fruit is cleared when the forest grows in
     tile.building = null;
   }
   // Ports grow the adjacent city (Main Port +3 pop, Trade Port +2 pop).
