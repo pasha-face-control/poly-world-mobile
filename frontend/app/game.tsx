@@ -347,7 +347,12 @@ export default function GameScreen() {
   };
 
   const onNextUnit = () => {
-    const next = state.units.find((u) => u.owner === state.currentPlayer && !u.attacked);
+    // Surface a unit only if it can still do something: it hasn't moved yet, OR it has
+    // already moved but can still attack an enemy unit in range. Units that have moved
+    // with no reachable target (no enemy in range) are skipped.
+    const next = state.units.find(
+      (u) => u.owner === state.currentPlayer && (!u.moved || attackableTiles(state, u).length > 0),
+    );
     if (next) {
       setSelectedUnitId(next.id);
       setSelectedCityId(null);
