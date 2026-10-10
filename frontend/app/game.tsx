@@ -46,7 +46,7 @@ export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { soundOn, hapticsOn, volume } = useFxSettings();
-  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doHireGardener, doHarvestFruit, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, doExpandTerritory, doRenameCity, doFinishGame, saveToSlot, exitToMenu } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doHireGardener, doHarvestFruit, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, doExpandTerritory, doRenameCity, doFinishGame, saveToSlot, exitToMenu, discardGame } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
@@ -375,6 +375,13 @@ export default function GameScreen() {
     setMenuOpen(false);
     exitToMenu();
     router.replace("/");
+  };
+
+  // From the Victory screen: delete the finished game (slots + Continue) so it can't be
+  // resumed, then navigate away.
+  const endFinishedGame = async (to: string) => {
+    await discardGame();
+    router.replace(to);
   };
 
   return (
@@ -853,12 +860,9 @@ export default function GameScreen() {
               testID="result-newgame"
               label="New Game"
               icon="plus-circle"
-              onPress={() => {
-                exitToMenu();
-                router.replace("/setup");
-              }}
+              onPress={() => endFinishedGame("/setup")}
             />
-            <Button testID="result-menu" label="Main Menu" icon="home" variant="secondary" onPress={goMenu} />
+            <Button testID="result-menu" label="Main Menu" icon="home" variant="secondary" onPress={() => endFinishedGame("/")} />
           </ScrollView>
         </View>
       </Modal>

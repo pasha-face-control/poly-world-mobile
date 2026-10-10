@@ -117,6 +117,7 @@ interface GameContextValue {
   loadFromSlot: (index: number) => Promise<boolean>;
   listSlots: () => Promise<SlotInfo[]>;
   exitToMenu: () => void;
+  discardGame: () => Promise<void>;
   endTurn: () => void;
   doMove: (unitId: string, tileId: number) => boolean;
   doAttack: (unitId: string, tileId: number) => boolean;
@@ -289,6 +290,28 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const exitToMenu = useCallback(() => setState(null), []);
 
+  // Permanently delete the current (finished) game so it can't be resumed: removes any
+  // numbered slot holding this exact game (matched by GameState.id) and the "Continue"
+  // auto-save, then clears the active session.
+  const discardGame = useCallback(async () => {
+    const cur = state;
+    if (cur) {
+      for (let i = 0; i < NUM_SLOTS; i++) {
+        const raw = await storage.getItem<string>(slotKey(i), "");
+        if (!raw) continue;
+        try {
+          const parsed = JSON.parse(raw) as { savedAt: number; state: GameState };
+          if (parsed.state?.id === cur.id) await storage.removeItem(slotKey(i));
+        } catch {
+          // ignore corrupt slot
+        }
+      }
+    }
+    await storage.removeItem(SAVE_KEY);
+    setHasSave(false);
+    setState(null);
+  }, [state]);
+
   const apply = useCallback(
     (mutator: (s: GameState) => boolean): boolean => {
       if (!state) return false;
@@ -384,6 +407,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         loadFromSlot,
         listSlots,
         exitToMenu,
+        discardGame,
         endTurn,
         doMove,
         doAttack,
