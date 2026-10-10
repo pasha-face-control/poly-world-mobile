@@ -8,8 +8,7 @@ import { TRIBE_BY_ID } from "@/src/game/data";
 import { computeLeaderboards } from "@/src/game/leaderboard";
 import { GameState } from "@/src/game/types";
 
-export function computeScore(state: GameState): number {
-  const p = 0;
+export function computeScore(state: GameState, p: number = 0): number {
   const cities = state.cities.filter((c) => c.owner === p);
   const units = state.units.filter((u) => u.owner === p).length;
   const cityScore = cities.reduce((s, c) => s + c.level * 60 + (c.isCapital ? 40 : 0), 0);
@@ -33,11 +32,9 @@ export default function VictoryCard({ state }: { state: GameState }) {
   const won = state.status === "won";
   const isDraw = state.status === "draw";
   const peaceful = won && !!state.peacefulWin;
-  const tribe = TRIBE_BY_ID[state.players[0].tribe];
-  const cities = state.cities.filter((c) => c.owner === 0).length;
-  const units = state.units.filter((u) => u.owner === 0).length;
-  const techs = state.players[0].techs.length;
-  const score = computeScore(state);
+  // Offline multiplayer (more than one human): the game ends for everyone and the
+  // winner is whoever leads the CURRENTLY SELECTED standings tab (Points/Cities/City Level).
+  const isMulti = state.players.filter((p) => p.isHuman).length > 1;
   const boards = computeLeaderboards(state);
   const [tab, setTab] = useState<"points" | "cities" | "cityLevel">("points");
   const TABS: { id: "points" | "cities" | "cityLevel"; label: string }[] = [
@@ -47,6 +44,18 @@ export default function VictoryCard({ state }: { state: GameState }) {
   ];
   const standings = boards[tab];
   const medals = ["#E5C558", "#C7CBD1", "#CD8B5B"];
+
+  // The player the top summary card celebrates: in multiplayer it's the leader of the
+  // selected tab (updates live as you switch tabs); in single player it's you (player 0).
+  const winnerPlayer = standings[0]?.player ?? 0;
+  const focus = isMulti ? winnerPlayer : 0;
+  const winnerName = state.players[winnerPlayer]?.name ?? "Player";
+  const tribe = TRIBE_BY_ID[state.players[focus].tribe];
+  const focusColor = state.players[focus].color ?? tribe.color;
+  const cities = state.cities.filter((c) => c.owner === focus).length;
+  const units = state.units.filter((u) => u.owner === focus).length;
+  const techs = state.players[focus].techs.length;
+  const score = computeScore(state, focus);
 
   const onShare = async () => {
     try {
@@ -69,16 +78,19 @@ export default function VictoryCard({ state }: { state: GameState }) {
   return (
     <View style={{ alignItems: "stretch", gap: SP.md }}>
       <ViewShot ref={shotRef} options={{ format: "png", quality: 0.95 }}>
-        <View style={[styles.card, { backgroundColor: isDraw ? "#33342A" : won ? "#2E4A22" : "#3A2222" }]}>
+        <View style={[styles.card, { backgroundColor: isDraw ? "#33342A" : (won || isMulti) ? "#2E4A22" : "#3A2222" }]}>
           <View style={styles.badge}>
-            <MaterialCommunityIcons name={isDraw ? "handshake-outline" : peaceful ? "handshake" : won ? "trophy-variant" : "skull-crossbones"} size={44} color={isDraw ? "#D8CFA6" : won ? C.warning : "#E88"} />
+            <MaterialCommunityIcons name={isDraw ? "handshake-outline" : peaceful ? "handshake" : (won || isMulti) ? "trophy-variant" : "skull-crossbones"} size={44} color={isDraw ? "#D8CFA6" : (won || isMulti) ? C.warning : "#E88"} />
           </View>
-          <Text style={styles.outcome}>{isDraw ? "DRAW" : peaceful ? "CAPITAL WIN" : won ? "VICTORY" : "DEFEAT"}</Text>
+          <Text style={[styles.outcome, isMulti && styles.outcomeMulti]} numberOfLines={2}>
+            {isDraw ? "DRAW" : peaceful ? "CAPITAL WIN" : isMulti ? `${winnerName} WINS` : won ? "VICTORY" : "DEFEAT"}
+          </Text>
+          {isMulti && !isDraw && !peaceful && <Text style={styles.peaceNote}>Leader by {TABS.find((t) => t.id === tab)?.label} — switch tabs below to see other winners.</Text>}
           {isDraw && <Text style={styles.peaceNote}>Stalemate — your forces were boxed in with no way to fight back for 3 turns. The war ends undecided.</Text>}
           {peaceful && <Text style={styles.peaceNote}>You united the map by trade — a capital win for all. No one was defeated.</Text>}
           <View style={styles.tribeRow}>
-            <View style={[styles.dot, { backgroundColor: tribe.color }]} />
-            <Text style={styles.tribeName}>{tribe.name}</Text>
+            <View style={[styles.dot, { backgroundColor: focusColor }]} />
+            <Text style={styles.tribeName} numberOfLines={1}>{isMulti ? `${winnerName} · ${tribe.name}` : tribe.name}</Text>
           </View>
           <View style={styles.statsGrid}>
             <Stat icon="flag" label="Turns" value={state.turn} />
@@ -107,14 +119,17 @@ export default function VictoryCard({ state }: { state: GameState }) {
           })}
         </View>
         {standings.map((r, i) => {
-          const me = r.player === 0;
+          // Single player: highlight & mark "you" (player 0). Multiplayer: no "you" — just
+          // highlight the current tab's leader (rank 1).
+          const me = !isMulti && r.player === 0;
+          const highlight = isMulti ? i === 0 : r.player === 0;
           return (
-            <View key={r.player} style={[styles.standRow, me && styles.standRowMe]}>
+            <View key={r.player} style={[styles.standRow, highlight && styles.standRowMe]}>
               <View style={[styles.rankBadge, { backgroundColor: medals[i] ?? C.surfaceSecondary }]}>
                 <Text style={[styles.rankNum, i > 2 && { color: C.onSurfaceSecondary }]}>{i + 1}</Text>
               </View>
               <View style={[styles.standDot, { backgroundColor: r.color }]} />
-              <Text style={[styles.standName, me && styles.standNameMe, r.eliminated && styles.standDead]} numberOfLines={1}>
+              <Text style={[styles.standName, highlight && styles.standNameMe, r.eliminated && styles.standDead]} numberOfLines={1}>
                 {r.name}{me ? " (You)" : ""}
               </Text>
               <Text style={styles.standValue}>{r.value.toLocaleString()}</Text>
@@ -138,6 +153,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: R.lg, padding: SP.xl, alignItems: "center", gap: SP.sm, overflow: "hidden" },
   badge: { width: 76, height: 76, borderRadius: 38, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center", marginBottom: SP.xs },
   outcome: { fontSize: 30, fontWeight: "900", color: "#F8F6F0", letterSpacing: 2 },
+  outcomeMulti: { fontSize: 24, letterSpacing: 1, textAlign: "center", paddingHorizontal: 8 },
   peaceNote: { fontSize: 12, fontWeight: "700", color: "rgba(248,246,240,0.85)", textAlign: "center", marginTop: 2, paddingHorizontal: 6 },
   tribeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: SP.sm },
   dot: { width: 14, height: 14, borderRadius: 7 },
