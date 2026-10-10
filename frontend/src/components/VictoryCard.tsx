@@ -1,12 +1,15 @@
 import React, { useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import ViewShot, { captureRef } from "react-native-view-shot";
+import ConfettiCannon from "react-native-confetti-cannon";
 import * as Sharing from "expo-sharing";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, SP, shadow } from "@/src/theme";
 import { TRIBE_BY_ID } from "@/src/game/data";
 import { computeLeaderboards } from "@/src/game/leaderboard";
 import { GameState } from "@/src/game/types";
+
+const { width: SCREEN_W } = Dimensions.get("window");
 
 export function computeScore(state: GameState, p: number = 0): number {
   const cities = state.cities.filter((c) => c.owner === p);
@@ -77,6 +80,19 @@ export default function VictoryCard({ state }: { state: GameState }) {
 
   return (
     <View style={{ alignItems: "stretch", gap: SP.md }}>
+      {/* Celebratory confetti on the multiplayer winner screen (not shown on a draw). */}
+      {isMulti && !isDraw && (
+        <View pointerEvents="none" style={styles.confetti}>
+          <ConfettiCannon
+            count={140}
+            origin={{ x: SCREEN_W / 2, y: -20 }}
+            autoStart
+            fadeOut
+            explosionSpeed={360}
+            fallSpeed={3200}
+          />
+        </View>
+      )}
       <ViewShot ref={shotRef} options={{ format: "png", quality: 0.95 }}>
         <View style={[styles.card, { backgroundColor: isDraw ? "#33342A" : (won || isMulti) ? "#2E4A22" : "#3A2222" }]}>
           <View style={styles.badge}>
@@ -185,4 +201,5 @@ const styles = StyleSheet.create({
   standDead: { textDecorationLine: "line-through", color: C.onSurfaceSecondary },
   standValue: { fontSize: 14, fontWeight: "900", color: C.onSurface },
   webNote: { fontSize: 11, color: C.onSurfaceSecondary, textAlign: "center" },
+  confetti: { position: "absolute", top: 0, left: 0, right: 0, height: 600, zIndex: 10 },
 });
