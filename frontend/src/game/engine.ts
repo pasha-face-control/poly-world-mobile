@@ -815,7 +815,7 @@ function recordPurchase(state: GameState, player: number, good: GoodType, qty: n
 
 // Goods a player gains at the start of each of their turns (building production).
 export function goodsIncome(state: GameState, player: number): Record<GoodType, number> {
-  const out: Record<GoodType, number> = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, iron_ore: 0 };
+  const out: Record<GoodType, number> = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, apple: 0, iron_ore: 0 };
   for (const tile of state.tiles) {
     if (!tile.building) continue;
     const city = cityControllingTile(state, tile.id);

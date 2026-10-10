@@ -1347,5 +1347,25 @@ if (anyWater) {
   ok("plant forest NOT allowed on mountain", !engine.canInfra(g, 0, plot2, "plant_forest", { ignoreStars: true }).ok);
 }
 
+// ---- Coal mines produce coal ----
+{
+  const { BUILDING_BY_ID } = require("../src/game/data.ts");
+  ok("coal_mine definition produces 2 coal", BUILDING_BY_ID.coal_mine.produces.coal === 2);
+
+  const g = generateGame({ tribe: "nature", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 61 });
+  const cap = g.cities.find((c) => c.owner === 0);
+  // Put a coal mine on a mountain tile controlled by the capital.
+  const nb = engine.neighbors(g, cap.tileId);
+  const mt = nb.find((n) => !g.tiles[n].cityId && !g.tiles[n].building);
+  g.tiles[mt].terrain = "mountain";
+  g.tiles[mt].resource = "coal";
+  g.tiles[mt].building = "coal_mine";
+  const inc = engine.goodsIncome(g, 0);
+  ok("goodsIncome reports +2 coal from coal mine (no NaN)", inc.coal === 2);
+  const before = g.players[0].goods.coal;
+  engine.startPlayerTurn(g, 0);
+  ok("startPlayerTurn grants +2 coal", g.players[0].goods.coal === before + 2);
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

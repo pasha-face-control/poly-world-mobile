@@ -557,7 +557,7 @@ export default function GameScreen() {
         busy={busy}
         onTech={() => setTechOpen(true)}
         onLeaderboard={() => setLeaderboardOpen(true)}
-        canFinish={!!state && state.status === "playing" && state.cities.some((c) => c.owner === 0 && c.level >= 18)}
+        canFinish={!!state && state.status === "playing" && state.cities.some((c) => c.owner === state.currentPlayer && c.level >= 18)}
         onFinish={() => { haptic.select(); setFinishOpen(true); }}
         onNextUnit={onNextUnit}
         onMenu={() => setMenuOpen(true)}
