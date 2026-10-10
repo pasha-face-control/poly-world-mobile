@@ -59,7 +59,7 @@ export default function CreateMap() {
       <ScrollView contentContainerStyle={{ padding: SP.lg, paddingBottom: 24 }}>
         <Text style={styles.label}>Players</Text>
         <View style={styles.pillRow}>
-          {[2, 3, 4].map((n) => (
+          {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
             <Pressable key={n} testID={`players-${n}`} onPress={() => setPlayers(n)} style={[styles.pill, players === n && styles.pillActive]}>
               <Text style={[styles.pillText, players === n && styles.pillTextActive]}>{n}</Text>
             </Pressable>
@@ -177,8 +177,8 @@ const styles = StyleSheet.create({
   back: { padding: 4, backgroundColor: C.surfaceSecondary, borderRadius: R.pill },
   headerTitle: { fontSize: 22, fontWeight: "900", color: C.onSurface },
   label: { fontSize: 13, fontWeight: "900", color: C.onSurfaceSecondary, textTransform: "uppercase", letterSpacing: 1, marginTop: SP.lg, marginBottom: SP.sm },
-  pillRow: { flexDirection: "row", gap: SP.sm },
-  pill: { flex: 1, backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingVertical: 14, alignItems: "center" },
+  pillRow: { flexDirection: "row", flexWrap: "wrap", gap: SP.sm },
+  pill: { minWidth: 52, flexGrow: 1, flexBasis: 52, backgroundColor: C.surfaceSecondary, borderRadius: R.md, paddingVertical: 14, alignItems: "center" },
   pillActive: { backgroundColor: C.brand },
   pillText: { fontSize: 16, fontWeight: "900", color: C.onSurface },
   pillSub: { fontSize: 11, fontWeight: "700", color: C.onSurfaceSecondary },

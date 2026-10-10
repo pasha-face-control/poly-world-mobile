@@ -1367,5 +1367,21 @@ if (anyWater) {
   ok("startPlayerTurn grants +2 coal", g.players[0].goods.coal === before + 2);
 }
 
+// ---- Offline multiplayer supports up to 10 players ----
+{
+  for (const sz of [11, 16, 22]) {
+    const g = generateGame({ tribe: "nature", opponents: 9, mapSize: sz, mapType: "continents", passAndPlay: true, difficulty: "normal", tribes: ["nature", "desert", "volcanic", "snow", "nature", "desert", "volcanic", "snow", "nature", "desert"], humans: 10, seed: 71 });
+    ok(`10-player game has 10 players (size ${sz})`, g.players.length === 10);
+    const caps = g.cities.filter((c) => c.isCapital);
+    ok(`10-player game places 10 capitals (size ${sz})`, caps.length === 10);
+    ok(`10 capitals on distinct tiles (size ${sz})`, new Set(caps.map((c) => c.tileId)).size === 10);
+    ok(`all 10 players have a colour (size ${sz})`, g.players.every((p) => typeof p.color === "string"));
+  }
+  // With 10 humans + 3 bots = 13 starting positions.
+  const g2 = generateGame({ tribe: "nature", opponents: 12, mapSize: 20, mapType: "continents", passAndPlay: true, difficulty: "normal", tribes: Array(13).fill("nature"), humans: 10, botDifficulties: ["easy", "normal", "hard"], seed: 72 });
+  ok("10 humans + 3 bots = 13 players", g2.players.length === 13);
+  ok("13 capitals on distinct tiles", new Set(g2.cities.filter((c) => c.isCapital).map((c) => c.tileId)).size === 13);
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
