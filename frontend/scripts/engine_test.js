@@ -1383,5 +1383,15 @@ if (anyWater) {
   ok("13 capitals on distinct tiles", new Set(g2.cities.filter((c) => c.isCapital).map((c) => c.tileId)).size === 13);
 }
 
+// ---- Very Large (72x72) map generates fine, incl. a full 10-player lineup ----
+{
+  const t0 = Date.now();
+  const g = generateGame({ tribe: "nature", opponents: 9, mapSize: 72, mapType: "continents", passAndPlay: true, difficulty: "normal", tribes: Array(10).fill("nature"), humans: 10, seed: 81 });
+  const ms = Date.now() - t0;
+  ok("72x72 map has 72*72 tiles", g.tiles.length === 72 * 72);
+  ok("72x72 map places 10 distinct capitals", new Set(g.cities.filter((c) => c.isCapital).map((c) => c.tileId)).size === 10);
+  ok("72x72 generation under 5s", ms < 5000);
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
