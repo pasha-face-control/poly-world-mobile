@@ -38,7 +38,6 @@ import SaveSlotList from "@/src/components/SaveSlotList";
 import { useGame } from "@/src/game/store";
 import { storage } from "@/src/utils/storage";
 import { attackableTiles, canBuyCity, canBuyVillage, canFish, canFruit, canHunt, expansionOptionForTile, hasDiscovered, neighbors, reachableTiles, stalemateTurnsLeft, tileHasActions } from "@/src/game/engine";
-import { TRIBE_BY_ID } from "@/src/game/data";
 import { UnitType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
 
@@ -162,15 +161,15 @@ export default function GameScreen() {
   }, [state, selectedUnit]);
 
   const territory = useMemo(() => {
-    const set = new Set<number>();
-    if (!state) return set;
+    // All players' city territory (tileId -> owner) so everyone's borders are visible.
+    const map = new Map<number, number>();
+    if (!state) return map;
     for (const c of state.cities) {
-      if (c.owner !== state.currentPlayer) continue;
-      set.add(c.tileId);
-      for (const n of neighbors(state, c.tileId)) set.add(n);
-      for (const e of c.expandedTiles ?? []) set.add(e);
+      map.set(c.tileId, c.owner);
+      for (const n of neighbors(state, c.tileId)) if (!map.has(n)) map.set(n, c.owner);
+      for (const e of c.expandedTiles ?? []) map.set(e, c.owner);
     }
-    return set;
+    return map;
   }, [state]);
 
   if (!state) return <View style={{ flex: 1, backgroundColor: C.surface }} />;
@@ -399,7 +398,6 @@ export default function GameScreen() {
         focusTileId={focusTileId}
         focusKey={focusKey}
         territory={territory}
-        territoryColor={state.players[state.currentPlayer].color ?? TRIBE_BY_ID[state.players[state.currentPlayer].tribe].color}
         moveAnim={moveAnim}
         onTileTap={onTileTap}
         onTileDoubleTap={onTileDoubleTap}

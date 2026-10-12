@@ -145,8 +145,7 @@ interface Props {
   centerTileId: number | null;
   focusTileId: number | null;
   focusKey: number;
-  territory: Set<number>;
-  territoryColor: string;
+  territory: Map<number, number>; // tileId -> owning player index (all players' territory)
   moveAnim: { unitId: string; fromTileId: number; toTileId: number; key: number } | null;
   onTileTap: (tileId: number) => void;
   onTileDoubleTap: (tileId: number) => void;
@@ -300,7 +299,7 @@ function drawDock(arr: React.ReactNode[], bx: number, by: number, k: string | nu
   if (trade) arr.push(<Polygon key={`dflag${k}`} points={pts([[bx + 9, by - 14], [bx + 15, by - 12], [bx + 9, by - 10]])} fill="#4A8A6A" />);
 }
 
-export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, roadExtra = [], attackable, centerTileId, focusTileId, focusKey, territory, territoryColor, moveAnim, onTileTap, onTileDoubleTap }: Props) {
+export default function GameMap({ state, fog, selectedUnitId, selectedTileId, reachable, roadExtra = [], attackable, centerTileId, focusTileId, focusKey, territory, moveAnim, onTileTap, onTileDoubleTap }: Props) {
   const [rotation, setRotation] = useState(0); // 0..3 camera angle
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
@@ -506,9 +505,10 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
   const reachableSet = useMemo(() => new Set(reachable), [reachable]);
   const roadExtraSet = useMemo(() => new Set(roadExtra), [roadExtra]);
   const attackableSet = useMemo(() => new Set(attackable), [attackable]);
-  const terFill = useMemo(() => hexToRgba(territoryColor, 0.32), [territoryColor]);
 
-  const inTer = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && territory.has(y * w + x);
+  // A tile belongs to `owner`'s territory (used to draw clean per-owner boundaries).
+  const inTerOf = (x: number, y: number, owner: number) =>
+    x >= 0 && y >= 0 && x < w && y < h && territory.get(y * w + x) === owner;
 
   // Depth-sorted tiles (far -> near) for the current rotation.
   const ordered = useMemo(() => {
@@ -562,8 +562,10 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     const sLeft: Pt = [cx - HW, cy];
     const surface = [sTop, sRight, sBottom, sLeft];
     if (territory.has(k)) {
-      const boundary = !inTer(t.x, t.y - 1) || !inTer(t.x, t.y + 1) || !inTer(t.x - 1, t.y) || !inTer(t.x + 1, t.y);
-      terrainShapes.push(<Polygon key={`ter${k}`} points={pts(surface)} fill={terFill} stroke={boundary ? territoryColor : "transparent"} strokeWidth={3} />);
+      const owner = territory.get(k)!;
+      const col = playerColor(state, owner);
+      const boundary = !inTerOf(t.x, t.y - 1, owner) || !inTerOf(t.x, t.y + 1, owner) || !inTerOf(t.x - 1, t.y, owner) || !inTerOf(t.x + 1, t.y, owner);
+      terrainShapes.push(<Polygon key={`ter${k}`} points={pts(surface)} fill={hexToRgba(col, 0.32)} stroke={boundary ? col : "transparent"} strokeWidth={3} />);
     }
     if (reachableSet.has(k)) {
       const road = roadExtraSet.has(k);
