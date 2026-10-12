@@ -1397,5 +1397,22 @@ if (anyWater) {
   ok("48x48 map places 10 distinct capitals", new Set(g48.cities.filter((c) => c.isCapital).map((c) => c.tileId)).size === 10);
 }
 
+// ---- Village spacing: >=5 tiles from capitals, >=4 tiles from each other ----
+{
+  const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+  for (const seed of [91, 92, 93]) {
+    const g = generateGame({ tribe: "nature", opponents: 3, mapSize: 36, mapType: "continents", passAndPlay: true, difficulty: "normal", tribes: ["nature", "desert", "volcanic", "snow"], humans: 4, seed });
+    const villages = g.tiles.filter((t) => t.isVillage);
+    const caps = g.cities.filter((c) => c.isCapital).map((c) => g.tiles[c.tileId]);
+    const capOk = villages.every((v) => caps.every((c) => cheb(v, c) >= 5));
+    ok(`villages >=5 from capitals (seed ${seed})`, capOk);
+    let vilOk = true;
+    for (let i = 0; i < villages.length; i++)
+      for (let j = i + 1; j < villages.length; j++)
+        if (cheb(villages[i], villages[j]) < 4) vilOk = false;
+    ok(`villages >=4 apart (seed ${seed})`, vilOk);
+  }
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -292,14 +292,14 @@ export function generateGame(config: {
   for (const t of shuffled) {
     if (placed.length >= villageTarget) break;
     if (tiles[t.id].terrain === "water" || tiles[t.id].terrain === "mountain" || tiles[t.id].cityId) continue;
-    // Keep a small buffer from capitals, but require villages to be at least 3 cells apart.
+    // Keep villages well clear of capitals (>= 5 tiles) and spaced out from each other (>= 4 tiles).
     const tooCloseToCap = [...capIds].some((id) => {
       const o = tiles[id];
-      return Math.max(Math.abs(o.x - t.x), Math.abs(o.y - t.y)) < 2;
+      return Math.max(Math.abs(o.x - t.x), Math.abs(o.y - t.y)) < 5;
     });
     const tooCloseToVillage = placed.some((id) => {
       const o = tiles[id];
-      return Math.max(Math.abs(o.x - t.x), Math.abs(o.y - t.y)) < 3;
+      return Math.max(Math.abs(o.x - t.x), Math.abs(o.y - t.y)) < 4;
     });
     if (tooCloseToCap || tooCloseToVillage) continue;
     tiles[t.id].isVillage = true;

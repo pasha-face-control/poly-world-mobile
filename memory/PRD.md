@@ -156,6 +156,8 @@ Build a game similar to The Battle of Polytopia. Client-side, local persistence.
 - **City Screen citadel render order (again)** — the citadel was depth-sorted at `baseBottom.y` (its front-corner = the LARGEST footprint depth), so it painted on top of nearly every surrounding house. Changed its sort depth to the footprint **centre** (`center.y`) so the ring of houses in front of and beside it correctly draws over it, while only genuinely-behind houses are occluded. (Verify in a saved city with a big citadel.)
 
 ## Backlog / Next
+- **Village spacing increased** — in `mapgen.ts` village placement: village↔capital minimum raised from `<2` to `<5` (now ≥5 tiles apart) and village↔village from `<3` to `<4` (now ≥4 tiles apart), Chebyshev distance. Verified: `node scripts/engine_test.js` **310/310** (villages ≥5 from capitals and ≥4 apart across seeds 91/92/93).
+
 - **New map size: Descent Large (48×48)** — added `{ label: "Descent Large", size: 48 }` to `MAP_SIZES` (between Large 36 and Very Large 72), testID `mapsize-48`. Verified: `node scripts/engine_test.js` **304/304** (48×48 → 2304 tiles, 10 distinct capitals).
 
 - **New map size: Very Large (72×72)** — added `{ label: "Very Large", size: 72 }` to `MAP_SIZES` in data.ts, so Create Map now offers Small 12 / Normal 24 / Large 36 / Very Large 72 (testID `mapsize-72`). Verified: `node scripts/engine_test.js` **302/302** (72×72 → 5184 tiles, places 10 distinct capitals, generates in <5s) + Create Map screenshot (Very Large pill shows 72×72, selectable).
