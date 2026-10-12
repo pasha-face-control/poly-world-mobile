@@ -327,6 +327,7 @@ export const MAP_SIZES: { label: string; size: number }[] = [
   { label: "Small", size: 12 },
   { label: "Normal", size: 24 },
   { label: "Large", size: 36 },
+  { label: "Descent Large", size: 48 },
   { label: "Very Large", size: 72 },
 ];
 

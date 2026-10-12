@@ -1391,6 +1391,10 @@ if (anyWater) {
   ok("72x72 map has 72*72 tiles", g.tiles.length === 72 * 72);
   ok("72x72 map places 10 distinct capitals", new Set(g.cities.filter((c) => c.isCapital).map((c) => c.tileId)).size === 10);
   ok("72x72 generation under 5s", ms < 5000);
+
+  const g48 = generateGame({ tribe: "nature", opponents: 9, mapSize: 48, mapType: "continents", passAndPlay: true, difficulty: "normal", tribes: Array(10).fill("nature"), humans: 10, seed: 82 });
+  ok("48x48 map has 48*48 tiles", g48.tiles.length === 48 * 48);
+  ok("48x48 map places 10 distinct capitals", new Set(g48.cities.filter((c) => c.isCapital).map((c) => c.tileId)).size === 10);
 }
 
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
