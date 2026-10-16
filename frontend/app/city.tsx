@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -9,7 +9,7 @@ import CityMap from "@/src/components/CityMap";
 import GameIcon from "@/src/components/GameIcon";
 import { useGame } from "@/src/game/store";
 import { nextCitadelUpgrade, canUpgradeCitadel, canPlaceCityBuilding, canPlaceCityRoad, cityStarIncome } from "@/src/game/engine";
-import { CITY_GOODS, CITY_BUILDINGS, TRIBE_MATERIAL } from "@/src/game/data";
+import { CITY_GOODS, CITY_BUILDINGS, TRIBE_MATERIAL, cityBuildingCost } from "@/src/game/data";
 import { CityBuilding, CityBuildingType, GoodType } from "@/src/game/types";
 import { C, R, SP, shadow } from "@/src/theme";
 import { haptic } from "@/src/utils/fx";
@@ -18,12 +18,13 @@ export default function CityScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { cityId } = useLocalSearchParams<{ cityId: string }>();
-  const { state, doUpgradeCitadel, doPlaceCityBuilding, doSetFactoryFeed, doDrawCityRoads, doMoveCityBuilding, doDemolishCityBuilding, doRemoveCityRoad } = useGame();
+  const { state, doUpgradeCitadel, doPlaceCityBuilding, doSetFactoryFeed, doLoadAppleFactory, doDrawCityRoads, doMoveCityBuilding, doDemolishCityBuilding, doRemoveCityRoad } = useGame();
   const [citadelOpen, setCitadelOpen] = useState(false);
   const [buildOpen, setBuildOpen] = useState(false);
   const [placing, setPlacing] = useState<CityBuildingType | null>(null);
   const [roadMode, setRoadMode] = useState(false);
   const [factory, setFactory] = useState<CityBuilding | null>(null);
+  const [juiceFactory, setJuiceFactory] = useState<CityBuilding | null>(null);
   const [editMode, setEditMode] = useState<"move" | "demolish" | "deleteRoad" | null>(null);
   const [editMenuOpen, setEditMenuOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -71,6 +72,7 @@ export default function CityScreen() {
         onTapBuilding={(b) => {
           if (editMode === "demolish") { if (doDemolishCityBuilding(city.id, b.id)) { haptic.notify(); showToast(`${CITY_BUILDINGS.find((x) => x.id === b.type)?.name ?? "Building"} demolished · cost refunded`); } }
           else if (b.type === "factory") { haptic.select(); setFactory(b); }
+          else if (b.type === "apple_juice_factory") { haptic.select(); setJuiceFactory(b); }
         }}
       />
 
@@ -199,7 +201,9 @@ export default function CityScreen() {
               <Text style={styles.dialogTitle}>Buildings</Text>
               <Pressable onPress={() => setBuildOpen(false)} style={styles.sheetClose}><MaterialCommunityIcons name="close" size={22} color={C.onSurface} /></Pressable>
             </View>
-            {CITY_BUILDINGS.map((b) => (
+            {CITY_BUILDINGS.map((b) => {
+              const price = cityBuildingCost(b.id, player.tribe);
+              return (
               <Pressable key={b.id} testID={`build-${b.id}`} style={styles.buildRow} onPress={() => { setBuildOpen(false); setPlacing(b.id); showToast(`Placing ${b.name} — drag on the map`); }}>
                 <View style={styles.buildIcon}><MaterialCommunityIcons name={b.icon as any} size={22} color={C.brand} /></View>
                 <View style={{ flex: 1 }}>
@@ -207,14 +211,15 @@ export default function CityScreen() {
                   <Text style={styles.buildDesc}>{b.desc}</Text>
                 </View>
                 <View style={styles.costRow}>
-                  {b.stars > 0 && <View style={styles.costChip}><MaterialCommunityIcons name="star-four-points" size={13} color={C.warning} /><Text style={styles.costText}>{b.stars}</Text></View>}
-                  {Object.entries(b.cost).map(([g, n]) => {
+                  {price.stars > 0 && <View style={styles.costChip}><MaterialCommunityIcons name="star-four-points" size={13} color={C.warning} /><Text style={styles.costText}>{price.stars}</Text></View>}
+                  {Object.entries(price.cost).map(([g, n]) => {
                     const meta = CITY_GOODS.find((x) => x.id === g)!;
                     return <View key={g} style={styles.costChip}><GameIcon name={meta.icon} size={13} color={meta.color} /><Text style={styles.costText}>{n as number}</Text></View>;
                   })}
                 </View>
               </Pressable>
-            ))}
+              );
+            })}
           </View>
         </View>
       </Modal>
@@ -228,7 +233,76 @@ export default function CityScreen() {
         onClose={() => setFactory(null)}
         onFeed={(feed) => { if (factory) doSetFactoryFeed(city.id, factory.id, feed); }}
       />
+
+      {/* Apple Juice Factory: load apples -> juice next turn */}
+      <AppleJuiceDialog
+        factory={juiceFactory ? (city.layout?.buildings.find((b) => b.id === juiceFactory.id) ?? null) : null}
+        player={player}
+        onClose={() => setJuiceFactory(null)}
+        onLoad={(amount) => {
+          if (juiceFactory && doLoadAppleFactory(city.id, juiceFactory.id, amount)) {
+            haptic.notify();
+            showToast(`Loaded ${amount} apple${amount === 1 ? "" : "s"}`);
+          }
+        }}
+      />
     </View>
+  );
+}
+
+function AppleJuiceDialog({ factory, player, onClose, onLoad }: { factory: CityBuilding | null; player: any; onClose: () => void; onLoad: (amount: number) => void }) {
+  const [amount, setAmount] = useState(0);
+  React.useEffect(() => { if (factory) setAmount(0); }, [factory?.id]);
+  const applesHave = player.goods.apple ?? 0;
+  const loaded = factory?.feed ?? 0;
+  const clamp = (n: number) => Math.max(0, Math.min(n, applesHave));
+  const nextJuice = Math.floor((loaded + clamp(amount)) / 5);
+  return (
+    <Modal visible={!!factory} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View style={styles.dialog} testID="apple-juice-dialog">
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <GameIcon name="cup" size={22} color="#D98324" />
+            <Text style={styles.dialogTitle}>Apple Juice Factory</Text>
+          </View>
+          <Text style={styles.dialogSub}>Load apples here. Next turn you get 1 apple juice for every 5 apples loaded.</Text>
+
+          <View style={styles.costRow}>
+            <View style={styles.costChip}><GameIcon name="food-apple" size={14} color="#C0392B" /><Text style={styles.costText}>{applesHave} available</Text></View>
+            <View style={styles.costChip}><MaterialCommunityIcons name="tray-full" size={14} color={C.brand} /><Text style={styles.costText}>{loaded} loaded</Text></View>
+            {nextJuice > 0 && <View style={styles.costChip}><GameIcon name="cup" size={14} color="#D98324" /><Text style={styles.costText}>→ {nextJuice} juice</Text></View>}
+          </View>
+
+          <View style={styles.stepper}>
+            <Pressable testID="juice-minus" onPress={() => setAmount((a) => clamp(a - 5))} style={styles.stepBtn}><MaterialCommunityIcons name="minus" size={22} color={C.onSurface} /></Pressable>
+            <View style={styles.stepVal}>
+              <GameIcon name="food-apple" size={16} color="#C0392B" />
+              <TextInput
+                testID="juice-amount"
+                style={styles.juiceInput}
+                value={String(amount)}
+                onChangeText={(t) => setAmount(clamp(parseInt(t.replace(/[^0-9]/g, "") || "0", 10)))}
+                keyboardType="number-pad"
+                maxLength={5}
+              />
+              <Text style={styles.stepSub}>to load</Text>
+            </View>
+            <Pressable testID="juice-plus" onPress={() => setAmount((a) => clamp(a + 5))} style={styles.stepBtn}><MaterialCommunityIcons name="plus" size={22} color={C.onSurface} /></Pressable>
+          </View>
+          <Pressable testID="juice-max" onPress={() => setAmount(applesHave)} style={styles.secondaryBtn}><Text style={styles.secondaryText}>Load all ({applesHave})</Text></Pressable>
+
+          <Pressable
+            testID="juice-load"
+            disabled={clamp(amount) <= 0}
+            onPress={() => { onLoad(clamp(amount)); setAmount(0); }}
+            style={[styles.primaryBtn, clamp(amount) <= 0 && { opacity: 0.5 }]}
+          >
+            <Text style={styles.primaryBtnText}>Load {clamp(amount)} apple{clamp(amount) === 1 ? "" : "s"}</Text>
+          </Pressable>
+          <Pressable onPress={onClose} style={styles.secondaryBtn}><Text style={styles.secondaryText}>Close</Text></Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -350,6 +424,7 @@ const styles = StyleSheet.create({
   stepBtn: { width: 46, height: 46, borderRadius: R.md, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center" },
   stepVal: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   stepText: { fontSize: 22, fontWeight: "900", color: C.onSurface },
+  juiceInput: { fontSize: 22, fontWeight: "900", color: C.onSurface, minWidth: 64, textAlign: "center", paddingVertical: 2, paddingHorizontal: 8, backgroundColor: C.surfaceSecondary, borderRadius: R.sm },
   stepSub: { fontSize: 12, fontWeight: "700", color: C.onSurfaceSecondary },
   factoryOut: { fontSize: 13, fontWeight: "700", color: C.brand, marginTop: 2 },
 });

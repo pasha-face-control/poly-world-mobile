@@ -3,7 +3,7 @@ export type ResourceType = "fruit" | "animal" | "fish" | "ore" | "crop" | "coal"
 export type UnitType = "warrior" | "archer" | "beefeater" | "catapult" | "rider" | "armored_rider" | "chivalry" | "pikemen" | "swordsmen" | "merchant";
 export type TribeId = "nature" | "desert" | "volcanic" | "snow";
 export type MapType = "dryland" | "lakes" | "pangea" | "continents" | "archipelago";
-export type GoodType = "wood" | "iron" | "wheat" | "meat" | "horse" | "planks" | "stone" | "sand" | "glass" | "coal" | "apple" | "iron_ore";
+export type GoodType = "wood" | "iron" | "wheat" | "meat" | "horse" | "planks" | "stone" | "sand" | "glass" | "coal" | "apple" | "iron_ore" | "apple_juice";
 export type NavalTier = "rowing" | "sailing" | "battleship";
 export type Difficulty = "peaceful" | "easy" | "normal" | "hard";
 
@@ -44,14 +44,14 @@ export interface Unit {
   cargo?: CargoSlot[]; // merchant inventory — 4 slots on land, 8 as a ship
 }
 
-export type CityBuildingType = "house" | "factory" | "trade_tower" | "park";
+export type CityBuildingType = "house" | "factory" | "trade_tower" | "park" | "apple_juice_factory";
 
 export interface CityBuilding {
   id: string;
   type: CityBuildingType;
   x: number; // top-left cell on the 30×30 city grid
   y: number;
-  feed?: number; // wood fed into a planks (Lesnoi) Material Factory each turn
+  feed?: number; // wood fed into a planks (Lesnoi) Material Factory each turn; also apples loaded into an Apple Juice Factory awaiting processing
   starved?: boolean; // a glass (Fishmen) factory that could not run last turn (short on inputs)
   connected?: boolean; // a house that has been road-connected to the citadel (one-time +2 pop granted)
 }

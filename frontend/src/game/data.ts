@@ -33,6 +33,7 @@ export const CITY_GOODS: { id: GoodType; name: string; icon: string; color: stri
   { id: "sand", name: "Sand", icon: "grain", color: "#E8CE8A" },
   { id: "glass", name: "Glass", icon: "diamond-stone", color: "#7FC6D6" },
   { id: "coal", name: "Coal", icon: "img:coal_ore", color: "#3A3A3A" },
+  { id: "apple_juice", name: "Apple Juice", icon: "cup", color: "#D98324" },
 ];
 
 // Goods a Merchant / Merchant Ship can carry & trade. Includes every resource
@@ -40,7 +41,7 @@ export const CITY_GOODS: { id: GoodType; name: string; icon: string; color: stri
 export const TRADE_GOODS = CITY_GOODS;
 
 // Modest starting stockpile so goods-costed units are usable before production buildings exist.
-export const START_GOODS: Record<GoodType, number> = { wood: 12, meat: 10, wheat: 6, iron: 8, horse: 2, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, apple: 0, iron_ore: 0 };
+export const START_GOODS: Record<GoodType, number> = { wood: 12, meat: 10, wheat: 6, iron: 8, horse: 2, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, apple: 0, iron_ore: 0, apple_juice: 0 };
 
 export interface BuildingDef {
   id: string;
@@ -371,8 +372,19 @@ export const CITY_BUILDINGS: CityBuildingDef[] = [
   { id: "factory", name: "Material Factory", icon: "factory", size: 3, stars: 0, cost: {}, desc: "Produces your tribe's unique material." },
   { id: "trade_tower", name: "Trade Tower", icon: "bank", size: 4, stars: 100, cost: { glass: 320 }, desc: "Doubles income from trade (stacks per tower)." },
   { id: "park", name: "Park", icon: "tree", size: 2, stars: 15, cost: { glass: 5 }, desc: "+5 stars per turn." },
+  { id: "apple_juice_factory", name: "Apple Juice Factory", icon: "cup", size: 3, stars: 40, cost: { wood: 10, iron: 2 }, desc: "Load apples, get 1 apple juice per 5 apples next turn. Freemen build it cheap (2★)." },
 ];
 export const CITY_BUILDING_BY_ID: Record<string, CityBuildingDef> = Object.fromEntries(CITY_BUILDINGS.map((b) => [b.id, b]));
+
+// The Apple Juice Factory is cheap for Freemen (desert) but pricey for everyone else.
+// Returns the effective stars + goods cost for a building in the given tribe's city.
+export function cityBuildingCost(type: CityBuildingType, tribe: string): { stars: number; cost: Partial<Record<GoodType, number>> } {
+  const def = CITY_BUILDING_BY_ID[type];
+  if (type === "apple_juice_factory") {
+    return { stars: tribe === "desert" ? 2 : 40, cost: { wood: 10, iron: 2 } };
+  }
+  return { stars: def.stars, cost: def.cost };
+}
 
 // A tribe's Material Factory footprint: Lesnoi sawmill & Fishmen glass factory are 3×3;
 // He-he stone quarry & Freemen sand quarry are 4×4.
@@ -384,9 +396,9 @@ export function buildingSize(type: CityBuildingType, tribe: string): number {
 
 // Max number of each building a city may hold at a given citadel stage (15 = unlimited).
 export const BUILDING_LIMITS: Record<number, Partial<Record<CityBuildingType, number>>> = {
-  1: { house: 1, factory: 1, trade_tower: 0, park: 0 },
-  5: { house: 4, factory: 2, trade_tower: 1, park: 2 },
-  10: { house: 8, factory: 2, trade_tower: 2, park: 4 },
+  1: { house: 1, factory: 1, trade_tower: 0, park: 0, apple_juice_factory: 1 },
+  5: { house: 4, factory: 2, trade_tower: 1, park: 2, apple_juice_factory: 2 },
+  10: { house: 8, factory: 2, trade_tower: 2, park: 4, apple_juice_factory: 3 },
   15: {},
 };
 export function buildingLimit(stage: number, type: CityBuildingType): number {

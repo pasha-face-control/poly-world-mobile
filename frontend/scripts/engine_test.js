@@ -1439,5 +1439,36 @@ if (anyWater) {
   ok("SP: human elimination still = lost", sp.status === "lost");
 }
 
+// ---- Apple Juice Factory: tribe cost, load apples, convert to juice ----
+{
+  const { cityBuildingCost } = require("../src/game/data.ts");
+  ok("Freemen (desert) apple juice factory costs 2 stars", cityBuildingCost("apple_juice_factory", "desert").stars === 2);
+  ok("Other tribes apple juice factory costs 40 stars", cityBuildingCost("apple_juice_factory", "nature").stars === 40);
+  ok("apple juice factory goods cost = 10 wood + 2 iron", cityBuildingCost("apple_juice_factory", "nature").cost.wood === 10 && cityBuildingCost("apple_juice_factory", "nature").cost.iron === 2);
+
+  const g = generateGame({ tribe: "nature", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 120 });
+  const city = g.cities.find((c) => c.owner === 0);
+  city.layout = city.layout ?? { buildings: [], roads: [] };
+  city.layout.buildings.push({ id: "ajf1", type: "apple_juice_factory", x: 1, y: 1 });
+  g.players[0].goods.apple = 12;
+
+  // Load 12 apples (deducted from stock into the factory).
+  ok("loadAppleFactory loads apples", engine.loadAppleFactory(g, 0, city.id, "ajf1", 12) === true);
+  ok("apples moved from stock into factory", g.players[0].goods.apple === 0 && city.layout.buildings[0].feed === 12);
+  ok("can't load more apples than you have", engine.loadAppleFactory(g, 0, city.id, "ajf1", 5) === false);
+
+  // Next turn: 12 loaded -> 2 juice, 2 apples remain loaded.
+  const beforeJuice = g.players[0].goods.apple_juice;
+  engine.runCityFactories(g, 0);
+  ok("5 apples -> 1 juice (12 loaded = 2 juice)", g.players[0].goods.apple_juice === beforeJuice + 2);
+  ok("leftover apples (<5) stay loaded", city.layout.buildings[0].feed === 2);
+
+  // Demolish returns the leftover apples and refunds cost.
+  const starsBefore = g.players[0].stars;
+  engine.demolishCityBuilding(g, 0, city.id, "ajf1");
+  ok("demolish returns leftover loaded apples", g.players[0].goods.apple === 2);
+  ok("demolish refunds stars (nature = 40)", g.players[0].stars === starsBefore + 40);
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

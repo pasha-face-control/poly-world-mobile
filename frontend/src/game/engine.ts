@@ -5,6 +5,7 @@ import {
   BUILDING_POP,
   CITADEL_UPGRADES,  CITADEL_SIZE,
   CITY_BUILDING_BY_ID,
+  cityBuildingCost,
   buildingSize,
   buildingLimit,
   CITY_GRID,
@@ -232,8 +233,9 @@ export function canPlaceCityBuilding(state: GameState, player: number, cityId: s
   const have = layout.buildings.filter((b) => b.type === type && b.id !== ignoreId).length;
   if (have >= limit) return { ok: false, reason: limit === 0 ? "Upgrade citadel to unlock" : "Building limit reached — upgrade citadel" };
   const p = state.players[player];
-  if (p.stars < def.stars) return { ok: false, reason: "Not enough stars" };
-  for (const [g, need] of Object.entries(def.cost)) {
+  const price = cityBuildingCost(type as import("./types").CityBuildingType, p.tribe);
+  if (p.stars < price.stars) return { ok: false, reason: "Not enough stars" };
+  for (const [g, need] of Object.entries(price.cost)) {
     if ((p.goods[g as GoodType] ?? 0) < (need as number)) return { ok: false, reason: `Not enough ${g}` };
   }
   return { ok: true };
@@ -245,8 +247,9 @@ export function placeCityBuilding(state: GameState, player: number, cityId: stri
   if (!city.layout) city.layout = { buildings: [], roads: [] };
   const def = CITY_BUILDING_BY_ID[type];
   const p = state.players[player];
-  p.stars -= def.stars;
-  for (const [g, need] of Object.entries(def.cost)) p.goods[g as GoodType] -= need as number;
+  const price = cityBuildingCost(type as import("./types").CityBuildingType, p.tribe);
+  p.stars -= price.stars;
+  for (const [g, need] of Object.entries(price.cost)) p.goods[g as GoodType] -= need as number;
   city.layout.buildings.push({ id: `b_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`, type: type as import("./types").CityBuildingType, x, y });
   log(state, `${p.name} built a ${def.name}`);
   reconcileCityConnections(state, cityId);
@@ -276,8 +279,11 @@ export function demolishCityBuilding(state: GameState, player: number, cityId: s
   const def = CITY_BUILDING_BY_ID[target.type];
   if (def) {
     const p = state.players[player];
-    p.stars += def.stars ?? 0;
-    for (const [g, n] of Object.entries(def.cost)) p.goods[g as GoodType] += n as number;
+    const price = cityBuildingCost(target.type, p.tribe);
+    p.stars += price.stars ?? 0;
+    for (const [g, n] of Object.entries(price.cost)) p.goods[g as GoodType] += n as number;
+    // Any apples still loaded in an Apple Juice Factory are returned on demolish.
+    if (target.type === "apple_juice_factory" && target.feed) p.goods.apple += target.feed;
   }
   return true;
 }
@@ -400,7 +406,31 @@ export function runCityFactories(state: GameState, player: number) {
         }
       }
     }
+    // Apple Juice Factories: turn loaded apples into juice (1 juice per 5 apples).
+    for (const f of (city.layout?.buildings ?? []).filter((b) => b.type === "apple_juice_factory")) {
+      const loaded = Math.max(0, Math.floor(f.feed ?? 0));
+      const juice = Math.floor(loaded / 5);
+      if (juice > 0) {
+        p.goods.apple_juice += juice;
+        f.feed = loaded - juice * 5; // keep any leftover apples (<5) loaded for next time
+      }
+    }
   }
+}
+
+// Load apples into an Apple Juice Factory: removes apples from the player's stock and
+// stores them in the factory, to be turned into juice at the start of the next turn.
+export function loadAppleFactory(state: GameState, player: number, cityId: string, buildingId: string, amount: number): boolean {
+  const city = state.cities.find((c) => c.id === cityId);
+  if (!city || city.owner !== player) return false;
+  const b = (city.layout?.buildings ?? []).find((x) => x.id === buildingId && x.type === "apple_juice_factory");
+  if (!b) return false;
+  const p = state.players[player];
+  const n = Math.max(0, Math.min(Math.floor(amount), p.goods.apple ?? 0));
+  if (n <= 0) return false;
+  p.goods.apple -= n;
+  b.feed = (b.feed ?? 0) + n;
+  return true;
 }
 
 
@@ -815,7 +845,7 @@ function recordPurchase(state: GameState, player: number, good: GoodType, qty: n
 
 // Goods a player gains at the start of each of their turns (building production).
 export function goodsIncome(state: GameState, player: number): Record<GoodType, number> {
-  const out: Record<GoodType, number> = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, apple: 0, iron_ore: 0 };
+  const out: Record<GoodType, number> = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, apple: 0, iron_ore: 0, apple_juice: 0 };
   for (const tile of state.tiles) {
     if (!tile.building) continue;
     const city = cityControllingTile(state, tile.id);
@@ -845,7 +875,7 @@ export function economyProjection(state: GameState, player: number): { income: R
   const after = p.goods as Record<string, number>;
   const income: Record<string, number> = {};
   const costs: Record<string, number> = {};
-  const goods = ["wood", "iron", "wheat", "meat", "horse", "planks", "stone", "sand", "glass", "coal", "iron_ore"] as const;
+  const goods = ["wood", "iron", "wheat", "meat", "horse", "planks", "stone", "sand", "glass", "coal", "iron_ore", "apple_juice"] as const;
   for (const g of goods) {
     const delta = (after[g] ?? 0) - (mid[g] ?? 0); // factory net for this good
     income[g] = (base[g as GoodType] ?? 0) + Math.max(0, delta);

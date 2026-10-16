@@ -25,6 +25,7 @@ import {
   demolishCityBuilding,
   removeCityRoad,
   setFactoryFeed,
+  loadAppleFactory,
   drawCityRoads,
   harvest,
   hireHunter,
@@ -68,7 +69,7 @@ function migrateState(loaded: GameState): GameState {
   if (!loaded.difficulty) loaded.difficulty = "normal";
   for (const p of loaded.players || []) {
     const g = (p.goods || {}) as Partial<Record<GoodType, number>>;
-    p.goods = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, apple: 0, iron_ore: 0, ...g };
+    p.goods = { wood: 0, iron: 0, wheat: 0, meat: 0, horse: 0, planks: 0, stone: 0, sand: 0, glass: 0, coal: 0, apple: 0, iron_ore: 0, apple_juice: 0, ...g };
     if (p.provoked === undefined) p.provoked = false;
     if (!p.economy) p.economy = { bought: {}, sold: {} };
   }
@@ -148,6 +149,7 @@ interface GameContextValue {
   doFinishGame: () => boolean;
   doPlaceCityBuilding: (cityId: string, type: string, x: number, y: number) => boolean;
   doSetFactoryFeed: (cityId: string, buildingId: string, feed: number) => boolean;
+  doLoadAppleFactory: (cityId: string, buildingId: string, amount: number) => boolean;
   doDrawCityRoads: (cityId: string, cells: number[]) => boolean;
   doMoveCityBuilding: (cityId: string, buildingId: string, x: number, y: number) => boolean;
   doDemolishCityBuilding: (cityId: string, buildingId: string) => boolean;
@@ -365,6 +367,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   );
   const doPlaceCityBuilding = useCallback((cityId: string, type: string, x: number, y: number) => apply((s) => placeCityBuilding(s, s.currentPlayer, cityId, type, x, y)), [apply]);
   const doSetFactoryFeed = useCallback((cityId: string, buildingId: string, feed: number) => apply((s) => setFactoryFeed(s, s.currentPlayer, cityId, buildingId, feed)), [apply]);
+  const doLoadAppleFactory = useCallback((cityId: string, buildingId: string, amount: number) => apply((s) => loadAppleFactory(s, s.currentPlayer, cityId, buildingId, amount)), [apply]);
   const doDrawCityRoads = useCallback((cityId: string, cells: number[]) => apply((s) => drawCityRoads(s, s.currentPlayer, cityId, cells) > 0), [apply]);
   const doMoveCityBuilding = useCallback((cityId: string, buildingId: string, x: number, y: number) => apply((s) => moveCityBuilding(s, s.currentPlayer, cityId, buildingId, x, y)), [apply]);
   const doDemolishCityBuilding = useCallback((cityId: string, buildingId: string) => apply((s) => demolishCityBuilding(s, s.currentPlayer, cityId, buildingId)), [apply]);
@@ -438,6 +441,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doFinishGame,
         doPlaceCityBuilding,
         doSetFactoryFeed,
+        doLoadAppleFactory,
         doDrawCityRoads,
         doMoveCityBuilding,
         doDemolishCityBuilding,
