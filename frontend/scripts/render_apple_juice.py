@@ -75,6 +75,11 @@ def load(name):
                 keep[i] = False
     tris = tris[keep]; cols = cols[keep]; hasc = hasc[keep]
     R = np.column_stack([tris.reshape(-1, 3)[:, 0], tris.reshape(-1, 3)[:, 2], tris.reshape(-1, 3)[:, 1]]).reshape(tris.shape)
+    yaw = float(os.environ.get("YAW", "90")) * np.pi / 180.0
+    if yaw:
+        ca, sa = np.cos(yaw), np.sin(yaw)
+        x = R[:, :, 0].copy(); y = R[:, :, 1].copy()
+        R[:, :, 0] = ca * x - sa * y; R[:, :, 1] = sa * x + ca * y
     mn = R.reshape(-1, 3).min(0); mx = R.reshape(-1, 3).max(0)
     R[:, :, 0] -= (mn[0] + mx[0]) / 2; R[:, :, 1] -= (mn[1] + mx[1]) / 2; R[:, :, 2] -= mn[2]
     return R, cols, hasc

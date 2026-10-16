@@ -32,11 +32,11 @@ const CITY_SPRITE: Record<string, number> = {
   apple_juice_factory: require("../../assets/images/city/apple_juice_factory_tm.png"),
 };
 // height / width of each sprite PNG (hardcoded — Image.resolveAssetSource is unreliable on web).
-const SPRITE_ASPECT: Record<string, number> = { houses: 0.7199, sawmill: 0.5166, stone_quarry: 0.5063, sand_quarry: 0.5094, glass_factory: 0.6639, trade_tower: 2.5809, park: 0.8732, apple_juice_factory: 1.0124 };
+const SPRITE_ASPECT: Record<string, number> = { houses: 0.7199, sawmill: 0.5166, stone_quarry: 0.5063, sand_quarry: 0.5094, glass_factory: 0.6639, trade_tower: 2.5809, park: 0.8732, apple_juice_factory: 1.1378 };
 // A tribe's Material Factory shows its own unique building sprite.
 const FACTORY_SPRITE_BY_TRIBE: Record<string, string> = { nature: "sawmill", volcanic: "stone_quarry", desert: "sand_quarry", snow: "glass_factory" };
 // Width of a sprite as a multiple of its footprint diamond width.
-const SPRITE_SCALE: Record<string, number> = { house: 1.0, factory: 1.0, trade_tower: 1.0, park: 1.08, apple_juice_factory: 1.0 };
+const SPRITE_SCALE: Record<string, number> = { house: 1.0, factory: 1.0, trade_tower: 1.0, park: 1.08, apple_juice_factory: 0.62 };
 const BUILDING_COLOR: Record<string, string> = { house: "#C98A4B", factory: "#8A8F98", trade_tower: "#C7A24B", park: "#5FA85F", apple_juice_factory: "#8A5A34" };
 
 function proj(x: number, y: number) {
@@ -123,9 +123,13 @@ export default function CityMap({ city, tribe, placing, canPlaceAt, onPlace, onC
     const footBottom = mid.y + s * HH; // front-bottom vertex of the footprint diamond
     const key = spriteKeyFor(type);
     if (key == null) return { src: null as number | null, left: mid.x - 12, top: mid.y - 20, w: 24, h: 24, footBottom, mid };
-    const w = s * 2 * HW * (SPRITE_SCALE[type] ?? 1);
+    const sc = SPRITE_SCALE[type] ?? 1;
+    const w = s * 2 * HW * sc;
     const h = w * SPRITE_ASPECT[key];
-    return { src: CITY_SPRITE[key], left: mid.x - w / 2, top: footBottom - h, w, h, footBottom, mid };
+    // A shrunk sprite (sc < 1) is centred inside its footprint diamond: its base sits
+    // at a scaled front vertex so the building stays within the 3×3 territory.
+    const anchorY = mid.y + s * HH * sc;
+    return { src: CITY_SPRITE[key], left: mid.x - w / 2, top: anchorY - h, w, h, footBottom, mid };
   };
 
   const onLayout = (e: LayoutChangeEvent) => {
