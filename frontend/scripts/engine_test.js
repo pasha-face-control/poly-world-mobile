@@ -1414,5 +1414,30 @@ if (anyWater) {
   }
 }
 
+// ---- Multiplayer end condition: last player standing (not just Player 1 out) ----
+{
+  // 3 humans + nothing else. Eliminating Player 1 (index 0) must NOT end the game.
+  const g = generateGame({ tribe: "nature", opponents: 2, mapSize: 16, mapType: "continents", passAndPlay: true, difficulty: "normal", tribes: ["nature", "desert", "volcanic"], humans: 3, seed: 101 });
+  // Remove all of Player 0's cities & units.
+  g.cities = g.cities.filter((c) => c.owner !== 0);
+  g.units = g.units.filter((u) => u.owner !== 0);
+  engine.checkVictory(g);
+  ok("MP: game continues after Player 1 eliminated (2 players left)", g.status === "playing");
+  ok("MP: Player 1 is marked eliminated", g.players[0].eliminated === true);
+
+  // Now also remove Player 2 → only Player 3 remains → game ends as a win.
+  g.cities = g.cities.filter((c) => c.owner !== 1);
+  g.units = g.units.filter((u) => u.owner !== 1);
+  engine.checkVictory(g);
+  ok("MP: game ends when only one player remains", g.status === "won");
+
+  // Single player regression: human (P0) eliminated with a bot alive => lost.
+  const sp = generateGame({ tribe: "nature", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, difficulty: "normal", seed: 102 });
+  sp.cities = sp.cities.filter((c) => c.owner !== 0);
+  sp.units = sp.units.filter((u) => u.owner !== 0);
+  engine.checkVictory(sp);
+  ok("SP: human elimination still = lost", sp.status === "lost");
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

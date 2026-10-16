@@ -1438,6 +1438,18 @@ export function checkVictory(state: GameState) {
     const hasUnit = state.units.some((u) => u.owner === p.index);
     if (!hasCity && !hasUnit) p.eliminated = true;
   }
+
+  // Offline multiplayer (2+ humans): the game keeps going until only ONE player
+  // remains — last player standing wins. A single player being knocked out does NOT
+  // end the game while others are still alive.
+  const isMulti = state.players.filter((p) => p.isHuman).length > 1;
+  if (isMulti) {
+    const alive = state.players.filter((p) => !p.eliminated);
+    if (alive.length <= 1) state.status = "won";
+    return;
+  }
+
+  // Single player (human is player 0 vs AI bots).
   // Peaceful (economic) victory: the human owns every city on the map while at
   // least one rival still has units. Nobody is destroyed — everyone gets a capital win.
   const totalCities = state.cities.length;
