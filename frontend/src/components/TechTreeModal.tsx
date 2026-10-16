@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Line } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -11,7 +11,7 @@ import { GameState } from "@/src/game/types";
 interface Props {
   visible: boolean;
   state: GameState;
-  onResearch: (techId: string) => void;
+  onResearch: (techId: string, juice: number) => void;
   onClose: () => void;
   topInset: number;
 }
@@ -83,6 +83,10 @@ export default function TechTreeModal({ visible, state, onResearch, onClose, top
   const player = state.players[state.currentPlayer];
   const known = player.techs;
   const layout = useMemo(computeLayout, []);
+  const [juice, setJuice] = useState(0);
+  const haveJuice = player.goods.apple_juice ?? 0;
+  const maxJuice = Math.min(2, haveJuice);
+  const effJuice = Math.min(juice, maxJuice); // discount applied, clamped to what you hold
 
   const edges: React.ReactNode[] = [];
   for (const t of TECHS) {
@@ -110,6 +114,32 @@ export default function TechTreeModal({ visible, state, onResearch, onClose, top
             </Pressable>
           </View>
 
+          {/* Apple juice research discount: spend 1 or 2 juice for −25% / −50% off the
+              next tech you research (the juice is consumed on research). */}
+          <View style={styles.juiceBar} testID="tech-juice-bar">
+            <GameIcon name="cup" size={16} color="#D98324" />
+            <Text style={styles.juiceLabel}>Apple Juice {haveJuice}</Text>
+            <View style={styles.juiceBtns}>
+              {[0, 1, 2].map((n) => {
+                const disabled = n > maxJuice;
+                const active = effJuice === n;
+                return (
+                  <Pressable
+                    key={n}
+                    testID={`juice-discount-${n}`}
+                    disabled={disabled}
+                    onPress={() => setJuice(n)}
+                    style={[styles.juicePill, active && styles.juicePillActive, disabled && styles.juicePillDisabled]}
+                  >
+                    <Text style={[styles.juicePillText, active && styles.juicePillTextActive, disabled && { color: C.borderStrong }]}>
+                      {n === 0 ? "None" : `−${25 * n}%`}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ minHeight: layout.h }} showsVerticalScrollIndicator={false}>
             <ScrollView
               horizontal
@@ -131,7 +161,7 @@ export default function TechTreeModal({ visible, state, onResearch, onClose, top
                   const n = layout.nodes[t.id];
                   const researched = known.includes(t.id);
                   const unlocked = !t.requires || known.includes(t.requires);
-                  const cost = techCost(state, player.index, t.id);
+                  const cost = techCost(state, player.index, t.id, effJuice);
                   const affordable = player.stars >= cost;
                   const canResearch = !researched && unlocked && affordable;
                   return (
@@ -139,7 +169,7 @@ export default function TechTreeModal({ visible, state, onResearch, onClose, top
                       <Pressable
                         testID={`tech-${t.id}`}
                         disabled={!canResearch}
-                        onPress={() => onResearch(t.id)}
+                        onPress={() => onResearch(t.id, effJuice)}
                         style={[styles.node, researched ? styles.nodeDone : unlocked ? styles.nodeOpen : styles.nodeLocked, canResearch && styles.nodeReady]}
                       >
                         <GameIcon name={t.icon} size={24} color={researched ? "#fff" : unlocked ? C.brand : C.borderStrong} />
@@ -184,6 +214,14 @@ const styles = StyleSheet.create({
   sub: { fontSize: 12, color: C.onSurfaceSecondary, marginTop: 2 },
   starsChip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.brandTertiary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: R.pill, marginLeft: "auto" },
   starsText: { fontWeight: "900", color: C.onSurface },
+  juiceBar: { flexDirection: "row", alignItems: "center", gap: SP.sm, paddingHorizontal: SP.lg, paddingVertical: SP.sm, borderBottomWidth: 1, borderBottomColor: C.border, backgroundColor: C.surfaceSecondary },
+  juiceLabel: { fontSize: 13, fontWeight: "800", color: C.onSurface },
+  juiceBtns: { flexDirection: "row", gap: 6, marginLeft: "auto" },
+  juicePill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: R.pill, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+  juicePillActive: { backgroundColor: C.brand, borderColor: C.brand },
+  juicePillDisabled: { opacity: 0.45 },
+  juicePillText: { fontSize: 12, fontWeight: "900", color: C.onSurface },
+  juicePillTextActive: { color: "#fff" },
   close: { padding: 6, backgroundColor: C.surfaceSecondary, borderRadius: R.pill },
   node: { width: NODE, height: NODE, borderRadius: NODE / 2, alignItems: "center", justifyContent: "center", ...shadow(2) },
   center: { position: "absolute", backgroundColor: C.surfaceInverse, borderWidth: 3, borderColor: C.brandSecondary },

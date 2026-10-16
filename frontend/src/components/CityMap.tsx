@@ -32,7 +32,7 @@ const CITY_SPRITE: Record<string, number> = {
   apple_juice_factory: require("../../assets/images/city/apple_juice_factory_tm.png"),
 };
 // height / width of each sprite PNG (hardcoded — Image.resolveAssetSource is unreliable on web).
-const SPRITE_ASPECT: Record<string, number> = { houses: 0.7199, sawmill: 0.5166, stone_quarry: 0.5063, sand_quarry: 0.5094, glass_factory: 0.6639, trade_tower: 2.5809, park: 0.8732, apple_juice_factory: 1.5253 };
+const SPRITE_ASPECT: Record<string, number> = { houses: 0.7199, sawmill: 0.5166, stone_quarry: 0.5063, sand_quarry: 0.5094, glass_factory: 0.6639, trade_tower: 2.5809, park: 0.8732, apple_juice_factory: 1.0124 };
 // A tribe's Material Factory shows its own unique building sprite.
 const FACTORY_SPRITE_BY_TRIBE: Record<string, string> = { nature: "sawmill", volcanic: "stone_quarry", desert: "sand_quarry", snow: "glass_factory" };
 // Width of a sprite as a multiple of its footprint diamond width.

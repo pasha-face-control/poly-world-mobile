@@ -124,7 +124,7 @@ interface GameContextValue {
   doAttack: (unitId: string, tileId: number) => boolean;
   doHarvest: (tileId: number) => boolean;
   doTrain: (cityId: string, type: UnitType) => boolean;
-  doResearch: (techId: string) => boolean;
+  doResearch: (techId: string, juice?: number) => boolean;
   doBuild: (tileId: number, buildingId: string) => boolean;
   doInfra: (tileId: number, infraId: string) => boolean;
   doEmbark: (unitId: string) => boolean;
@@ -332,7 +332,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doAttack = useCallback((unitId: string, tileId: number) => apply((s) => attackUnit(s, unitId, tileId)), [apply]);
   const doHarvest = useCallback((tileId: number) => apply((s) => harvest(s, s.currentPlayer, tileId)), [apply]);
   const doTrain = useCallback((cityId: string, type: UnitType) => apply((s) => trainUnit(s, s.currentPlayer, cityId, type)), [apply]);
-  const doResearch = useCallback((techId: string) => apply((s) => research(s, s.currentPlayer, techId)), [apply]);
+  const doResearch = useCallback((techId: string, juice: number = 0) => apply((s) => research(s, s.currentPlayer, techId, juice)), [apply]);
   const doBuild = useCallback((tileId: number, buildingId: string) => apply((s) => build(s, s.currentPlayer, tileId, buildingId)), [apply]);
   const doInfraCb = useCallback((tileId: number, infraId: string) => apply((s) => doInfra(s, s.currentPlayer, tileId, infraId)), [apply]);
   const doEmbark = useCallback((unitId: string) => apply((s) => embark(s, unitId)), [apply]);

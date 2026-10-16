@@ -1170,24 +1170,31 @@ export function availableTechs(state: GameState, player: number): string[] {
     .map((t) => t.id);
 }
 
-export function techCost(state: GameState, player: number, techId: string): number {
+export function techCost(state: GameState, player: number, techId: string, juice: number = 0): number {
   const t = TECH_BY_ID[techId];
   const numCities = state.cities.filter((c) => c.owner === player).length || 1;
   // Scales gently with empire size, like Polytopia.
-  return t.cost + (numCities - 1) * t.tier;
+  const base = t.cost + (numCities - 1) * t.tier;
+  // Each apple juice spent cuts the cost 25% (max 2 juice = 50% off).
+  const d = Math.max(0, Math.min(2, Math.floor(juice)));
+  return Math.ceil(base * (1 - 0.25 * d));
 }
 
-export function research(state: GameState, player: number, techId: string): boolean {
+export function research(state: GameState, player: number, techId: string, juice: number = 0): boolean {
   const t = TECH_BY_ID[techId];
   if (!t) return false;
-  if (state.players[player].techs.includes(techId)) return false;
-  if (t.requires && !state.players[player].techs.includes(t.requires)) return false;
-  const cost = techCost(state, player, techId);
-  if (state.players[player].stars < cost) return false;
-  state.players[player].stars -= cost;
-  state.players[player].techs.push(techId);
+  const p = state.players[player];
+  if (p.techs.includes(techId)) return false;
+  if (t.requires && !p.techs.includes(t.requires)) return false;
+  // Clamp requested discount to what the player actually has (max 2).
+  const d = Math.max(0, Math.min(2, Math.floor(juice), p.goods.apple_juice ?? 0));
+  const cost = techCost(state, player, techId, d);
+  if (p.stars < cost) return false;
+  p.stars -= cost;
+  if (d > 0) p.goods.apple_juice -= d; // discount is single-use; juice is consumed
+  p.techs.push(techId);
   refreshFog(state, player);
-  log(state, `${state.players[player].name} researched ${t.name}`);
+  log(state, `${p.name} researched ${t.name}${d > 0 ? ` (−${25 * d}% with ${d} apple juice)` : ""}`);
   return true;
 }
 

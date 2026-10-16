@@ -65,6 +65,15 @@ def load(name):
 
     for ni in sc.get("nodes", []): walk(ni, np.eye(4))
     tris = np.array(tris); cols = np.array(cols); hasc = np.array(hasc)
+    # Drop the green ground plate before computing bounds, so centering & scale are
+    # based on the STRUCTURE only (plate is the one strongly green-dominant part).
+    keep = np.ones(len(tris), dtype=bool)
+    for i in range(len(tris)):
+        if hasc[i]:
+            rr, gg, bb = float(cols[i][0]), float(cols[i][1]), float(cols[i][2])
+            if not (np.all(np.abs(cols[i] - 0.8) < 0.03)) and gg > 0.22 and gg > rr * 1.35 and gg > bb * 1.35:
+                keep[i] = False
+    tris = tris[keep]; cols = cols[keep]; hasc = hasc[keep]
     R = np.column_stack([tris.reshape(-1, 3)[:, 0], tris.reshape(-1, 3)[:, 2], tris.reshape(-1, 3)[:, 1]]).reshape(tris.shape)
     mn = R.reshape(-1, 3).min(0); mx = R.reshape(-1, 3).max(0)
     R[:, :, 0] -= (mn[0] + mx[0]) / 2; R[:, :, 1] -= (mn[1] + mx[1]) / 2; R[:, :, 2] -= mn[2]
@@ -83,6 +92,15 @@ def draw(R, cols, hasc, L):
         if ln > 0 and abs(n[2]) / ln > 0.90 and t[:, 2].max() < 0.10 * zmax:
             continue
         base = NEUTRAL if (not h or is_blank(c)) else c
+        # Drop the model's green ground plate — city sprites must contain ONLY the
+        # structure (the city map draws its own ground). The plate is the only
+        # strongly green-dominant part (building brown, silos grey, apple red,
+        # crop boxes near-black), so a green test removes just the plate and fixes
+        # the mis-scale/offset anchor bug.
+        if h and not is_blank(c):
+            rr, gg, bb = float(c[0]), float(c[1]), float(c[2])
+            if gg > 0.22 and gg > rr * 1.35 and gg > bb * 1.35:
+                continue
         b = 0.6 if ln == 0 else 0.55 + 0.45 * max(0.0, float(np.dot(n / ln, LIGHT)))
         polys.append(t); fc.append(np.clip(base * b, 0, 1).tolist() + [1.0])
     fig = plt.figure(figsize=(5, 5), dpi=120); fig.patch.set_alpha(0.0)

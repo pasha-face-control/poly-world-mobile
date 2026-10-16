@@ -1470,5 +1470,34 @@ if (anyWater) {
   ok("demolish refunds stars (nature = 40)", g.players[0].stars === starsBefore + 40);
 }
 
+// ---- Apple juice tech-research discount (25% per juice, max 2) ----
+{
+  const g = generateGame({ tribe: "nature", opponents: 1, mapSize: 14, mapType: "continents", passAndPlay: false, seed: 130 });
+  const p = g.players[0];
+  // Find an unlocked, un-researched tech.
+  const { TECHS } = require("../src/game/data.ts");
+  const openTech = TECHS.find((t) => (!t.requires || p.techs.includes(t.requires)) && !p.techs.includes(t.id));
+  const base = engine.techCost(g, 0, openTech.id, 0);
+  ok("1 juice => 25% off cost", engine.techCost(g, 0, openTech.id, 1) === Math.ceil(base * 0.75));
+  ok("2 juice => 50% off cost", engine.techCost(g, 0, openTech.id, 2) === Math.ceil(base * 0.5));
+  ok("discount caps at 2 juice (3 == 2)", engine.techCost(g, 0, openTech.id, 3) === engine.techCost(g, 0, openTech.id, 2));
+
+  // Research with 2 juice: consumes 2 juice and charges the 50% price.
+  p.goods.apple_juice = 2;
+  p.stars = 1000;
+  const starsBefore = p.stars;
+  const okRes = engine.research(g, 0, openTech.id, 2);
+  ok("research with discount succeeds", okRes === true);
+  ok("charged the discounted (50%) price", starsBefore - p.stars === Math.ceil(base * 0.5));
+  ok("2 apple juice consumed by the discount", p.goods.apple_juice === 0);
+
+  // Next research with no juice uses full price (discount finished).
+  const open2 = TECHS.find((t) => (!t.requires || g.players[0].techs.includes(t.requires)) && !g.players[0].techs.includes(t.id));
+  const full = engine.techCost(g, 0, open2.id, 0);
+  const sb2 = p.stars;
+  engine.research(g, 0, open2.id, 2); // requests 2 juice but has 0 -> clamps to 0
+  ok("no juice held => full price next time", sb2 - p.stars === full);
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

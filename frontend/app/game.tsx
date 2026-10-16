@@ -573,9 +573,9 @@ export default function GameScreen() {
         visible={techOpen}
         state={state}
         topInset={insets.top}
-        onResearch={(id) => {
+        onResearch={(id, juice) => {
           haptic.notify();
-          doResearch(id);
+          doResearch(id, juice);
         }}
         onClose={() => setTechOpen(false)}
       />
