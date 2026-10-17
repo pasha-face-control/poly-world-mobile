@@ -87,10 +87,16 @@ export interface Player {
   stars: number;
   goods: Record<GoodType, number>;
   techs: string[];
-  eliminated: boolean;
+  eliminated: boolean; // KILLED in war — no cities and no units left (auto-skipped)
   provoked?: boolean; // peaceful-mode bot has been attacked and may now fight back
   difficulty?: Difficulty; // per-bot difficulty override (falls back to the game-wide difficulty)
   templePoints?: number; // cumulative leaderboard points earned from temples (+100/turn per temple)
+  // ---- Financially Annexed: sold ALL cities (not killed). Still takes turns and may
+  // research tech, view the leaderboard and buy cities back. Cannot win. ----
+  annexed?: boolean;
+  annexedBonusPoints?: number; // Safety bonus (15× stars at annexation, one-time) + per-turn temple bonus; counts only while annexed
+  soldForestTemples?: number; // forest temples on territories of cities sold this annexation episode (+80 pts/turn each)
+  soldMountainTemples?: number; // mountain temples on territories of cities sold this annexation episode (+50 pts & +1 star/turn each)
   economy?: { bought: GoodLedger; sold: GoodLedger }; // cumulative trade history for the economy panel
 }
 
@@ -107,6 +113,7 @@ export interface GameState {
   seed: number;
   status: "playing" | "won" | "lost" | "draw";
   log: string[];
+  pendingBanners?: string[]; // transient event banners (player killed / Financially Annexed) for the UI to surface
   createdAt: string;
   pendingLevelUps: string[]; // human city ids awaiting a level-up reward choice
   pendingSales?: Record<number, { goods: Partial<Record<GoodType, number>>; stars: number }>; // per-player merchant sales awaiting a notification

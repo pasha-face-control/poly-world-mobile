@@ -141,8 +141,9 @@ interface GameContextValue {
   doBuyFromMerchant: (merchantId: string, slotIndex: number, amount: number) => boolean;
   doClearSale: () => boolean;
   doBuyVillage: (tileId: number) => boolean;
-  doBuyCity: (cityId: string) => boolean;
+  doBuyCity: (cityId: string, offerPrice?: number) => boolean;
   doResolveOffer: (cityId: string, accept: boolean) => boolean;
+  clearBanners: () => void;
   doExpandTerritory: (tileId: number) => boolean;
   doUpgradeCitadel: (cityId: string) => boolean;
   doRenameCity: (cityId: string, name: string) => boolean;
@@ -350,8 +351,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const doBuyFromMerchant = useCallback((merchantId: string, slotIndex: number, amount: number) => apply((s) => buyFromMerchant(s, s.currentPlayer, merchantId, slotIndex, amount)), [apply]);
   const doClearSale = useCallback(() => apply((s) => { if (s.pendingSales) delete s.pendingSales[s.currentPlayer]; return true; }), [apply]);
   const doBuyVillage = useCallback((tileId: number) => apply((s) => buyVillage(s, s.currentPlayer, tileId)), [apply]);
-  const doBuyCity = useCallback((cityId: string) => apply((s) => requestBuyCity(s, s.currentPlayer, cityId).ok), [apply]);
+  const doBuyCity = useCallback((cityId: string, offerPrice?: number) => apply((s) => requestBuyCity(s, s.currentPlayer, cityId, offerPrice).ok), [apply]);
   const doResolveOffer = useCallback((cityId: string, accept: boolean) => apply((s) => resolveCityOffer(s, cityId, accept)), [apply]);
+  const clearBanners = useCallback(() => { apply((s) => { s.pendingBanners = []; return true; }); }, [apply]);
   const doExpandTerritory = useCallback((tileId: number) => apply((s) => expandTerritory(s, s.currentPlayer, tileId)), [apply]);
   const doUpgradeCitadel = useCallback((cityId: string) => apply((s) => upgradeCitadel(s, s.currentPlayer, cityId)), [apply]);
   const doRenameCity = useCallback(
@@ -435,6 +437,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         doBuyVillage,
         doBuyCity,
         doResolveOffer,
+        clearBanners,
         doExpandTerritory,
         doUpgradeCitadel,
         doRenameCity,

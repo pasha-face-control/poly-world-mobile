@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, SP, shadow } from "@/src/theme";
@@ -12,14 +12,26 @@ export interface CaptureTarget {
 interface Props {
   target: CaptureTarget | null;
   stars: number;
-  onBuy: () => void;
+  // Financially Annexed buyers may sweeten the deal above the default price.
+  allowCustomOffer?: boolean;
+  onBuy: (offer?: number) => void;
   onClose: () => void;
 }
 
-export default function CaptureModal({ target, stars, onBuy, onClose }: Props) {
+const STEP = 5;
+
+export default function CaptureModal({ target, stars, allowCustomOffer, onBuy, onClose }: Props) {
   const visible = !!target;
   const isCity = target?.kind === "city";
-  const price = target?.price ?? 0;
+  const base = target?.price ?? 0;
+  const canOffer = !!allowCustomOffer && isCity;
+
+  const [offer, setOffer] = useState(base);
+  useEffect(() => {
+    if (visible) setOffer(base);
+  }, [visible, base]);
+
+  const price = canOffer ? offer : base;
   const canAfford = stars >= price;
 
   return (
@@ -36,10 +48,34 @@ export default function CaptureModal({ target, stars, onBuy, onClose }: Props) {
               : "Move a unit here to capture it next turn — or buy it now for an instant claim."}
           </Text>
 
+          {canOffer && (
+            <View style={styles.offerBox} testID="custom-offer">
+              <Text style={styles.offerLabel}>Your offer (raise it to tempt the seller)</Text>
+              <View style={styles.offerRow}>
+                <Pressable
+                  testID="offer-minus"
+                  onPress={() => setOffer((v) => Math.max(base, v - STEP))}
+                  style={[styles.stepBtn, offer <= base && styles.dim]}
+                  disabled={offer <= base}
+                >
+                  <MaterialCommunityIcons name="minus" size={20} color="#fff" />
+                </Pressable>
+                <View style={styles.offerValue}>
+                  <MaterialCommunityIcons name="star-four-points" size={16} color={C.brand} />
+                  <Text style={styles.offerValueText} testID="offer-value">{offer}</Text>
+                </View>
+                <Pressable testID="offer-plus" onPress={() => setOffer((v) => v + STEP)} style={styles.stepBtn}>
+                  <MaterialCommunityIcons name="plus" size={20} color="#fff" />
+                </Pressable>
+              </View>
+              <Text style={styles.offerHint}>Default price {base}★</Text>
+            </View>
+          )}
+
           <Pressable
             testID="capture-buy"
             disabled={!canAfford}
-            onPress={onBuy}
+            onPress={() => onBuy(canOffer ? offer : undefined)}
             style={[styles.buyBtn, !canAfford && styles.dim]}
           >
             <MaterialCommunityIcons name="handshake" size={20} color="#fff" />
@@ -67,6 +103,13 @@ const styles = StyleSheet.create({
   iconBox: { alignSelf: "center", width: 62, height: 62, borderRadius: 31, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 20, fontWeight: "900", color: C.onSurface, textAlign: "center" },
   sub: { fontSize: 13, color: C.onSurfaceSecondary, textAlign: "center", marginBottom: SP.sm },
+  offerBox: { backgroundColor: C.surfaceSecondary, borderRadius: R.md, padding: SP.md, gap: 6, marginBottom: SP.sm },
+  offerLabel: { fontSize: 12, color: C.onSurfaceSecondary, fontWeight: "700", textAlign: "center" },
+  offerRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: SP.md },
+  stepBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.brand, alignItems: "center", justifyContent: "center" },
+  offerValue: { flexDirection: "row", alignItems: "center", gap: 4, minWidth: 80, justifyContent: "center" },
+  offerValueText: { fontSize: 22, fontWeight: "900", color: C.onSurface },
+  offerHint: { fontSize: 11, color: C.onSurfaceSecondary, textAlign: "center" },
   buyBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: SP.sm, backgroundColor: C.brand, borderRadius: R.md, paddingVertical: SP.md },
   dim: { opacity: 0.45 },
   buyText: { color: "#fff", fontWeight: "900", fontSize: 16 },

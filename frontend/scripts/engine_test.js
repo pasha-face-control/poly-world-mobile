@@ -1499,5 +1499,119 @@ if (anyWater) {
   ok("no juice held => full price next time", sb2 - p.stars === full);
 }
 
+// ---- Killed & Financially Annexed players ----
+{
+  const { newUnit: mk } = require("../src/game/factory.ts");
+  const lb = require("../src/game/leaderboard.ts");
+
+  // --- Financial Annexation: buying a bot's LAST city annexes the seller ---
+  {
+    const g = generateGame({ tribe: "nature", opponents: 1, mapSize: 16, mapType: "continents", passAndPlay: false, seed: 41 });
+    // Reduce bot (player 1) to a single city; clear its units.
+    const botCities = g.cities.filter((c) => c.owner === 1);
+    const keep = botCities[0];
+    for (let i = 1; i < botCities.length; i++) g.cities = g.cities.filter((c) => c.id !== botCities[i].id);
+    g.units = g.units.filter((u) => u.owner !== 1);
+    // Put a forest temple + mountain temple on the bot city's territory.
+    const terr = [keep.tileId, ...engine.neighbors(g, keep.tileId)];
+    g.tiles[terr[1]].building = "forest_temple";
+    g.tiles[terr[2]].building = "mountain_temple";
+    // Let player 0 afford and discover it.
+    g.players[0].stars = 5000;
+    g.tiles[keep.tileId].explored = true;
+    g.players[1].stars = 10;
+
+    const price = engine.cityBuyPrice(keep);
+    ok("annex: buy bot's last city succeeds", engine.buyCity(g, 0, keep.id) === true);
+    ok("annex: seller is Financially Annexed (not eliminated)", g.players[1].annexed === true && g.players[1].eliminated !== true);
+    ok("annex: Safety Bonus = 15 x stars at annexation", g.players[1].annexedBonusPoints === 15 * g.players[1].stars);
+    ok("annex: sold-temple counters recorded", g.players[1].soldForestTemples === 1 && g.players[1].soldMountainTemples === 1);
+    ok("annex: banner fired", (g.pendingBanners || []).some((b) => b.includes("Financially Annexed")));
+
+    // Per-turn Temple Bonus while annexed: +80 (forest) +50 (mountain) pts, +1 star (mountain).
+    const ptsBefore = g.players[1].annexedBonusPoints;
+    const starsBefore = g.players[1].stars;
+    engine.startPlayerTurn(g, 1);
+    ok("annex: temple bonus +130 pts/turn", g.players[1].annexedBonusPoints === ptsBefore + 80 + 50);
+    ok("annex: mountain temple +1 star/turn", g.players[1].stars === starsBefore + 1);
+    ok("annex: bonus counts on the leaderboard", lb.playerPointsBreakdown(g, 1).bonus === g.players[1].annexedBonusPoints);
+
+    // Safety bonus is frozen — changing stars later does not change it.
+    const lockedBonus = g.players[1].annexedBonusPoints;
+    g.players[1].stars += 999;
+    // (no re-annexation; bonus unchanged apart from per-turn temple accrual)
+    ok("annex: safety bonus frozen (unchanged by later stars)", g.players[1].annexedBonusPoints === lockedBonus);
+
+    // Custom bigger offer is allowed ONLY for an annexed buyer.
+    const other = g.cities.find((c) => c.owner === 0);
+    const base = engine.cityBuyPrice(other);
+    ok("non-annexed buyer cannot raise price above default", engine.canBuyCity(g, 0, other.id, base + 100).price === base);
+    g.tiles[other.tileId].seenBy = g.tiles[other.tileId].seenBy || [];
+    ok("annexed buyer may offer above default", engine.canBuyCity(g, 1, other.id, base + 100).price === base + 100);
+  }
+
+  // --- Un-annex: an annexed player who gains a city loses annexed status + bonuses ---
+  {
+    const g = generateGame({ tribe: "nature", opponents: 1, mapSize: 16, mapType: "continents", passAndPlay: false, seed: 42 });
+    const p1 = g.players[1];
+    // Player 1 is annexed with accrued bonuses and owns no city.
+    g.cities = g.cities.filter((c) => c.owner !== 1);
+    g.units = g.units.filter((u) => u.owner !== 1);
+    p1.annexed = true; p1.annexedBonusPoints = 500; p1.soldForestTemples = 2; p1.soldMountainTemples = 1;
+    p1.stars = 5000;
+    // Buy a city owned by player 0 -> player 1 now owns a city again.
+    const sellCity = g.cities.find((c) => c.owner === 0);
+    ok("un-annex: buy restores a city", engine.buyCity(g, 1, sellCity.id) === true);
+    ok("un-annex: buying a city clears annexed status", g.players[1].annexed === false);
+    ok("un-annex: annex bonuses reset to zero", (g.players[1].annexedBonusPoints ?? 0) === 0 && (g.players[1].soldForestTemples ?? 0) === 0);
+  }
+
+  // --- Killed: destroying a cityless rival's last unit eliminates them + banner ---
+  {
+    let g, aTile, bTile;
+    for (let seed = 1; seed < 60 && !aTile; seed++) {
+      g = generateGame({ tribe: "nature", opponents: 1, mapSize: 16, mapType: "continents", passAndPlay: false, seed });
+      // find a land tile with a land neighbour
+      for (const t of g.tiles) {
+        if (t.terrain === "water" || t.cityId) continue;
+        const n = engine.neighbors(g, t.id).find((x) => g.tiles[x].terrain !== "water" && !g.tiles[x].cityId);
+        if (n != null) { aTile = t.id; bTile = n; break; }
+      }
+    }
+    // Player 1 has no cities and a single fragile unit; player 0 kills it.
+    g.cities = g.cities.filter((c) => c.owner !== 1);
+    g.units = g.units.filter((u) => u.owner !== 0 && u.owner !== 1);
+    const atk = mk("warrior", 0, aTile); atk.moved = false; atk.attacked = false;
+    const def = mk("warrior", 1, bTile); def.hp = 1;
+    g.units.push(atk, def);
+    g.pendingBanners = [];
+    ok("killed: target is attackable", engine.attackableTiles(g, atk).includes(bTile));
+    engine.attackUnit(g, atk.id, bTile);
+    ok("killed: cityless+unitless rival is eliminated", g.players[1].eliminated === true);
+    ok("killed: 'killed by' banner fired", (g.pendingBanners || []).some((b) => b.includes("killed by")));
+  }
+
+  // --- checkVictory: annexed players neither die nor keep the game alive ---
+  {
+    const g = generateGame({ tribe: "nature", opponents: 3, mapSize: 16, mapType: "continents", passAndPlay: true, difficulty: "normal", tribes: ["nature", "desert", "volcanic", "snow"], humans: 2, seed: 44 });
+    // Annexed, cityless, unitless player is NOT marked eliminated by checkVictory.
+    g.players[2].annexed = true;
+    g.cities = g.cities.filter((c) => c.owner !== 2);
+    g.units = g.units.filter((u) => u.owner !== 2);
+    engine.checkVictory(g);
+    ok("victory: annexed cityless player not eliminated", g.players[2].eliminated !== true);
+
+    // Leave only player 0 as a contender (others annexed or without city/unit) => win.
+    for (let i = 1; i < g.players.length; i++) {
+      g.cities = g.cities.filter((c) => c.owner !== i);
+      g.units = g.units.filter((u) => u.owner !== i);
+      g.players[i].annexed = true; // annexed => not a contender
+    }
+    g.status = "playing";
+    engine.checkVictory(g);
+    ok("victory: only one contender => game won", g.status === "won");
+  }
+}
+
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

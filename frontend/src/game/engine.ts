@@ -29,6 +29,67 @@ function log(state: GameState, msg: string) {
   if (state.log.length > 40) state.log.pop();
 }
 
+// A transient, prominent event banner the UI surfaces (player killed / Financially Annexed).
+function banner(state: GameState, text: string) {
+  if (!state.pendingBanners) state.pendingBanners = [];
+  state.pendingBanners.push(text);
+}
+
+// Forest/mountain temples sitting on a city's territory (used for the annexation Temple Bonus).
+function cityTempleCounts(state: GameState, city: City): { forest: number; mountain: number } {
+  let forest = 0;
+  let mountain = 0;
+  for (const tid of cityTerritory(state, city)) {
+    const b = state.tiles[tid]?.building;
+    if (b === "forest_temple") forest++;
+    else if (b === "mountain_temple") mountain++;
+  }
+  return { forest, mountain };
+}
+
+const SAFETY_POINTS_MULTIPLIER = 15;
+
+// Called whenever a city is SOLD (not conquered). Tallies the temples on the sold city and,
+// if the seller has now lost their last city, flips them to "Financially Annexed" and locks in
+// the one-time Safety Points Bonus. Then fires the appropriate banner.
+function handleCitySale(state: GameState, seller: number, buyer: number, templesForest: number, templesMountain: number) {
+  const sp = state.players[seller];
+  sp.soldForestTemples = (sp.soldForestTemples ?? 0) + templesForest;
+  sp.soldMountainTemples = (sp.soldMountainTemples ?? 0) + templesMountain;
+  const sellerHasCity = state.cities.some((c) => c.owner === seller);
+  if (!sellerHasCity && !sp.eliminated && !sp.annexed) {
+    sp.annexed = true;
+    // Safety Points Bonus is locked in at this instant (later star changes do not affect it).
+    sp.annexedBonusPoints = (sp.annexedBonusPoints ?? 0) + SAFETY_POINTS_MULTIPLIER * sp.stars;
+    banner(state, `${sp.name} has been Financially Annexed by ${state.players[buyer].name}`);
+  }
+}
+
+// A player who regains a city is no longer Financially Annexed — the annex bonuses stop and reset.
+function maybeUnannex(state: GameState, player: number) {
+  const p = state.players[player];
+  if (p.annexed && state.cities.some((c) => c.owner === player)) {
+    p.annexed = false;
+    p.annexedBonusPoints = 0;
+    p.soldForestTemples = 0;
+    p.soldMountainTemples = 0;
+  }
+}
+
+// After an offensive action by `byPlayer`, flag any rival that has just lost BOTH their last
+// city and last unit as KILLED (eliminated + banner). Annexed players are never "killed".
+function detectKills(state: GameState, byPlayer: number) {
+  for (const p of state.players) {
+    if (p.index === byPlayer || p.eliminated || p.annexed) continue;
+    const hasCity = state.cities.some((c) => c.owner === p.index);
+    const hasUnit = state.units.some((u) => u.owner === p.index);
+    if (!hasCity && !hasUnit) {
+      p.eliminated = true;
+      banner(state, `${p.name} has been killed by ${state.players[byPlayer].name}`);
+    }
+  }
+}
+
 // ---------- Visibility ----------
 export function computeVisibility(state: GameState, player = 0) {
   const reveal = (tileId: number, radius: number) => {
@@ -939,6 +1000,16 @@ export function startPlayerTurn(state: GameState, player: number) {
   }
   // Temples grant an ongoing +100 leaderboard points each turn.
   if (temples > 0) state.players[player].templePoints = (state.players[player].templePoints ?? 0) + 100 * temples;
+  // Financially Annexed Temple Bonus (per turn, until they own a city again): sold forest
+  // temples give +80 pts each; sold mountain temples give +50 pts AND +1 star each.
+  if (state.players[player].annexed) {
+    const f = state.players[player].soldForestTemples ?? 0;
+    const m = state.players[player].soldMountainTemples ?? 0;
+    if (f || m) {
+      state.players[player].annexedBonusPoints = (state.players[player].annexedBonusPoints ?? 0) + 80 * f + 50 * m;
+      state.players[player].stars += m; // +1 star per sold mountain temple
+    }
+  }
   runMetallurgicalPlants(state, player); // refine iron ore → iron
   for (const u of state.units) {
     if (u.owner === player) {
@@ -1213,6 +1284,7 @@ function captureTile(state: GameState, player: number, tileId: number) {
       city.owner = player;
       city.hasWall = false;
       log(state, `${state.players[player].name} captured a city!`);
+      maybeUnannex(state, player); // a captured city lifts the captor's annexed status
     }
   }
 }
@@ -1275,10 +1347,13 @@ export function buyVillage(state: GameState, player: number, tileId: number): bo
   return true;
 }
 
-export function canBuyCity(state: GameState, player: number, cityId: string): { ok: boolean; reason?: string; price: number } {
+export function canBuyCity(state: GameState, player: number, cityId: string, offerPrice?: number): { ok: boolean; reason?: string; price: number } {
   const city = state.cities.find((c) => c.id === cityId);
   if (!city) return { ok: false, reason: "No city", price: 0 };
-  const price = cityBuyPrice(city);
+  const base = cityBuyPrice(city);
+  // Only a Financially Annexed buyer may sweeten the deal above the default price,
+  // making wealthy bots / rivals more likely to part with a city.
+  const price = state.players[player].annexed && offerPrice && offerPrice > base ? Math.floor(offerPrice) : base;
   if (city.owner === player) return { ok: false, reason: "Already yours", price };
   if (!hasDiscovered(state, player, city.tileId)) return { ok: false, reason: "Not discovered", price };
   // A city can be bought even while a garrisoned unit sits inside — buying is peaceful,
@@ -1296,17 +1371,20 @@ function defectCityUnits(state: GameState, city: City, fromOwner: number, toOwne
   }
 }
 
-export function buyCity(state: GameState, player: number, cityId: string): boolean {
-  const check = canBuyCity(state, player, cityId);
+export function buyCity(state: GameState, player: number, cityId: string, offerPrice?: number): boolean {
+  const check = canBuyCity(state, player, cityId, offerPrice);
   if (!check.ok) return false;
   const city = state.cities.find((c) => c.id === cityId)!;
   const seller = city.owner;
+  const { forest, mountain } = cityTempleCounts(state, city); // temples pass with the sale (for the seller's Temple Bonus)
   state.players[player].stars -= check.price;
   state.players[seller].stars += check.price; // the previous owner is paid for the sale
   city.owner = player;
   city.hasWall = false;
   defectCityUnits(state, city, seller, player);
   log(state, `${state.players[player].name} bought a city for ${check.price} stars`);
+  handleCitySale(state, seller, player, forest, mountain); // may Financially Annex the seller
+  maybeUnannex(state, player); // the buyer now owns a city again
   refreshFog(state, player);
   return true;
 }
@@ -1314,8 +1392,8 @@ export function buyCity(state: GameState, player: number, cityId: string): boole
 // Attempt to buy a city. If the seller is another HUMAN player, this instead escrows the
 // buyer's stars and queues an OFFER for that human to accept or decline on their turn.
 // Bot-owned cities are sold instantly (bots implicitly accept and are paid).
-export function requestBuyCity(state: GameState, buyer: number, cityId: string): { ok: boolean; pending: boolean; reason?: string } {
-  const check = canBuyCity(state, buyer, cityId);
+export function requestBuyCity(state: GameState, buyer: number, cityId: string, offerPrice?: number): { ok: boolean; pending: boolean; reason?: string } {
+  const check = canBuyCity(state, buyer, cityId, offerPrice);
   if (!check.ok) return { ok: false, pending: false, reason: check.reason };
   const city = state.cities.find((c) => c.id === cityId)!;
   const seller = city.owner;
@@ -1327,7 +1405,7 @@ export function requestBuyCity(state: GameState, buyer: number, cityId: string):
     log(state, `${state.players[buyer].name} offered ${check.price} stars to buy ${state.players[seller].name}'s city`);
     return { ok: true, pending: true };
   }
-  return { ok: buyCity(state, buyer, cityId), pending: false };
+  return { ok: buyCity(state, buyer, cityId, offerPrice), pending: false };
 }
 
 // The human seller accepts or declines a pending city-purchase offer.
@@ -1346,10 +1424,13 @@ export function resolveCityOffer(state: GameState, cityId: string, accept: boole
     return true;
   }
   state.players[offer.seller].stars += offer.price; // seller receives payment
+  const { forest, mountain } = cityTempleCounts(state, city); // temples pass with the sale
   city.owner = offer.buyer;
   city.hasWall = false;
   defectCityUnits(state, city, offer.seller, offer.buyer);
   log(state, `${state.players[offer.seller].name} sold a city to ${state.players[offer.buyer].name} for ${offer.price} stars`);
+  handleCitySale(state, offer.seller, offer.buyer, forest, mountain); // may Financially Annex the seller
+  maybeUnannex(state, offer.buyer); // the buyer now owns a city again
   refreshFog(state, offer.buyer);
   return true;
 }
@@ -1379,6 +1460,7 @@ export function moveUnit(state: GameState, unitId: string, targetTileId: number)
     }
   }
   captureTile(state, unit.owner, targetTileId);
+  detectKills(state, unit.owner); // taking a city/village may wipe out a rival
   refreshFog(state, unit.owner);
   return true;
 }
@@ -1415,6 +1497,7 @@ export function attackUnit(state: GameState, attackerId: string, targetTileId: n
     attacker.attacked = true;
     attacker.moved = true;
     log(state, `${state.players[attacker.owner].name}'s Knight cut down ${kills} unit${kills > 1 ? "s" : ""}`);
+    detectKills(state, attacker.owner);
     refreshFog(state, attacker.owner);
     if (!state.closed) computeVisibility(state, 0);
     return true;
@@ -1443,6 +1526,7 @@ export function attackUnit(state: GameState, attackerId: string, targetTileId: n
     state.units = state.units.filter((u) => u.id !== attacker.id);
   }
   refreshFog(state, attacker.owner); if (!state.closed && defender.owner === 0) computeVisibility(state, 0);
+  detectKills(state, attacker.owner); // destroying the last unit (or a melee city capture) can wipe out a rival
   return true;
 }
 
@@ -1471,18 +1555,21 @@ export function stalemateTurnsLeft(state: GameState): number {
 
 export function checkVictory(state: GameState) {
   for (const p of state.players) {
+    if (p.annexed) continue; // Financially Annexed players are spectators-with-benefits, never "killed"
     const hasCity = state.cities.some((c) => c.owner === p.index);
     const hasUnit = state.units.some((u) => u.owner === p.index);
     if (!hasCity && !hasUnit) p.eliminated = true;
   }
 
-  // Offline multiplayer (2+ humans): the game keeps going until only ONE player
-  // remains — last player standing wins. A single player being knocked out does NOT
-  // end the game while others are still alive.
+  // Offline multiplayer (2+ humans): the game keeps going until only ONE contender
+  // remains. A contender is a player who is NOT Financially Annexed and still has a
+  // city OR a unit. Annexed players cannot keep the game alive and cannot win.
   const isMulti = state.players.filter((p) => p.isHuman).length > 1;
   if (isMulti) {
-    const alive = state.players.filter((p) => !p.eliminated);
-    if (alive.length <= 1) state.status = "won";
+    const contenders = state.players.filter(
+      (p) => !p.annexed && (state.cities.some((c) => c.owner === p.index) || state.units.some((u) => u.owner === p.index)),
+    );
+    if (contenders.length <= 1) state.status = "won";
     return;
   }
 

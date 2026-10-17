@@ -52,6 +52,7 @@ export interface PointsBreakdown {
   cityLevels: number;
   tech: number;
   temples: number;
+  bonus: number; // Financially Annexed Safety + Temple bonus (counts only while annexed)
   total: number;
 }
 
@@ -88,7 +89,10 @@ export function playerPointsBreakdown(state: GameState, p: number): PointsBreakd
   // Ongoing temple bonus accumulated over the game (+100/turn per temple).
   const temples = state.players[p].templePoints ?? 0;
 
-  return { explored, buildings, territory, cityLevels, tech, temples, total: explored + buildings + territory + cityLevels + tech + temples };
+  // Financially Annexed bonus (Safety Points + per-turn Temple Bonus) — only while annexed.
+  const bonus = state.players[p].annexed ? (state.players[p].annexedBonusPoints ?? 0) : 0;
+
+  return { explored, buildings, territory, cityLevels, tech, temples, bonus, total: explored + buildings + territory + cityLevels + tech + temples + bonus };
 }
 
 export function playerPoints(state: GameState, p: number): number {

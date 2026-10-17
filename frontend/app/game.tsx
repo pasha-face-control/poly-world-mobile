@@ -45,7 +45,7 @@ export default function GameScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { soundOn, hapticsOn, volume } = useFxSettings();
-  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doHireGardener, doHarvestFruit, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, doExpandTerritory, doRenameCity, doFinishGame, saveToSlot, exitToMenu, discardGame } = useGame();
+  const { state, busy, endTurn, doMove, doAttack, doTrain, doResearch, doBuild, doInfra, doEmbark, doUpgradeBoat, doLoadMerchant, doSetPrice, doApplyReward, doBuyFromMerchant, doHireHunter, doHuntSuccess, doHireFisherman, doFishSuccess, doHireGardener, doHarvestFruit, doClearSale, doBuyVillage, doBuyCity, doResolveOffer, clearBanners, doExpandTerritory, doRenameCity, doFinishGame, saveToSlot, exitToMenu, discardGame } = useGame();
 
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
@@ -82,6 +82,19 @@ export default function GameScreen() {
   const [focusTileId, setFocusTileId] = useState<number | null>(null);
   const [focusKey, setFocusKey] = useState(0);
   const prevPlayer = useRef<number | null>(null);
+
+  // Prominent event banner for KILLED / Financially Annexed notifications (from the engine).
+  const [eventBanner, setEventBanner] = useState<string | null>(null);
+  const eventTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const banners = state?.pendingBanners;
+  useEffect(() => {
+    if (!banners || banners.length === 0 || busy) return;
+    const text = banners.join("\n");
+    clearBanners(); // drain the queue from game state so this fires once
+    if (eventTimer.current) clearTimeout(eventTimer.current);
+    setEventBanner(text);
+    eventTimer.current = setTimeout(() => setEventBanner(null), 4000);
+  }, [banners, busy, clearBanners]);
 
   useEffect(() => {
     if (!state) router.replace("/");
@@ -420,6 +433,13 @@ export default function GameScreen() {
         </View>
       )}
 
+      {eventBanner && (
+        <View pointerEvents="none" style={[styles.eventBanner, { top: insets.top + 56 }]} testID="event-banner">
+          <MaterialCommunityIcons name="bullhorn-variant" size={18} color="#fff" />
+          <Text style={styles.eventBannerText}>{eventBanner}</Text>
+        </View>
+      )}
+
       {selectedUnit && !selectedCity && !merchantOpen && (
         <UnitPanel
           state={state}
@@ -623,7 +643,8 @@ export default function GameScreen() {
       <CaptureModal
         target={captureTarget}
         stars={state.players[state.currentPlayer]?.stars ?? 0}
-        onBuy={() => {
+        allowCustomOffer={!!state.players[state.currentPlayer]?.annexed}
+        onBuy={(offer) => {
           if (!captureTarget) return;
           haptic.notify();
           playSfx("coin");
@@ -635,7 +656,7 @@ export default function GameScreen() {
               const terr = [city.tileId, ...neighbors(state, city.tileId)];
               defectors = state.units.filter((u) => u.owner === city.owner && terr.includes(u.tileId)).length;
             }
-            doBuyCity(captureTarget.cityId);
+            doBuyCity(captureTarget.cityId, offer);
             if (pending) showToast("Offer sent — awaiting the owner's reply");
             else if (defectors > 0) showToast(`${defectors} unit${defectors > 1 ? "s" : ""} joined your side!`);
           } else if (captureTarget.kind === "village") doBuyVillage(captureTarget.tileId);
@@ -885,6 +906,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#1d3b38" },
   toast: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(28,28,28,0.9)", paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, ...shadow(6) },
   toastText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+  eventBanner: { position: "absolute", alignSelf: "center", maxWidth: "90%", flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(176,42,42,0.95)", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, ...shadow(8) },
+  eventBannerText: { color: "#fff", fontWeight: "900", fontSize: 13, flexShrink: 1 },
   stalemateBanner: { position: "absolute", alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#E7C24B", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, ...shadow(5) },
   stalemateText: { color: "#3A2A0E", fontWeight: "900", fontSize: 12 },
   gate: { ...StyleSheet.absoluteFillObject, backgroundColor: "#1d3b38", alignItems: "center", justifyContent: "center", gap: 28, zIndex: 200 },
