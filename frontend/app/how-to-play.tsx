@@ -14,6 +14,10 @@ const SECTIONS: { icon: string; title: string; body: string }[] = [
   { icon: "star-four-points", title: "Stars", body: "Each turn every city gives stars equal to its level. Spend stars on units, tech, harvesting, buying territory and trading." },
   { icon: "file-tree", title: "Technology", body: "Open the Tech tree to unlock new units, traverse mountains & water, and build mines. A mine's tech icon matches the ore shown on the mountain where it's built." },
   { icon: "flag-variant", title: "Villages", body: "Move a unit onto a neutral village to found a new city and expand your empire." },
+  { icon: "factory", title: "Apple Juice Factory", body: "Build this 3×3 factory in your city (cheap for the Freemen tribe, pricier for everyone else). Tap it to load apples — next turn you receive 1 Apple Juice for every 5 apples loaded." },
+  { icon: "cup", title: "Apple Juice Discount", body: "On the Tech tree, spend Apple Juice to cut a technology's cost: each juice gives −25% (up to −50% with two). The juice is used up when you research, so pick your target first." },
+  { icon: "skull-outline", title: "Killed in War", body: "A rival who loses their last city and last unit in battle is killed and knocked out of the game. In pass-and-play their turn is skipped automatically." },
+  { icon: "handshake", title: "Financially Annexed", body: "Sell all of a player's cities and they become Financially Annexed — not killed. They keep taking turns and can research tech, buy cities back, and make bigger custom offers to tempt sellers. While annexed they earn a one-time Safety Bonus (15× their stars) plus per-turn points from the temples on cities they sold. They can't win until they own a city again." },
 ];
 
 export default function HowToPlay() {
