@@ -13,6 +13,12 @@ const SECTIONS: { icon: string; title: string; body?: string; blocks?: { subtitl
   { icon: "home-city", title: "Cities", body: "Tap your city to train units, rename it, or enter the city.\n\nInside each city is a citadel that can be upgraded to allow more buildings to be built.\n\nHouses and other buildings are built by dragging and placing them on green space on the city map — the footprint turns green when the building can be placed.\n\nA house connected by road to the citadel gives +2 population the moment it connects, then +1 star per turn.\n\nUpgrading the citadel or building houses needs stars and one or more unique resources." },
   { icon: "swap-horizontal", title: "Trade & Economy", body: "Load a Merchant with goods and set a price so rivals buy them for stars. Open the Economy panel (chart icon, top bar) to see what you buy, sell and earn per turn." },
   { icon: "star-four-points", title: "Stars", body: "Each turn every city gives stars equal to its level. Spend stars on units, tech, harvesting, buying territory and trading." },
+  { icon: "factory", title: "Unique Resources", body: "Every tribe crafts ONE unique building material from its own Material Factory. Enter a city and drag the Material Factory onto green space on the city map to place it (it's free) — it then runs automatically at the start of each of your turns.", blocks: [
+    { subtitle: "Planks (Lesnoi)", text: "Made by Lesnoi's Sawmill. Tap the factory to set how much wood to feed it — every 2 wood becomes 1 plank each turn. Feed it by building Lumber Huts on nearby forest tiles." },
+    { subtitle: "Sand (Freemen)", text: "Made by the Freemen's Sand Quarry. It needs no input — once placed it simply produces 5 sand every turn." },
+    { subtitle: "Stone (He-he)", text: "Made by the He-he's Stone Quarry. It needs no input — once placed it simply produces 2 stone every turn." },
+    { subtitle: "Glass (Fishmen)", text: "Made by the Fishmen's Glass Factory. Each turn it turns 5 sand plus 1 coal (or 2 wood) into 1 glass. If sand or fuel runs short it pauses and shows a warning until you resupply (trade for sand, mine coal, or chop wood)." },
+  ] },
   { icon: "file-tree", title: "Technology", body: "Open the Tech tree to unlock new units, traverse mountains & water, and build mines. A mine's tech icon matches the ore shown on the mountain where it's built." },
   { icon: "flag-variant", title: "Villages", body: "Move a unit onto a neutral village to found a new city and expand your empire." },
   { icon: "cup", title: "Apple Juice", blocks: [
