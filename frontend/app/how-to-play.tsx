@@ -6,7 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { C, R, SP, shadow } from "@/src/theme";
 
-const SECTIONS: { icon: string; title: string; body: string }[] = [
+const SECTIONS: { icon: string; title: string; body?: string; blocks?: { subtitle: string; text: string }[] }[] = [
   { icon: "earth", title: "Goal", body: "Grow the strongest economy and outlast every rival — buy all their cities to win.\n\nGrow the strongest empire and outlast every rival — capture all their cities to win, and don't lose all of yours.\n\nBe the first to upgrade a city to level 18 and finish the game — Peaceful victory." },
   { icon: "gesture-tap", title: "Move & Attack", body: "Tap a unit to select it. Yellow tiles are moves, red tiles are attacks." },
   { icon: "map-outline", title: "Territory", body: "Each tribe has its own colour. Tap tiles in your tribe's colour to see the options for what you can establish on them.\n\nTerritory is expanded by buying tiles adjacent to your city's borders. Purchases work in squares — to buy a tile in the second ring of city territory, the whole first ring around the city must be bought first." },
@@ -15,8 +15,10 @@ const SECTIONS: { icon: string; title: string; body: string }[] = [
   { icon: "star-four-points", title: "Stars", body: "Each turn every city gives stars equal to its level. Spend stars on units, tech, harvesting, buying territory and trading." },
   { icon: "file-tree", title: "Technology", body: "Open the Tech tree to unlock new units, traverse mountains & water, and build mines. A mine's tech icon matches the ore shown on the mountain where it's built." },
   { icon: "flag-variant", title: "Villages", body: "Move a unit onto a neutral village to found a new city and expand your empire." },
-  { icon: "factory", title: "Apple Juice Factory", body: "Build this 3×3 factory in your city (cheap for the Freemen tribe, pricier for everyone else). Tap it to load apples — next turn you receive 1 Apple Juice for every 5 apples loaded." },
-  { icon: "cup", title: "Apple Juice Discount", body: "On the Tech tree, spend Apple Juice to cut a technology's cost: each juice gives −25% (up to −50% with two). The juice is used up when you research, so pick your target first." },
+  { icon: "cup", title: "Apple Juice", blocks: [
+    { subtitle: "Apple Juice Factory", text: "Build this 3×3 factory in your city (cheap for the Freemen tribe, pricier for everyone else). Tap it to load apples — next turn you receive 1 Apple Juice for every 5 apples loaded." },
+    { subtitle: "Apple Juice Discount", text: "On the Tech tree, spend Apple Juice to cut a technology's cost: each juice gives −25% (up to −50% with two). The juice is used up when you research, so pick your target first." },
+  ] },
   { icon: "skull-outline", title: "Killed in War", body: "A rival who loses their last city and last unit in battle is killed and knocked out of the game. In pass-and-play their turn is skipped automatically." },
   { icon: "handshake", title: "Financially Annexed", body: "Sell all of a player's cities and they become Financially Annexed — not killed. They keep taking turns and can research tech, buy cities back, and make bigger custom offers to tempt sellers. While annexed they earn a one-time Safety Bonus (15× their stars) plus per-turn points from the temples on cities they sold. They can't win until they own a city again." },
 ];
@@ -41,7 +43,13 @@ export default function HowToPlay() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>{s.title}</Text>
-              <Text style={styles.body}>{s.body}</Text>
+              {s.body ? <Text style={styles.body}>{s.body}</Text> : null}
+              {s.blocks?.map((b) => (
+                <View key={b.subtitle} style={{ marginTop: SP.sm }}>
+                  <Text style={styles.subtitle}>{b.subtitle}</Text>
+                  <Text style={styles.body}>{b.text}</Text>
+                </View>
+              ))}
             </View>
           </View>
         ))}
@@ -58,5 +66,6 @@ const styles = StyleSheet.create({
   card: { flexDirection: "row", gap: SP.md, backgroundColor: C.surface, borderRadius: R.lg, padding: SP.lg, borderWidth: 1, borderColor: C.border },
   iconBox: { width: 44, height: 44, borderRadius: R.md, backgroundColor: C.brandTertiary, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 17, fontWeight: "900", color: C.onSurface },
+  subtitle: { fontSize: 14, fontWeight: "800", color: C.brand, marginBottom: 1 },
   body: { fontSize: 14, color: C.onSurfaceSecondary, marginTop: 3, lineHeight: 20 },
 });
