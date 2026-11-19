@@ -319,6 +319,16 @@ export default function GameScreen() {
       setSelectedCityId(null);
       setSelectedBuildTileId(null);
       setMerchantOpen(false);
+    } else if (expansionOptionForTile(state, cp, tileId)) {
+      // A neutral cell in a city's expansion range: offer to buy it for territory
+      // (takes priority over building a road on it — you can road it once it's yours).
+      const exp = expansionOptionForTile(state, cp, tileId)!;
+      haptic.select(); playSfx("tap");
+      setExpandTarget({ tileId, cost: exp.cost, tier: exp.tier });
+      setSelectedUnitId(null);
+      setSelectedCityId(null);
+      setSelectedBuildTileId(null);
+      setMerchantOpen(false);
     } else if (tileHasActions(state, cp, tileId)) {
       haptic.select(); playSfx("tap");
       setSelectedBuildTileId(tileId);
@@ -326,16 +336,6 @@ export default function GameScreen() {
       setSelectedCityId(null);
       setMerchantOpen(false);
     } else {
-      const exp = expansionOptionForTile(state, cp, tileId);
-      if (exp) {
-        haptic.select(); playSfx("tap");
-        setExpandTarget({ tileId, cost: exp.cost, tier: exp.tier });
-        setSelectedUnitId(null);
-        setSelectedCityId(null);
-        setSelectedBuildTileId(null);
-        setMerchantOpen(false);
-        return;
-      }
       setSelectedUnitId(null);
       setSelectedCityId(null);
       setSelectedBuildTileId(null);
