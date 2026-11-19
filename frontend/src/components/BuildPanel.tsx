@@ -11,6 +11,8 @@ interface Props {
   state: GameState;
   tileId: number;
   bottomInset: number;
+  expand?: { cost: number; tier: number } | null;
+  onExpand?: () => void;
   onBuild: (buildingId: string) => void;
   onInfra: (infraId: string) => void;
   onClose: () => void;
@@ -18,7 +20,7 @@ interface Props {
 
 const goodMeta = (id: string) => CITY_GOODS.find((g) => g.id === id);
 
-export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfra, onClose }: Props) {
+export default function BuildPanel({ state, tileId, bottomInset, expand, onExpand, onBuild, onInfra, onClose }: Props) {
   const player = state.players[state.currentPlayer];
   const tile = state.tiles[tileId];
   const options = BUILDINGS.filter((b) => (b.terrains ? b.terrains.includes(tile.terrain) : b.terrain === tile.terrain));
@@ -43,6 +45,19 @@ export default function BuildPanel({ state, tileId, bottomInset, onBuild, onInfr
           </Pressable>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+          {expand && (
+            <Pressable testID="expand-territory" disabled={player.stars < expand.cost} onPress={onExpand} style={[styles.chip, player.stars < expand.cost && styles.chipDisabled]}>
+              <View style={[styles.chipIcon, { backgroundColor: C.info }]}>
+                <MaterialCommunityIcons name="arrow-expand-all" size={20} color="#fff" />
+              </View>
+              <Text style={styles.chipName}>Expand Territory</Text>
+              <View style={styles.chipCost}>
+                <MaterialCommunityIcons name="star-four-points" size={11} color={player.stars < expand.cost ? C.error : C.warning} />
+                <Text style={[styles.chipCostText, player.stars < expand.cost && styles.costRed]}>{expand.cost}</Text>
+              </View>
+              <Text style={styles.infraDesc} numberOfLines={2}>Claim this cell for your city</Text>
+            </Pressable>
+          )}
           {options.map((b) => {
             const check = canBuild(state, player.index, tileId, b.id);
             const lockedTech = !player.techs.includes(b.tech);
