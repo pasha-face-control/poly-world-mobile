@@ -671,7 +671,10 @@ export function canInfra(state: GameState, player: number, tileId: number, infra
   if (infraId === "road") {
     if (tile.terrain === "water" || tile.terrain === "mountain") return { ok: false, reason: "Cannot road here" };
     if (tile.road) return { ok: false, reason: "Already a road" };
-    if (!owningCityForTile(state, player, tileId)) return { ok: false, reason: "Not in your territory" };
+    // Roads may be built on ANY land cell — your own territory or neutral land — but NOT on
+    // cells inside another player's city territory.
+    const ctrl = cityControllingTile(state, tileId);
+    if (ctrl && ctrl.owner !== player) return { ok: false, reason: "In another player's territory" };
   } else if (infraId === "port") {
     if (tile.terrain !== "water") return { ok: false, reason: "Needs water" };
     if (tile.port) return { ok: false, reason: "Already a port" };

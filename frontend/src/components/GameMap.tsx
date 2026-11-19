@@ -595,7 +595,8 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
         if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
         const nid = ny * w + nx;
         const nt = state.tiles[nid];
-        if (!nt.road || (fog && !nt.explored)) continue;
+        // Connect to adjacent road tiles AND to an adjacent city (a road near a city joins it).
+        if ((!nt.road && !nt.cityId) || (fog && !nt.explored)) continue;
         const [nvx, nvy] = toView(nx, ny);
         const [ncx, ncy] = project(nvx, nvy);
         terrainShapes.push(

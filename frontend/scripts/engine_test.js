@@ -650,10 +650,13 @@ if (anyWater) {
     ok("nothing is actually buildable at 0 stars", engine.buildableFor(g, 0, buildTile).length === 0);
     ok("strict canBuild fails only due to stars", engine.canBuild(g, 0, buildTile, bId).reason === "Not enough stars");
     ok("canBuild(ignoreStars) still passes for that building", engine.canBuild(g, 0, buildTile, bId, { ignoreStars: true }).ok === true);
-    // a tile OUTSIDE the city's territory must NOT open the build panel, even ignoring stars
-    const ct = g.tiles[c.tileId];
-    const outside = g.tiles.find((t) => Math.max(Math.abs(t.x - ct.x), Math.abs(t.y - ct.y)) === 2);
-    ok("a tile outside territory has no build actions", outside == null || engine.tileHasActions(g, 0, outside.id) === false);
+    // Buildings still require your OWN territory, but ROADS may now be built on any land
+    // cell that is not a mountain and not inside another player's territory.
+    const neutralRoad = g.tiles.find((t) => t.terrain !== "water" && t.terrain !== "mountain" && !t.road && !engine.cityControllingTile(g, t.id));
+    ok("buildings still blocked outside your territory", neutralRoad == null || engine.buildableFor(g, 0, neutralRoad.id).length === 0);
+    ok("roads allowed on neutral land outside territory", neutralRoad == null || engine.canInfra(g, 0, neutralRoad.id, "road", { ignoreStars: true }).ok === true);
+    const enemyTerr = g.tiles.find((t) => { const cc = engine.cityControllingTile(g, t.id); return cc && cc.owner !== 0 && t.terrain !== "water" && t.terrain !== "mountain" && !t.road; });
+    ok("roads blocked inside another player's territory", enemyTerr == null || engine.canInfra(g, 0, enemyTerr.id, "road", { ignoreStars: true }).reason === "In another player's territory");
   }
 }
 
