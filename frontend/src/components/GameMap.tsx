@@ -582,23 +582,26 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
     if (attackableSet.has(k)) terrainShapes.push(<Polygon key={`at${k}`} points={pts(surface)} fill="rgba(188,71,73,0.6)" stroke="#FF5A5C" strokeWidth={4} />);
     if (selectedTileId === k) terrainShapes.push(<Polygon key={`sel${k}`} points={pts(surface)} fill="transparent" stroke="#FFFFFF" strokeWidth={3} />);
 
-    // Roads: bed diamond + segments to adjacent road tiles.
+    // Roads: a small square marker (~1/3 of the cell) centred on the tile, plus a band
+    // reaching to the border it shares with each orthogonally-adjacent road tile. Each tile
+    // draws only its OWN half (centre → shared border midpoint); the neighbour draws the
+    // matching half on its next pass, so the two halves meet exactly at the border with no gap.
     if (t.road) {
-      terrainShapes.push(<Polygon key={`road${k}`} points={pts([[cx, cy - HH * 0.5], [cx + HW * 0.5, cy], [cx, cy + HH * 0.5], [cx - HW * 0.5, cy]])} fill="#8A7B5C" />);
-      for (let dy = -1; dy <= 1; dy++)
-        for (let dx = -1; dx <= 1; dx++) {
-          if (dx === 0 && dy === 0) continue;
-          const nx = t.x + dx;
-          const ny = t.y + dy;
-          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
-          const nid = ny * w + nx;
-          if (nid <= t.id) continue;
-          const nt = state.tiles[nid];
-          if (!nt.road || (fog && !nt.explored)) continue;
-          const [nvx, nvy] = toView(nx, ny);
-          const [ncx, ncy] = project(nvx, nvy);
-          terrainShapes.push(<Line key={`rl${k}_${nid}`} x1={cx} y1={cy} x2={ncx} y2={ncy} stroke="#8A7B5C" strokeWidth={7} strokeLinecap="round" />);
-        }
+      const hx = HW / 3, hy = HH / 3; // 1/3-cell iso square half-extents
+      terrainShapes.push(<Polygon key={`road${k}`} points={pts([[cx, cy - hy], [cx + hx, cy], [cx, cy + hy], [cx - hx, cy]])} fill="#8A7B5C" />);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nx = t.x + dx;
+        const ny = t.y + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const nid = ny * w + nx;
+        const nt = state.tiles[nid];
+        if (!nt.road || (fog && !nt.explored)) continue;
+        const [nvx, nvy] = toView(nx, ny);
+        const [ncx, ncy] = project(nvx, nvy);
+        terrainShapes.push(
+          <Line key={`rl${k}_${nid}`} x1={cx} y1={cy} x2={(cx + ncx) / 2} y2={(cy + ncy) / 2} stroke="#8A7B5C" strokeWidth={2 * hy} strokeLinecap="butt" />,
+        );
+      }
     }
 
     // 3D pieces (drawn in depth order with terrain)
@@ -722,7 +725,7 @@ export default function GameMap({ state, fog, selectedUnitId, selectedTileId, re
                         name={(unit.boat ? BOAT_DEFS[unit.boat].icon : UNIT_DEFS[unit.type].icon) as any}
                         size={17}
                         color="#FFFFFF"
-                        style={{ position: "absolute", left: cx - 8.5, top: (!unit.boat && MODEL_SPRITES[unit.type] ? unitBaseY - 66 : unitBaseY - 24) }}
+                        style={{ position: "absolute", left: cx - 8.5, top: (!unit.boat && MODEL_SPRITES[unit.type] ? unitBaseY - 32 : unitBaseY - 24) }}
                       />
                     )}
                     <View style={[styles.hpBarBg, { left: cx - 14, top: unitBaseY + 5 }]}>
