@@ -47,7 +47,9 @@ const PLAYER_RADIUS = 0.3;
 const PLAYER_START_Z = 9;
 
 // Aim sensitivity presets (radians per px dragged). Lower = steadier aim.
-const SENS_LEVELS = { Low: 0.00015, Med: 0.00024, High: 0.00038 } as const;
+// Look sensitivity (radians of turn per px dragged). These use the controller's PER-FRAME
+// incremental deltas, so the multiplier is far larger than a cumulative-delta setup would use.
+const SENS_LEVELS = { Low: 0.0022, Med: 0.0032, High: 0.0046 } as const;
 type SensLevel = keyof typeof SENS_LEVELS;
 
 // Generate apples: each tree gets 2-5 apples, with a 10% chance every tree gets 5.
