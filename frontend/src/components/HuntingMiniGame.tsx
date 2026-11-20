@@ -195,10 +195,12 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
             const len = Math.hypot(awayX, awayZ) || 1;
             st.pos.x += (awayX / len) * 7 * delta;
             st.pos.z += (awayZ / len) * 7 * delta;
-            if (len >= 12) {
+            if (len >= AGGRO_RANGE) {
               st.state = "wander";
               st.stateT = 0;
-              st.nextDecide = 1.0 + Math.random() * 1.2;
+              st.nextDecide = 1.4 + Math.random() * 1.4;
+              st.wanderTX = (Math.random() * 2 - 1) * 10;
+              st.wanderTZ = START_Z + (Math.random() * 2 - 1) * 5;
             }
             break;
           }
@@ -228,14 +230,20 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
 
         if (grp) {
           grp.position.set(st.pos.x, 0, st.pos.z);
-          // Face the direction of travel so the head always leads the run:
-          // charging → head toward the player, retreating → head away from the player.
+          // Face by INTENT (not raw velocity, which tree-collision can zero): charging/goring
+          // face the player, retreating faces directly AWAY so the bull clearly runs off, and
+          // wandering faces its travel direction.
           const dx = st.pos.x - st.prevPos.x;
           const dz = st.pos.z - st.prevPos.z;
-          const targetYaw =
-            dx * dx + dz * dz > 1e-6
-              ? Math.atan2(dx, dz) // head (local +Z) points along velocity
-              : Math.atan2(-st.pos.x, -st.pos.z); // stationary (goring) → face the player
+          let faceDX: number, faceDZ: number;
+          if (st.state === "charge" || st.state === "gore" || st.state === "hit") {
+            faceDX = px - st.pos.x; faceDZ = pz - st.pos.z; // head toward the player
+          } else if (st.state === "retreat") {
+            faceDX = st.pos.x - px; faceDZ = st.pos.z - pz; // head away from the player (flees)
+          } else {
+            faceDX = dx; faceDZ = dz; // wander → face travel direction
+          }
+          const targetYaw = faceDX * faceDX + faceDZ * faceDZ > 1e-6 ? Math.atan2(faceDX, faceDZ) : st.yawFacing;
           let diff = targetYaw - st.yawFacing;
           while (diff > Math.PI) diff -= Math.PI * 2;
           while (diff < -Math.PI) diff += Math.PI * 2;
@@ -777,9 +785,9 @@ const styles = StyleSheet.create({
   hudNum: { color: "#fff", fontWeight: "900", fontSize: 14, minWidth: 18, textAlign: "center" },
   sensBtn: { position: "absolute", top: 16, right: 20, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(20,20,20,0.55)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
   sensText: { color: "#fff", fontWeight: "900", fontSize: 13 },
-  shootBtn: { position: "absolute", right: 26, bottom: 26, width: 92, height: 92, borderRadius: 46, backgroundColor: "rgba(188,71,73,0.92)", alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "rgba(255,255,255,0.7)" },
+  shootBtn: { position: "absolute", right: 26, bottom: 96, width: 92, height: 92, borderRadius: 46, backgroundColor: "rgba(188,71,73,0.92)", alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "rgba(255,255,255,0.7)" },
   shootLabel: { color: "#fff", fontWeight: "900", fontSize: 12, marginTop: 2, letterSpacing: 1 },
-  joyBase: { position: "absolute", left: 28, bottom: 28, width: 128, height: 128, borderRadius: 64, alignItems: "center", justifyContent: "center" },
+  joyBase: { position: "absolute", left: 28, bottom: 80, width: 128, height: 128, borderRadius: 64, alignItems: "center", justifyContent: "center" },
   joyRing: { ...StyleSheet.absoluteFillObject, borderRadius: 64, backgroundColor: "rgba(20,20,20,0.32)", borderWidth: 2, borderColor: "rgba(255,255,255,0.35)" },
   joyThumb: { width: 56, height: 56, borderRadius: 28, backgroundColor: "rgba(255,255,255,0.28)", borderWidth: 2, borderColor: "rgba(255,255,255,0.6)", alignItems: "center", justifyContent: "center" },
   hint: { position: "absolute", bottom: 20, left: 24 },

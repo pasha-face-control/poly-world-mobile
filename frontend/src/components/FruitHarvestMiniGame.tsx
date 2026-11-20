@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import { GestureResponderEvent, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as Haptics from "expo-haptics";
 import { haptic } from "@/src/utils/fx";
@@ -32,11 +32,12 @@ interface Apple {
   z: number;
 }
 
-// Three fixed trees on the grass field.
+// Three fixed trees, centred in the walkable field so each is an equal distance from the
+// invisible walls (walkable box is x:[-13,13], z:[-16,12] → centre 0,-2).
 const TREES: { x: number; z: number }[] = [
-  { x: -5, z: -6 },
-  { x: 5, z: -6 },
-  { x: 0, z: -14 },
+  { x: -5, z: 2 },
+  { x: 5, z: 2 },
+  { x: 0, z: -6 },
 ];
 const CANOPY_Y = 3.6;
 const CANOPY_R = 1.95;
@@ -213,68 +214,68 @@ export default function FruitHarvestMiniGame({ onFinish }: Props) {
     []
   );
 
-  // Aim / tap layer: dragging looks around; a quick tap (little movement) picks an apple.
-  const tapState = useRef({ startX: 0, startY: 0, moved: false });
-  const pan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: (e) => {
-          tapState.current.startX = e.nativeEvent.locationX;
-          tapState.current.startY = e.nativeEvent.locationY;
-          tapState.current.moved = false;
-        },
-        onPanResponderMove: (_e, gesture) => {
-          if (Math.abs(gesture.dx) + Math.abs(gesture.dy) > 8) tapState.current.moved = true;
-          const s = sensRef.current;
-          ctrl.current.yaw -= gesture.dx * s;
-          ctrl.current.pitch -= gesture.dy * s;
-          // No yaw clamp — the player can spin a full 360° to look all around.
-          ctrl.current.pitch = Math.max(-0.6, Math.min(0.5, ctrl.current.pitch));
-        },
-        onPanResponderRelease: () => {
-          if (!tapState.current.moved) {
-            const nx = (tapState.current.startX / dims.current.w) * 2 - 1;
-            const ny = -((tapState.current.startY / dims.current.h) * 2 - 1);
-            ctrl.current.tap = { x: nx, y: ny };
-          }
-        },
-      }),
-    []
-  );
-
+  // Unified multitouch controller. React Native's JS responder system only lets ONE
+  // PanResponder be active at a time, so separate joystick + look responders could not run
+  // together (you couldn't turn while walking). This single full-screen responder reads
+  // ALL active touches: a touch starting in the bottom-left zone drives the walk joystick,
+  // any other touch drives look; a quick non-moving look touch picks an apple.
   const JOY_R = 46;
-  const joy = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderMove: (_e, gesture) => {
-          let dx = gesture.dx;
-          let dy = gesture.dy;
+  const touchMap = useRef<Map<number, { role: "move" | "look"; ox: number; oy: number; lx: number; ly: number; sx: number; sy: number; moved: boolean }>>(new Map());
+  const controls = useMemo(() => {
+    const inJoyZone = (x: number, y: number) => x < 190 && y > dims.current.h - 200;
+    const hasRole = (role: "move" | "look") => {
+      for (const r of touchMap.current.values()) if (r.role === role) return true;
+      return false;
+    };
+    const reconcile = (active: readonly { identifier: number }[]) => {
+      const ids = new Set(active.map((t) => t.identifier));
+      for (const [id, rec] of touchMap.current) {
+        if (ids.has(id)) continue;
+        if (rec.role === "look" && !rec.moved) {
+          ctrl.current.tap = { x: (rec.sx / dims.current.w) * 2 - 1, y: -((rec.sy / dims.current.h) * 2 - 1) };
+        }
+        if (rec.role === "move") { ctrl.current.moveX = 0; ctrl.current.moveZ = 0; setThumb({ x: 0, y: 0 }); }
+        touchMap.current.delete(id);
+      }
+    };
+    const onTouch = (e: GestureResponderEvent) => {
+      const active = e.nativeEvent.touches as unknown as { identifier: number; locationX: number; locationY: number }[];
+      reconcile(active);
+      for (const t of active) {
+        const x = t.locationX, y = t.locationY;
+        let rec = touchMap.current.get(t.identifier);
+        if (!rec) {
+          const role: "move" | "look" | null = !hasRole("move") && inJoyZone(x, y) ? "move" : !hasRole("look") ? "look" : null;
+          if (!role) continue;
+          rec = { role, ox: x, oy: y, lx: x, ly: y, sx: x, sy: y, moved: false };
+          touchMap.current.set(t.identifier, rec);
+        }
+        if (rec.role === "look") {
+          if (Math.abs(x - rec.sx) + Math.abs(y - rec.sy) > 8) rec.moved = true;
+          const s = sensRef.current;
+          ctrl.current.yaw -= (x - rec.lx) * s;
+          ctrl.current.pitch -= (y - rec.ly) * s;
+          ctrl.current.pitch = Math.max(-0.6, Math.min(0.5, ctrl.current.pitch));
+          rec.lx = x; rec.ly = y;
+        } else {
+          let dx = x - rec.ox, dy = y - rec.oy;
           const mag = Math.hypot(dx, dy);
-          if (mag > JOY_R) {
-            dx = (dx / mag) * JOY_R;
-            dy = (dy / mag) * JOY_R;
-          }
+          if (mag > JOY_R) { dx = (dx / mag) * JOY_R; dy = (dy / mag) * JOY_R; }
           setThumb({ x: dx, y: dy });
           ctrl.current.moveX = dx / JOY_R;
           ctrl.current.moveZ = -dy / JOY_R;
-        },
-        onPanResponderRelease: () => {
-          setThumb({ x: 0, y: 0 });
-          ctrl.current.moveX = 0;
-          ctrl.current.moveZ = 0;
-        },
-        onPanResponderTerminate: () => {
-          setThumb({ x: 0, y: 0 });
-          ctrl.current.moveX = 0;
-          ctrl.current.moveZ = 0;
-        },
-      }),
-    []
-  );
+        }
+      }
+    };
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: onTouch,
+      onPanResponderMove: onTouch,
+      onPanResponderRelease: (e) => reconcile(e.nativeEvent.touches as unknown as { identifier: number }[]),
+      onPanResponderTerminate: () => { touchMap.current.clear(); ctrl.current.moveX = 0; ctrl.current.moveZ = 0; setThumb({ x: 0, y: 0 }); },
+    });
+  }, []);
 
   const rewardLine =
     collected >= 15
@@ -299,12 +300,12 @@ export default function FruitHarvestMiniGame({ onFinish }: Props) {
         <Scene ctrl={ctrl} hud={hud} apples={apples} />
       </Canvas>
 
-      {/* touch aim + tap-to-pick layer */}
-      <View style={StyleSheet.absoluteFill} {...pan.panHandlers} pointerEvents={done ? "none" : "auto"} />
+      {/* unified touch controller: walk (bottom-left) + look + tap-to-pick, all at once */}
+      <View style={StyleSheet.absoluteFill} {...controls.panHandlers} pointerEvents={done ? "none" : "auto"} />
 
-      {/* movement joystick (left) */}
+      {/* movement joystick (left) — visual only; touches handled by the controller above */}
       {!done && (
-        <View style={styles.joyBase} {...joy.panHandlers}>
+        <View style={styles.joyBase} pointerEvents="none">
           <View style={styles.joyRing} pointerEvents="none" />
           <View pointerEvents="none" style={[styles.joyThumb, { transform: [{ translateX: thumb.x }, { translateY: thumb.y }] }]}>
             <MaterialCommunityIcons name="arrow-all" size={22} color="rgba(255,255,255,0.9)" />
