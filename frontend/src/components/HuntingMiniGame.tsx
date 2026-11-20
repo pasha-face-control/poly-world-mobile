@@ -20,6 +20,10 @@ const START_Z = -13;
 const PLAYER_START_Z = 16; // spawn the hunter far from the bull for a wander through the forest
 const AGGRO_RANGE = 18; // the bull only engages once the hunter roams within this distance
 
+// Aim sensitivity presets (radians of turn per px dragged). Lower = steadier aim.
+const SENS_LEVELS = { Low: 0.00015, Med: 0.00024, High: 0.00038 } as const;
+type SensLevel = keyof typeof SENS_LEVELS;
+
 // Shared mutable control object between the RN overlay and the 3D scene.
 interface Ctrl {
   yaw: number;
@@ -59,6 +63,10 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
     yawFacing: 0, // smoothed heading — head (local +Z) leads the run
     vx: 0,
     strafe: 0,
+    strafeFreq: 6,
+    chargeSpeed: 6.5,
+    wanderTX: 0,
+    wanderTZ: START_Z,
     deadT: 0,
     hitFlashT: 0,
     // arrow projectile
@@ -69,6 +77,11 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
     scene.background = new THREE.Color("#8Fc6d8");
     scene.fog = new THREE.Fog("#8Fc6d8", 28, 70);
     camera.position.set(0, 1.65, PLAYER_START_Z);
+    // Randomise where the bull starts and its first roam target so each hunt differs.
+    g.current.pos.x = (Math.random() * 2 - 1) * 8;
+    g.current.prevPos.copy(g.current.pos);
+    g.current.wanderTX = (Math.random() * 2 - 1) * 10;
+    g.current.wanderTZ = START_Z + (Math.random() * 2 - 1) * 5;
   }, [scene, camera]);
 
   const finish = (r: Result) => {
@@ -122,16 +135,25 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
         const pz = camera.position.z;
         switch (st.state) {
           case "wander": {
-            // roam gently around the home area
-            st.pos.x += Math.sin(st.stateT * 1.3) * 0.8 * delta;
-            st.pos.z += Math.sin(st.stateT * 0.7) * 0.3 * delta;
-            st.pos.z = Math.max(START_Z - 3, Math.min(-8, st.pos.z));
+            // Roam toward a RANDOM point near home (re-picked each decision) so the bull's
+            // path is unpredictable rather than a fixed sweep.
+            const dxw = st.wanderTX - st.pos.x, dzw = st.wanderTZ - st.pos.z;
+            const lw = Math.hypot(dxw, dzw) || 1;
+            st.pos.x += (dxw / lw) * 1.7 * delta;
+            st.pos.z += (dzw / lw) * 1.7 * delta;
             const dist = Math.hypot(px - st.pos.x, pz - st.pos.z);
-            if (st.stateT > st.nextDecide) {
-              st.state = dist < AGGRO_RANGE && Math.random() < 0.85 ? "charge" : "wander";
+            if (st.stateT > st.nextDecide || lw < 0.7) {
+              if (dist < AGGRO_RANGE && Math.random() < 0.8) {
+                st.state = "charge";
+                st.chargeSpeed = 5.5 + Math.random() * 3.5; // varied lunge speed
+                st.strafe = (Math.random() - 0.5) * 2; // varied juke direction/strength
+                st.strafeFreq = 4 + Math.random() * 4;
+              } else {
+                st.wanderTX = (Math.random() * 2 - 1) * 10;
+                st.wanderTZ = START_Z + (Math.random() * 2 - 1) * 5;
+              }
               st.stateT = 0;
-              st.nextDecide = 1.0 + Math.random() * 1.6;
-              st.strafe = (Math.random() - 0.5) * 2;
+              st.nextDecide = 0.8 + Math.random() * 1.6;
             }
             break;
           }
@@ -141,9 +163,9 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
             const nx = toX / len, nz = toZ / len;
             // perpendicular strafe so shots still require aim
             const perpX = -nz, perpZ = nx;
-            const strafeAmt = Math.sin(st.stateT * 6) * st.strafe * 2.2;
-            st.pos.x += (nx * 6.5 + perpX * strafeAmt) * delta;
-            st.pos.z += (nz * 6.5 + perpZ * strafeAmt) * delta;
+            const strafeAmt = Math.sin(st.stateT * st.strafeFreq) * st.strafe * 2.4;
+            st.pos.x += (nx * st.chargeSpeed + perpX * strafeAmt) * delta;
+            st.pos.z += (nz * st.chargeSpeed + perpZ * strafeAmt) * delta;
             if (len <= 2.2) {
               st.state = "gore";
               st.stateT = 0;
@@ -193,6 +215,16 @@ function Scene({ ctrl, hud }: { ctrl: React.MutableRefObject<Ctrl>; hud: HudApi 
         // keep the bull inside the field
         st.pos.x = Math.max(-14, Math.min(14, st.pos.x));
         st.pos.z = Math.max(START_Z - 4, Math.min(20, st.pos.z));
+
+        // Tree avoidance: push the bull out of trunks and hard-block so it can never merge
+        // into a tree — this is what let the player "shoot it through the trunk" before.
+        if (st.state !== "dead") {
+          const rep = treeRepulsion(st.pos.x, st.pos.z, BULL_RADIUS);
+          st.pos.x += rep.rx * 5 * delta;
+          st.pos.z += rep.rz * 5 * delta;
+          if (treeBlocksPoint(st.pos.x, st.prevPos.z, BULL_RADIUS)) st.pos.x = st.prevPos.x;
+          if (treeBlocksPoint(st.pos.x, st.pos.z, BULL_RADIUS)) st.pos.z = st.prevPos.z;
+        }
 
         if (grp) {
           grp.position.set(st.pos.x, 0, st.pos.z);
@@ -455,6 +487,24 @@ const TREE_OBSTACLES: TreeObstacle[] = SCENERY_ITEMS.filter((it) => it.tree).map
 }));
 
 const PLAYER_RADIUS = 0.32;
+const BULL_RADIUS = 0.85; // keeps the bull's body clear of tree trunks
+
+// Soft push-away from any trunk the bull gets too close to, so it steers AROUND trees.
+function treeRepulsion(x: number, z: number, radius: number): { rx: number; rz: number } {
+  let rx = 0, rz = 0;
+  for (let i = 0; i < TREE_OBSTACLES.length; i++) {
+    const ob = TREE_OBSTACLES[i];
+    const dx = x - ob.x, dz = z - ob.z;
+    const d = Math.hypot(dx, dz) || 1;
+    const min = ob.trunkR + radius + 0.9;
+    if (d < min) {
+      const f = (min - d) / min;
+      rx += (dx / d) * f;
+      rz += (dz / d) * f;
+    }
+  }
+  return { rx, rz };
+}
 
 // Simple XZ circle test against every trunk — stops the hunter from walking through trees.
 function treeBlocksPoint(x: number, z: number, extraRadius = 0): boolean {
@@ -532,6 +582,9 @@ export default function HuntingMiniGame({ onFinish }: Props) {
   const [flashKey, setFlashKey] = useState(0);
   const [thumb, setThumb] = useState({ x: 0, y: 0 });
   const flashOn = useRef(false);
+  const [sens, setSens] = useState<SensLevel>("Med");
+  const sensRef = useRef(SENS_LEVELS.Med);
+  useEffect(() => { sensRef.current = SENS_LEVELS[sens]; }, [sens]);
 
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
@@ -564,8 +617,9 @@ export default function HuntingMiniGame({ onFinish }: Props) {
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
         onPanResponderMove: (_e, gesture) => {
-          ctrl.current.yaw -= gesture.dx * 0.00035;
-          ctrl.current.pitch -= gesture.dy * 0.00035;
+          const s = sensRef.current;
+          ctrl.current.yaw -= gesture.dx * s;
+          ctrl.current.pitch -= gesture.dy * s;
           ctrl.current.yaw = Math.max(-1.2, Math.min(1.2, ctrl.current.yaw));
           ctrl.current.pitch = Math.max(-0.5, Math.min(0.4, ctrl.current.pitch));
         },
@@ -660,6 +714,18 @@ export default function HuntingMiniGame({ onFinish }: Props) {
         </View>
       </View>
 
+      {/* Aim sensitivity toggle (top-right) */}
+      {!result && (
+        <Pressable
+          style={styles.sensBtn}
+          testID="hunt-sens"
+          onPress={() => setSens((s) => (s === "Low" ? "Med" : s === "Med" ? "High" : "Low"))}
+        >
+          <MaterialCommunityIcons name="tune-variant" size={16} color="#fff" />
+          <Text style={styles.sensText}>Aim: {sens}</Text>
+        </Pressable>
+      )}
+
       {/* Shoot button */}
       {!result && (
         <Pressable style={styles.shootBtn} onPress={shoot} testID="hunt-shoot">
@@ -709,6 +775,8 @@ const styles = StyleSheet.create({
   barBg: { width: 80, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.25)", overflow: "hidden" },
   barFill: { height: 8, borderRadius: 4 },
   hudNum: { color: "#fff", fontWeight: "900", fontSize: 14, minWidth: 18, textAlign: "center" },
+  sensBtn: { position: "absolute", top: 16, right: 20, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(20,20,20,0.55)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  sensText: { color: "#fff", fontWeight: "900", fontSize: 13 },
   shootBtn: { position: "absolute", right: 26, bottom: 26, width: 92, height: 92, borderRadius: 46, backgroundColor: "rgba(188,71,73,0.92)", alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "rgba(255,255,255,0.7)" },
   shootLabel: { color: "#fff", fontWeight: "900", fontSize: 12, marginTop: 2, letterSpacing: 1 },
   joyBase: { position: "absolute", left: 28, bottom: 28, width: 128, height: 128, borderRadius: 64, alignItems: "center", justifyContent: "center" },

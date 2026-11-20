@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   hudNum: { color: "#fff", fontWeight: "900", fontSize: 14, minWidth: 16, textAlign: "center" },
   hint: { position: "absolute", top: 18, alignSelf: "center", backgroundColor: "rgba(20,20,20,0.5)", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999 },
   hintText: { color: "#fff", fontSize: 15, fontWeight: "900", letterSpacing: 0.5 },
-  actionBtn: { position: "absolute", right: 26, bottom: 26, width: 96, height: 96, borderRadius: 48, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "rgba(255,255,255,0.7)" },
+  actionBtn: { position: "absolute", right: 26, bottom: 96, width: 96, height: 96, borderRadius: 48, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "rgba(255,255,255,0.7)" },
   actionLabel: { color: "#fff", fontWeight: "900", fontSize: 12, marginTop: 2, letterSpacing: 1 },
   resultOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(20,20,20,0.6)", alignItems: "center", justifyContent: "center", padding: 24 },
   resultCard: { width: "100%", maxWidth: 340, backgroundColor: "#F8F6F0", borderRadius: 20, padding: 24, alignItems: "center", gap: 8 },

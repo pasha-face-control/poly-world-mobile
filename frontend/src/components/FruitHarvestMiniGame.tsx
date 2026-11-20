@@ -45,6 +45,10 @@ const TRUNK_COLLIDE_R = 0.62;
 const PLAYER_RADIUS = 0.3;
 const PLAYER_START_Z = 9;
 
+// Aim sensitivity presets (radians per px dragged). Lower = steadier aim.
+const SENS_LEVELS = { Low: 0.00015, Med: 0.00024, High: 0.00038 } as const;
+type SensLevel = keyof typeof SENS_LEVELS;
+
 // Generate apples: each tree gets 2-5 apples, with a 10% chance every tree gets 5.
 function buildApples(): Apple[] {
   const bonanza = Math.random() < 0.1;
@@ -190,6 +194,9 @@ export default function FruitHarvestMiniGame({ onFinish }: Props) {
   const [done, setDone] = useState(false);
   const [thumb, setThumb] = useState({ x: 0, y: 0 });
   const dims = useRef({ w: 1, h: 1 });
+  const [sens, setSens] = useState<SensLevel>("Med");
+  const sensRef = useRef(SENS_LEVELS.Med);
+  useEffect(() => { sensRef.current = SENS_LEVELS[sens]; }, [sens]);
 
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
@@ -220,9 +227,10 @@ export default function FruitHarvestMiniGame({ onFinish }: Props) {
         },
         onPanResponderMove: (_e, gesture) => {
           if (Math.abs(gesture.dx) + Math.abs(gesture.dy) > 8) tapState.current.moved = true;
-          ctrl.current.yaw -= gesture.dx * 0.00035;
-          ctrl.current.pitch -= gesture.dy * 0.00035;
-          ctrl.current.yaw = Math.max(-Math.PI, Math.min(Math.PI, ctrl.current.yaw));
+          const s = sensRef.current;
+          ctrl.current.yaw -= gesture.dx * s;
+          ctrl.current.pitch -= gesture.dy * s;
+          // No yaw clamp — the player can spin a full 360° to look all around.
           ctrl.current.pitch = Math.max(-0.6, Math.min(0.5, ctrl.current.pitch));
         },
         onPanResponderRelease: () => {
@@ -312,6 +320,18 @@ export default function FruitHarvestMiniGame({ onFinish }: Props) {
         </View>
       </View>
 
+      {/* Aim sensitivity toggle (top-right) */}
+      {!done && (
+        <Pressable
+          style={styles.sensBtn}
+          testID="fruit-sens"
+          onPress={() => setSens((s) => (s === "Low" ? "Med" : s === "Med" ? "High" : "Low"))}
+        >
+          <MaterialCommunityIcons name="tune-variant" size={16} color="#fff" />
+          <Text style={styles.sensText}>Look: {sens}</Text>
+        </Pressable>
+      )}
+
       <View pointerEvents="none" style={styles.hint}>
         <Text style={styles.hintText}>Left stick to walk · drag to look · tap the apples to pick them · circle each tree</Text>
       </View>
@@ -338,6 +358,8 @@ const styles = StyleSheet.create({
   hudTop: { position: "absolute", top: 16, left: 20, flexDirection: "row", gap: 12 },
   hudPill: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(20,20,20,0.55)", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
   hudNum: { color: "#fff", fontWeight: "900", fontSize: 15, textAlign: "center" },
+  sensBtn: { position: "absolute", top: 16, right: 20, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(20,20,20,0.55)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  sensText: { color: "#fff", fontWeight: "900", fontSize: 13 },
   joyBase: { position: "absolute", left: 28, bottom: 28, width: 128, height: 128, borderRadius: 64, alignItems: "center", justifyContent: "center" },
   joyRing: { ...StyleSheet.absoluteFillObject, borderRadius: 64, backgroundColor: "rgba(20,20,20,0.32)", borderWidth: 2, borderColor: "rgba(255,255,255,0.35)" },
   joyThumb: { width: 56, height: 56, borderRadius: 28, backgroundColor: "rgba(255,255,255,0.28)", borderWidth: 2, borderColor: "rgba(255,255,255,0.6)", alignItems: "center", justifyContent: "center" },
